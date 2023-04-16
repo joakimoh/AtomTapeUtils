@@ -7,7 +7,7 @@ The WAV file must be a 44.1 kHz/16-bit/mono PCM file.
 Filter the WAV file *my_tape.wav* to clean it up a bit before trying to decode it.
 (This filtering can be skipped if you already have an audio file of excellent quality.)
 
-> filtertape my_tape.wav -o my_filtered_tape.wave
+> FilterTape my_tape.wav -o my_filtered_tape.wave
 
 Then extract programs from it
 
