@@ -14,11 +14,11 @@ Then extract programs from it
 > ScanTape my_filtered_tape.wav -g my_files_dir
 
 For each detected Acorn Atom program file, the following files will be generated and stored in the directory *my_files_dir*:
-- <program name>.abc - text file with the BASIC program (looks as it would appear when listed on the Acorn Atom)
-- <program name>.dat - hex dump of the same program file (useful if the program includes binary data)
-- <program name>.uef - UEF file that can be loaded into an Acorn Atom emulator like Atomulator
-- <program name> - MMC file that can be stored on an SD memory card (or in the MMC directory of Atomulator) for use with an AtoMMC device connected to an Acorn Atom
-- <program name>.tap - ATM file ("Wouter Ras" format) that can be loaded into an Acorn Atom emulator like the one from Wouter Ras
+- *program name*.abc - text file with the BASIC program (looks as it would appear when listed on the Acorn Atom)
+- *program name*.dat - hex dump of the same program file (useful if the program includes binary data)
+- *program name*.uef - UEF file that can be loaded into an Acorn Atom emulator like Atomulator
+- *program name* - MMC file that can be stored on an SD memory card (or in the MMC directory of Atomulator) for use with an AtoMMC device connected to an Acorn Atom
+- *program name*.tap - ATM file ("Wouter Ras" format) that can be loaded into an Acorn Atom emulator like the one from Wouter Ras
 
 The program name will be used as the file name. Any detected non-alphanumeric characters will however be replaced with \_XX in the generated file's name where XX is the hex code for the character. If the decoded file is corrupted, then only the .abc and .dat files are generated and the file name base will be *program name*\_incomplete*\_*n1*\_*n2* where n1 and n2 tell which blocks of the program were detected (from block n1 to block n2). If a block is just partially detected, the missing data bytes will be replaced with zeroes in the generated files. Thus, it is possible to recover partially read files to some extent.
 
