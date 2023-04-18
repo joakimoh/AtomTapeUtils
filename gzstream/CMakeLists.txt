@@ -1,6 +1,9 @@
 add_library(gzstream gzstream.cpp)
 
+# Locate zlib
+find_package(ZLIB REQUIRED)
+
 include_directories(
     "${CMAKE_SOURCE_DIR}/gzstream"
-	"${CMAKE_SOURCE_DIR}/zlib"					  
+	${ZLIB_INCLUDE_DIRS}
 )

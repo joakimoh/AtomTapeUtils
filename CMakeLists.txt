@@ -7,11 +7,24 @@ set(CMAKE_CXX_STANDARD 17)
 
 project ("AtomTapeUtils")
 
+# Make sure a dynamic library (for ZLIB) is chosen first if available
+set(CMAKE_FIND_STATIC LAST)
+
+# Locate zlib
+find_package(ZLIB REQUIRED)
+
+
+
+# Create sub directory for gzstream library
 add_subdirectory(gzstream)
 
-add_executable(test "Test/Test.cpp" "shared/Utility.h" "shared/Utility.cpp")
+#
+include_directories(
+    "${PROJECT_BINARY_DIR}"
+    "${CMAKE_SOURCE_DIR}/gzstream"	
+	${ZLIB_INCLUDE_DIRS}
+)
 
-add_executable(GenAbcData "GenAbcData/GenAbcData.cpp")
 
 add_executable ( 
 	inspectfile "inspectfile/InspectFile.cpp"
@@ -28,52 +41,49 @@ add_executable (
 	"mmc2abc/ArgParser.h"  "mmc2abc/ArgParser.cpp"
 	"shared/DataCodec.h" "shared/DataCodec.cpp"  
 	"shared/Utility.h" "shared/Utility.cpp"
-	"shared/UEFCodec.h" "shared/UEFCodec.cpp"
 	"shared/TAPCodec.h" "shared/TAPCodec.cpp"
 	"shared/MMCCodec.h" "shared/MMCCodec.cpp"
 	"shared/AtomBasicCodec.h" "shared/AtomBasicCodec.cpp"
 )
 
-target_link_libraries(mmc2abc PUBLIC gzstream "${CMAKE_SOURCE_DIR}/zlib/zlib.lib")
+
+target_link_libraries(mmc2abc)
 
 add_executable ( 
 	mmc2dat  "mmc2dat/mmc2dat.cpp"
 	"mmc2dat/ArgParser.h"  "mmc2dat/ArgParser.cpp"
 	"shared/DataCodec.h" "shared/DataCodec.cpp"  
 	"shared/Utility.h" "shared/Utility.cpp"
-	"shared/UEFCodec.h" "shared/UEFCodec.cpp"
 	"shared/TAPCodec.h" "shared/TAPCodec.cpp"
 	"shared/MMCCodec.h" "shared/MMCCodec.cpp"
 	"shared/AtomBasicCodec.h" "shared/AtomBasicCodec.cpp"
 )
 
-target_link_libraries(mmc2dat PUBLIC gzstream "${CMAKE_SOURCE_DIR}/zlib/zlib.lib")
+target_link_libraries(mmc2dat)
 
 add_executable ( 
 	dat2mmc  "dat2mmc/dat2mmc.cpp"
 	"dat2mmc/ArgParser.h"  "dat2mmc/ArgParser.cpp"
 	"shared/DataCodec.h" "shared/DataCodec.cpp"  
 	"shared/Utility.h" "shared/Utility.cpp"
-	"shared/UEFCodec.h" "shared/UEFCodec.cpp"
 	"shared/TAPCodec.h" "shared/TAPCodec.cpp"
 	"shared/AtomBasicCodec.h" "shared/AtomBasicCodec.cpp"
 	"shared/MMCCodec.h" "shared/MMCCodec.cpp"
 )
 
-target_link_libraries(dat2mmc PUBLIC gzstream "${CMAKE_SOURCE_DIR}/zlib/zlib.lib")
+target_link_libraries(dat2mmc)
 
 add_executable ( 
 	abc2mmc  "abc2mmc/abc2mmc.cpp"
 	"abc2mmc/ArgParser.h"  "abc2mmc/ArgParser.cpp"
 	"shared/DataCodec.h" "shared/DataCodec.cpp"  
 	"shared/Utility.h" "shared/Utility.cpp"
-	"shared/UEFCodec.h" "shared/UEFCodec.cpp"
 	"shared/TAPCodec.h" "shared/TAPCodec.cpp"
 	"shared/AtomBasicCodec.h" "shared/AtomBasicCodec.cpp"
 	"shared/MMCCodec.h" "shared/MMCCodec.cpp"
 )
 
-target_link_libraries(abc2mmc PUBLIC gzstream "${CMAKE_SOURCE_DIR}/zlib/zlib.lib")
+target_link_libraries(abc2mmc)
 
 add_executable ( 
 	dat2uef  "dat2uef/dat2uef.cpp"
@@ -85,7 +95,7 @@ add_executable (
 	"shared/AtomBasicCodec.h" "shared/AtomBasicCodec.cpp"
 )
 
-target_link_libraries(dat2uef PUBLIC gzstream "${CMAKE_SOURCE_DIR}/zlib/zlib.lib")
+target_link_libraries(dat2uef PUBLIC gzstream PRIVATE ZLIB::ZLIB)
 
  add_executable ( 
 	abc2dat "abc2dat/abc2dat.cpp" 
@@ -111,15 +121,7 @@ target_link_libraries(dat2uef PUBLIC gzstream "${CMAKE_SOURCE_DIR}/zlib/zlib.lib
 	"shared/Compress.cpp" "shared/Compress.cpp"
 )
 
-target_link_libraries(abc2uef PUBLIC gzstream "${CMAKE_SOURCE_DIR}/zlib/zlib.lib")
-
-
-include_directories(
-    "${PROJECT_BINARY_DIR}"
-    "${CMAKE_SOURCE_DIR}/gzstream"
-	"${CMAKE_SOURCE_DIR}/zlib"
-						  
-)
+target_link_libraries(abc2uef PUBLIC gzstream PUBLIC ZLIB::ZLIB)
 
  add_executable ( 
 	abc2wav "abc2wav/abc2wav.cpp" 
@@ -166,7 +168,7 @@ add_executable (
 	"shared/TapeProperties.h" "shared/PcmFile.h"  "shared/PcmFile.cpp"
 )
 
-target_link_libraries(uef2abc PUBLIC gzstream "${CMAKE_SOURCE_DIR}/zlib/zlib.lib")
+target_link_libraries(uef2abc PUBLIC gzstream PRIVATE ZLIB::ZLIB)
 
 add_executable(
 	ScanTape "ScanTape/ScanTape.cpp"
@@ -185,7 +187,7 @@ add_executable(
 	"shared/MMCCodec.h" "shared/MMCCodec.cpp"
 )
 
-target_link_libraries(ScanTape PUBLIC gzstream "${CMAKE_SOURCE_DIR}/zlib/zlib.lib")
+target_link_libraries(ScanTape PUBLIC gzstream PRIVATE ZLIB::ZLIB)
 
 add_executable(
 	abc2all "abc2all/abc2all.cpp"
@@ -200,7 +202,7 @@ add_executable(
 	"shared/MMCCodec.h" "shared/MMCCodec.cpp"
 )
 
-target_link_libraries(abc2all PUBLIC gzstream "${CMAKE_SOURCE_DIR}/zlib/zlib.lib")
+ target_link_libraries(abc2all PUBLIC gzstream PRIVATE ZLIB::ZLIB)
 
  add_executable(
 	 FilterTape "FilterTape/FilterTape.cpp" "FilterTape/ArgParser.cpp" "FilterTape/ArgParser.h"
@@ -210,8 +212,8 @@ target_link_libraries(abc2all PUBLIC gzstream "${CMAKE_SOURCE_DIR}/zlib/zlib.lib
  )
 
 
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET abc2uef PROPERTY CXX_STANDARD 20)
-endif()
+#if (CMAKE_VERSION VERSION_GREATER 3.12)
+#  set_property(TARGET abc2uef PROPERTY CXX_STANDARD 20)
+#endif()
 
 # TODO: Add tests and install targets if needed.
