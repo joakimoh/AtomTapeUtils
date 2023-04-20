@@ -4,6 +4,7 @@
 #define COMMON_TYPES_H
 
 #include <vector>
+#include <cstdint>
 
 using namespace std;
 

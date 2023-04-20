@@ -87,7 +87,7 @@ bool WavEncoder::encode(string& filePath)
         if (!writeTone(lead_tone_duration)) {
             DBG_PRINT(ERR, "Failed to write lead tone of duration %f s\n", lead_tone_duration);
         }
-        DBG_PRINT(DBG, "Lead tone written\n");
+        DBG_PRINT(DBG, "Lead tone written%s\n", "");
 
         // Change lead tone duration for remaining blocks
         lead_tone_duration = other_block_lead_tone_duration;
@@ -145,7 +145,7 @@ bool WavEncoder::encode(string& filePath)
         while (hdr_iter < header_data.end())
             writeByte(*hdr_iter++);
 
-        DBG_PRINT(DBG, "Block header written\n");
+        DBG_PRINT(DBG, "Block header written%s\n", "");
      
 
         // --------------------------------------------------------------------------
@@ -158,7 +158,7 @@ bool WavEncoder::encode(string& filePath)
             DBG_PRINT(ERR, "Failed to write micro lead tone of duration %f s\n", data_block_micro_lead_tone_duration)
         }
 
-        DBG_PRINT(DBG, "Micro lead tone written\n");
+        DBG_PRINT(DBG, "Micro lead tone written%s\n", "");
 
 
         // --------------------- start of block data + CRC chunk ------------------------
@@ -178,7 +178,7 @@ bool WavEncoder::encode(string& filePath)
         while (data_iter < block_data.end())
             writeByte(*data_iter++);
 
-        DBG_PRINT(DBG, "Block data written\n");
+        DBG_PRINT(DBG, "Block data written%s\n", "");
         
 
 
@@ -189,11 +189,11 @@ bool WavEncoder::encode(string& filePath)
         // Encode CRC byte
 
         if (!writeByte(mCRC)) {
-            DBG_PRINT(ERR, "Failed to encode CRC\n");
+            DBG_PRINT(ERR, "Failed to encode CRC!%s\n", "");
             return false;
         }
 
-        DBG_PRINT(DBG, "CRC written\n");
+        DBG_PRINT(DBG, "CRC written%s\n", "");
 
         ATM_block_iter++;
 
@@ -216,7 +216,7 @@ bool WavEncoder::encode(string& filePath)
             DBG_PRINT(ERR, "Failed to encode a gap of %f s\n", block_gap);
         }
 
-        DBG_PRINT(DBG, "Block gap written\n");
+        DBG_PRINT(DBG, "Block gap written%s\n", "");
 
 
         DBG_PRINT(DBG, "Block #%d written\n", block_no);
@@ -231,12 +231,12 @@ bool WavEncoder::encode(string& filePath)
     // Write samples to WAV file
     Samples samples_v[] = { mSamples };
     if (!writeSamples(filePath, samples_v, 1)) {
-        DBG_PRINT(ERR, "Failed to write samples!\n");
+        DBG_PRINT(ERR, "Failed to write samples!%s\n", "");
         return false;
     }
 
 
-    DBG_PRINT(DBG, "WAV file completed!\n");
+    DBG_PRINT(DBG, "WAV file completed!%s\n", "");
 
     // Clear samples to secure that future encodings start without any initial samples
     mSamples.clear();
@@ -317,7 +317,7 @@ bool WavEncoder::writeStartBit()
     int n_cycles = mStartBitCycles;
 
     if (!writeCycle(false, n_cycles)) {
-        DBG_PRINT(ERR, "Failed to encode start bit\n");
+        DBG_PRINT(ERR, "Failed to encode start bit%s\n", "");
         return false;
     }
 
@@ -329,7 +329,7 @@ bool WavEncoder::writeStopBit()
     int n_cycles = mStopBitCycles;
 
     if (!writeCycle(true, n_cycles)) {
-        DBG_PRINT(ERR, "Failed to encode stop bit\n");
+        DBG_PRINT(ERR, "Failed to encode stop bit%s\n", "");
         return false;
     }
 

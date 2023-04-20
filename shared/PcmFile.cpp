@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <string.h>
 #include "PcmFile.h"
 #include <sstream>
 #include <iomanip>

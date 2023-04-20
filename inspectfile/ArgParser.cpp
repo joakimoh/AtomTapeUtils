@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include "../shared/Utility.h"
+#include <string.h>
 
 using namespace std;
 

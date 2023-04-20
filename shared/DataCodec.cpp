@@ -40,7 +40,7 @@ bool DataCodec::encode(string& filePath)
 
     ofstream fout(filePath);
     if (!fout) {
-        DBG_PRINT(ERR, "Can't write to DATA file '%s'!\n", filePath.c_str());
+        DBG_PRINT(DBG, "Can't write to DATA file '%s'!\n", filePath.c_str());
         return false;
     }
 
@@ -68,13 +68,13 @@ bool DataCodec::encode(string& filePath)
                 if (ATM_block_iter->data.end() - bi < 16)
                     line_sz = ATM_block_iter->data.end() - bi;
                 li = bi;
-                sprintf_s(s, "%.4x ", load_adr);
+                sprintf(s, "%.4x ", load_adr);
                 fout << s;
                 c = 0;
                 new_line = false;
             }
 
-            sprintf_s(s, "%.2x ", int(*bi++));
+            sprintf(s, "%.2x ", int(*bi++));
             fout << s;
 
             if (c == line_sz - 1) {
@@ -104,7 +104,7 @@ bool DataCodec::encode(string& filePath)
 
     fout.close();
 
-    DBG_PRINT(DBG, "DATA file '%s' created from %d blocks...\n", filePath.c_str(), mTapFile.blocks.size());
+    DBG_PRINT(ERR, "DATA file '%s' created from %lu blocks...\n", filePath.c_str(), mTapFile.blocks.size());
 
 
     return true;
@@ -175,7 +175,7 @@ bool DataCodec::decode(string& dataFileName)
     int load_address;
 
     if (!decode2Bytes(dataFileName, load_address, data)) {
-        DBG_PRINT(DBG, "Failed to decode bytes");
+        DBG_PRINT(DBG, "Failed to decode bytes for file '%s'\n", dataFileName.c_str());
         return false;
     }
  

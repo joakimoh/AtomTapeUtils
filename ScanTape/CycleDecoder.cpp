@@ -1,5 +1,6 @@
+#include "../shared/CommonTypes.h"
 #include "CycleDecoder.h"
-#include "../shared/debug.h"
+#include "../shared/Debug.h"
 #include "ArgParser.h"
 #include "../shared/WaveSampleTypes.h"
 
@@ -123,7 +124,7 @@ bool CycleDecoder::getNextCycle(CycleSample& cycleSample)
 	// Get second phase samples
 	if (!getSameLevelCycles(n_samples_second_phase)) {
 		if (mTracing)
-			DEBUG_PRINT(getTime(), DBG, "Failed to read second phase of cycle\n");
+			DEBUG_PRINT(getTime(), DBG, "Failed to read second phase of cycle%s\n", "");
 		return false;
 	}
 

@@ -3,6 +3,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iostream>
+#include <string.h>
 #include "UEFCodec.h"
 #include "CommonTypes.h"
 #include "BlockTypes.h"
@@ -10,6 +11,7 @@
 #include "Utility.h"
 #include "AtomBasicCodec.h"
 #include "BlockTypes.h"
+
 
 
 using namespace std;
@@ -173,7 +175,7 @@ bool UEFCodec::encode(string &filePath)
     }
 
 
-    DBG_PRINT(DBG, "Data-independent part of EUF file written.\n");
+    DBG_PRINT(DBG, "Data-independent part of EUF file written.%s\n", "");
 
 
 
@@ -260,7 +262,7 @@ bool UEFCodec::encode(string &filePath)
 
 
         if (!writeData104Chunk(fout, 8, 'N', -1, header_data, CRC)) {
-            DBG_PRINT(ERR, "Failed to write block header data chunk\n");
+            DBG_PRINT(ERR, "Failed to write block header data chunk%s\n", "");
         }
 
 
@@ -295,7 +297,7 @@ bool UEFCodec::encode(string &filePath)
         while (bi < ATM_block_iter->data.end())
             block_data.push_back(*bi++);
         if (!writeData104Chunk(fout, 8, 'N', -1, block_data, CRC)) {
-            DBG_PRINT(ERR, "Failed to write block header data chunk\n");
+            DBG_PRINT(ERR, "Failed to write block header data chunk%s\n", "");
         }
 
 
@@ -314,7 +316,7 @@ bool UEFCodec::encode(string &filePath)
         Byte dummy = 0;
         CRC_data.push_back(CRC);
         if (!writeData100Chunk(fout, CRC_data, dummy)) {
-            DBG_PRINT(ERR, "Failed to write CRC data chunk\n");
+            DBG_PRINT(ERR, "Failed to write CRC data chunk%s\n", "");
         }
 
         ATM_block_iter++;
@@ -351,7 +353,7 @@ bool UEFCodec::encode(string &filePath)
     }
 
 
-    DBG_PRINT(DBG, "UEF file completed!\n");
+    DBG_PRINT(DBG, "UEF file completed!%s\n", "");
 
     fout.close();
 
@@ -413,14 +415,14 @@ bool UEFCodec::decode(string &uefFileName)
             case 0x0116:
             {
                 if (chunk_sz != 4) {
-                    DBG_PRINT(ERR, "Size of Format change chunk 0116 has an incorrect chunk size %d (should have been %d)\n", chunk_sz, 4);
+                    DBG_PRINT(ERR, "Size of Format change chunk 0116 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 4);
                     return false;
                 }
                 FPGap0116 gap_chunk;
                 fin.read((char*)gap_chunk.gap, sizeof(gap_chunk.gap));
                 float gap;
                 if (!decodeFloat(gap_chunk.gap, gap)) {
-                    DBG_PRINT(ERR, "Failed to decode IEEE 754 gap\n");
+                    DBG_PRINT(ERR, "Failed to decode IEEE 754 gap%s\n", "");
                 }
                 DBG_PRINT(DBG, "Format change chunk 0116 of size %ld and specifying a gap of %f s\n", chunk_sz, gap);
 
@@ -430,14 +432,14 @@ bool UEFCodec::decode(string &uefFileName)
             case 0x0113:
             {              
                 if (chunk_sz != 4) {
-                    DBG_PRINT(ERR, "Size of Format change chunk 0113 has an incorrect chunk size %d (should have been %d)\n", chunk_sz, 4);
+                    DBG_PRINT(ERR, "Size of Format change chunk 0113 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 4);
                     return false;
                 }
                 BaseFreqChangeChunk0113 gap_chunk;
                 fin.read((char*)gap_chunk.frequency, sizeof(gap_chunk.frequency));
                 float f;
                  if (!decodeFloat(gap_chunk.frequency, f)) {
-                    DBG_PRINT(ERR, "Failed to decode IEEE 754 gap\n");
+                    DBG_PRINT(ERR, "Failed to decode IEEE 754 gap%s\n", "");
                 }
                 DBG_PRINT(DBG, "Format change chunk 0113 of size %ld and specifying a frequency of %f Hz\n", chunk_sz, f);
 
@@ -448,7 +450,7 @@ bool UEFCodec::decode(string &uefFileName)
             case 0x117: // Format Change Chunk 0117: baudrate = value
             {          
                 if (chunk_sz != 2) {
-                    DBG_PRINT(ERR, "Size of Format change chunk 0117 has an incorrect chunk size %d (should have been %d)\n", chunk_sz, 2);
+                    DBG_PRINT(ERR, "Size of Format change chunk 0117 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 2);
                     return false;
                 }
                 DataFormatChange0117 baudrate_chunk;
@@ -461,7 +463,7 @@ bool UEFCodec::decode(string &uefFileName)
             case 0x0115: // Phase Change Chunk 0115: phase = value
             {
                 if (chunk_sz != 2) {
-                    DBG_PRINT(ERR, "Size of Phase change chunk 0115 has an incorrect chunk size %d (should have been %d)\n", chunk_sz, 2);
+                    DBG_PRINT(ERR, "Size of Phase change chunk 0115 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 2);
                     return false;
                 }
                 PhaseChangeChunk0115 phase_chunk;
@@ -476,7 +478,7 @@ bool UEFCodec::decode(string &uefFileName)
             case 0x0112: // Baudwise Gap Chunk 0112: gap = value / (baud_rate  * 2)
             {
                 if (chunk_sz != 2) {
-                    DBG_PRINT(ERR, "Size of Baudwise gap chunk 0112 has an incorrect chunk size %d (should have been %d)\n", chunk_sz, 2);
+                    DBG_PRINT(ERR, "Size of Baudwise gap chunk 0112 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 2);
                     return false;
                 }
                 BaudwiseGapChunk0112 gap_chunk;
@@ -490,7 +492,7 @@ bool UEFCodec::decode(string &uefFileName)
             case 0x0110: // High Tone Chunk 0110: duration = value / (baud_rate * 2)
             {
                 if (chunk_sz != 2) {
-                    DBG_PRINT(ERR, "Size of High tone chunk 0110 has an incorrect chunk size %d (should have been %d)\n", chunk_sz, 2);
+                    DBG_PRINT(ERR, "Size of High tone chunk 0110 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 2);
                     return false;
                 }
                 HighToneChunk0110 tone_chunk;
@@ -600,7 +602,7 @@ bool UEFCodec::decode(string &uefFileName)
     }
 
 
-    DBG_PRINT(DBG, "\n\nUEF File bytes read - now to decode them as an Atom Tape File\n\n");
+    DBG_PRINT(DBG, "\n\nUEF File bytes read - now to decode them as an Atom Tape File%s\n\n", "");
 
 
 
@@ -630,7 +632,7 @@ bool UEFCodec::decode(string &uefFileName)
             DBG_PRINT(ERR, "Failed to read preamble bytes for block #%d.\n", block_no);
             return false;
         }
-        DBG_PRINT(DBG, "Preamble bytes successfully read\n");
+        DBG_PRINT(DBG, "Preamble bytes successfully read%s\n", "");
 
 
         // Read block name (up to 13 chars terminated by 0xd)
@@ -801,7 +803,7 @@ bool UEFCodec::writeUEFHeader(ogzstream&fout, Byte majorVersion, Byte minorVersi
     UefHdr hdr;
     fout.write((char*)&hdr, sizeof(hdr));
 
-    DBG_PRINT(DBG, "UEF Header 'EUF File!' written\n");
+    DBG_PRINT(DBG, "UEF Header 'EUF File!' written%s\n", "");
 
     return true;
 }
@@ -827,7 +829,7 @@ bool UEFCodec::writeFloatPrecGapChunk(ogzstream&fout, float duration)
     FPGap0116 chunk;
 
     if (!encodeFloat(duration, chunk.gap)) {
-        DBG_PRINT(ERR, "Failed to encode gap as float.\n");
+        DBG_PRINT(ERR, "Failed to encode gap as float of duriaion %f.\n", (double) duration);
         return false;
     }
     fout.write((char*)&chunk, sizeof(chunk));
@@ -885,7 +887,7 @@ bool UEFCodec::writeSecurityCyclesChunk(ogzstream& fout, int nCycles, Byte first
     string cycle_string = decode_security_cycles(hdr, cycles);
 
     DBG_PRINT(DBG, "Security cycles chunk 0114 of size %ld specifying %d security cycles with format '%c%c' and cycle bytes '%s' %s written\n",
-        chunk_sz, nCycles, hdr.firstPulse, hdr.lastPulse, cycle_string.c_str(), cycle_bytes.c_str()
+        (long int) chunk_sz, nCycles, hdr.firstPulse, hdr.lastPulse, cycle_string.c_str(), cycle_bytes.c_str()
     );
 
     return true;

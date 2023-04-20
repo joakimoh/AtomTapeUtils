@@ -4,6 +4,8 @@
 
 #include <iostream>
 #include <string>
+#include <cmath>
+
 
 using namespace std;
 
@@ -34,9 +36,9 @@ using namespace std;
 
 #define DEBUG(C, f, T, X, ...)  { \
 	if (X <= ERR && X  != 0 ) \
-		fprintf_s(f, "*E* " __VA_ARGS__); \
+		fprintf(f, "*E* " __VA_ARGS__); \
 	else if (C)\
-		fprintf_s(f, __VA_ARGS__); \
+		fprintf(f, __VA_ARGS__); \
 	fflush(f); \
 }
 

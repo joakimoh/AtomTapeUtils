@@ -23,7 +23,7 @@ bool AtomBasicCodec::encode(string & filePath)
 {
 
     if (mTapFile.blocks.empty()) {
-        DBG_PRINT(DBG, "TAP File is empty => no Program file created!\n");
+        DBG_PRINT(DBG, "TAP File '%s' is empty => no Program file created!\n", filePath.c_str());
         return false;
     }
 
@@ -80,7 +80,7 @@ bool AtomBasicCodec::encode(string & filePath)
                 line_pos = -1;
                 int line_no = line_no_high * 256 + line_no_low;
                 char line_no_s[7];
-                sprintf_s(line_no_s, "%5d", line_no);
+                sprintf(line_no_s, "%5d", line_no);
                 fout << line_no_s;
             }
             else if (*bi == 0xd) {
@@ -105,7 +105,7 @@ bool AtomBasicCodec::encode(string & filePath)
     if (!end_of_program)
         DBG_PRINT(DBG, "Program '%s' didn't terminate with 0xff!\n", mTapFile.blocks.front().hdr.name);
  
-    DBG_PRINT(DBG, "Program file '%s' created from %d blocks!\n", filePath.c_str(), mTapFile.blocks.size());
+    DBG_PRINT(DBG, "Program file '%s' created from %lu blocks!\n", filePath.c_str(), mTapFile.blocks.size());
 
     fout.close();
 
@@ -162,7 +162,7 @@ bool AtomBasicCodec::decode(string &programFileName)
     fin.close();
 
     BytesIter data_iterator = data.begin();
-    DBG_PRINT(DBG, "ABC Program byte vector:\n");
+    DBG_PRINT(DBG, "ABC Program byte vector for file '%s':\n", programFileName.c_str());
     logData(0x2900, data_iterator, data.size());
 
 

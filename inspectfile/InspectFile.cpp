@@ -65,14 +65,14 @@ int main(int argc, const char* argv[])
         int i;
         for (i = 0; i < 16 && line_iter < data.end(); i++) {
             char s[32];
-            sprintf_s(s, "%2.2x ", (int)*line_iter++);
+            sprintf(s, "%2.2x ", (int)*line_iter++);
             cout << s;
             if (write_to_file)
                 fout << s;
         }
         for (int j = i; j < 16; j++) {
             char s[32];
-            sprintf_s(s, "   ");
+            sprintf(s, "   ");
             cout << s;
             if (write_to_file)
                 fout << s;
@@ -82,9 +82,9 @@ int main(int argc, const char* argv[])
             char c = *line_iter++;
             char s[32];
             if (c >= 0x20 && c <= 0x7e)
-                sprintf_s(s, "%2c ", c);
+                sprintf(s, "%2c ", c);
             else
-                sprintf_s(s, "  .");
+                sprintf(s, "  .");
             cout << s;
             if (write_to_file)
                 fout << s;

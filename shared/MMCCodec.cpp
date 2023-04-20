@@ -122,7 +122,7 @@ bool MMCCodec::encode(string& filePath)
 
     
 
-    DBG_PRINT(DBG, "MMC file '%s' created from %d blocks...\n", filePath.c_str(), mTapFile.blocks.size());
+    DBG_PRINT(DBG, "MMC file '%s' created from %ld blocks...\n", filePath.c_str(), mTapFile.blocks.size());
 
     return true;
 
@@ -180,7 +180,7 @@ bool MMCCodec::decode(string& mmcFileName)
         data.push_back(c);
     }
 
-    DBG_PRINT(DBG, "%d data read from MMC file\n", data.size());
+    DBG_PRINT(DBG, "%ld data read from MMC file\n", data.size());
 
 
     //

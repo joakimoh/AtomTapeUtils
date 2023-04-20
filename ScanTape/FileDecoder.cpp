@@ -29,7 +29,7 @@ string timeToStr(double t) {
     int t_h = (int) trunc(t / 3600);
     int t_m = (int) trunc((t - t_h) / 60);
     double t_s = t - t_h * 3600 - t_m * 60;
-    sprintf_s(t_str, "%2d:%2d:%9.6f (%12f)", t_h, t_m, t_s, t);
+    sprintf(t_str, "%2d:%2d:%9.6f (%12f)", t_h, t_m, t_s, t);
     return string(t_str);
 }
 
@@ -216,7 +216,7 @@ bool FileDecoder::readFile(ofstream &logFile)
             next_load_adr = load_adr_UB;
 
             
-            sprintf_s(
+            sprintf(
                 s, "%15s %4x %4x %4x %2d %6s %3d %32s %32s\n", file_name.c_str(),
                 last_valid_load_adr, last_valid_load_adr_UB, last_valid_exec_adr, last_valid_block_no, _BLOCK_ORDER(last_valid_block_type), last_valid_block_sz,
                 timeToStr(last_valid_block_start_time).c_str(), timeToStr(last_valid_block_end_time).c_str()
@@ -264,7 +264,7 @@ bool FileDecoder::readFile(ofstream &logFile)
         mTapFile.firstBlock = first_block_no;
         mTapFile.lastBlock = last_block_no;
  
-        sprintf_s(s, "\n%15s %4x %4x %4x %2d %5d %32s %32s\n\n", file_name.c_str(),
+        sprintf(s, "\n%15s %4x %4x %4x %2d %5d %32s %32s\n\n", file_name.c_str(),
             load_adr_start, load_adr_end, exec_adr_start, last_block_no+1, file_sz,
             timeToStr(tape_start_time).c_str(), timeToStr(tape_end_time).c_str()
         );

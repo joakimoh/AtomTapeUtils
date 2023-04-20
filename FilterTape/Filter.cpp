@@ -486,7 +486,7 @@ bool Filter::plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Sampl
     while (pos < nSamples)
         newShapes[pos++] = 0;
 
-    DBG_PRINT(DBG, "Plot completed!\n");
+    DBG_PRINT(DBG, "Plot completed!%s\n", "");
 
     return true;
 }

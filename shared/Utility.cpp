@@ -288,16 +288,16 @@ bool extractBlockPars(
     // Calculate offset to the rest of the block's parameters (that comes after the preamble and filename)
     int offset = 4 + fileName.length();
 
-    if (nReadChars > offset + (int)  & ((AtomTapeBlockHdr*)0)->loadAdrLow)
+    if (nReadChars > offset + (long)  & ((AtomTapeBlockHdr*)0)->loadAdrLow)
         loadAdr = block.hdr.loadAdrHigh * 256 + block.hdr.loadAdrLow;
 
-    if (nReadChars > offset + (int)&((AtomTapeBlockHdr*)0)->dataLenM1)
+    if (nReadChars > offset + (long)&((AtomTapeBlockHdr*)0)->dataLenM1)
         blockSz = block.hdr.lenHigh * 256 + block.hdr.lenLow;
 
     if (loadAdr > 0 && blockSz > 0)
         loadAdrUB = loadAdr + blockSz;
 
-    if (nReadChars > offset + (int) &((AtomTapeBlockHdr*)0) -> execAdrLow)
+    if (nReadChars > offset + (long) &((AtomTapeBlockHdr*)0) -> execAdrLow)
         execAdr = block.hdr.execAdrHigh * 256 + block.hdr.execAdrLow;
 
     if (execAdr == 0xc2b2)

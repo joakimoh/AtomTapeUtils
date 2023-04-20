@@ -35,6 +35,7 @@ bool BlockDecoder::rollback()
 	if (!mCycleDecoder.rollback()) {
 		return false;
 	}
+	return true;
 }
 
 BlockDecoder::BlockDecoder(CycleDecoder& cycleDecoder, ArgParser &argParser) : mCycleDecoder(cycleDecoder), mArgParser(argParser)
@@ -130,7 +131,7 @@ bool BlockDecoder::readBlock(
 	// Read block header's preamble (i.e., synhronisation bytes)
 	if (!checkBytes(0x2a, 4)) {
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read header preamble (0x2a bytes)\n");
+			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read header preamble (0x2a bytes)%s\n", "");
 		return false;
 	}
 
@@ -141,7 +142,7 @@ bool BlockDecoder::readBlock(
 	int name_len;
 	if (!getFileName(readBlock.hdr.name, CRC, name_len)) {
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read header block name\n");
+			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read header block name%s\n", "");
 		return false;
 	}
 
@@ -184,7 +185,7 @@ bool BlockDecoder::readBlock(
 	if (len > 0) {
 		if (!getBytes(readBlock.data, len, CRC)) {
 			if (mTracing)
-				DEBUG_PRINT(getTimeNum(), ERR, "Failed to read data!\n");
+				DEBUG_PRINT(getTimeNum(), ERR, "Failed to read data!%s\n", "");
 			return false;
 		}
 	}
@@ -310,7 +311,7 @@ string BlockDecoder::getTime() {
 	int t_h = (int) trunc(t / 3600);
 	int t_m = (int) trunc((t - t_h) / 60);
 	double t_s = t - t_h * 3600 - t_m * 60;
-	sprintf_s(t_str, "%dh:%dm:%.6fs (%fs)", t_h, t_m, t_s, t);
+	sprintf(t_str, "%dh:%dm:%.6fs (%fs)", t_h, t_m, t_s, t);
 	return string(t_str);
 }
 
@@ -396,7 +397,7 @@ bool BlockDecoder::getByte(Byte  *byte, int &nCollectedCycles)
 {
 	if (!getStartBit()) {
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read start bit\n");
+			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read start bit%s\n", "");
 		return false;
 	}
 	*byte = 0;
@@ -414,7 +415,7 @@ bool BlockDecoder::getByte(Byte  *byte, int &nCollectedCycles)
 
 	if (!getStopBit(nCollectedCycles)) {
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read stop bit\n")
+			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read stop bit%s\n", "")
 		return false;
 	}
 

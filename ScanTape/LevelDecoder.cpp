@@ -1,3 +1,4 @@
+#include "../shared/CommonTypes.h"
 #include "LevelDecoder.h"
 #include "../shared/WaveSampleTypes.h"
 #include <iostream>

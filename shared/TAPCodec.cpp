@@ -65,7 +65,7 @@ bool TAPCodec::encode(string& filePath)
 
     fout.close();
 
-    DBG_PRINT(DBG, "TAP file '%s' created from %d blocks...\n", filePath.c_str(), mTapFile.blocks.size());
+    DBG_PRINT(DBG, "TAP file '%s' created from %ld blocks...\n", filePath.c_str(), mTapFile.blocks.size());
 
     return true;
 

@@ -2,6 +2,7 @@
 #include <sys/stat.h>
 #include <filesystem>
 #include <iostream>
+#include <string.h>
 #include "../shared//Utility.h"
 
 using namespace std;
