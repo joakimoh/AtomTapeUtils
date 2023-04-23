@@ -14,7 +14,7 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char *name)
 {
-	cout << "Usage:\t" << name << " <WAV file> [-g <generate dir path] [-d <debug start time> <debug stop time>]\n";
+	cout << "Usage:\t" << name << " <WAV file> [-g <generate dir path] [-d <debug start time> <debug stop time>] [-b <b>]\n";
 	cout << "\t[-f <freq tolerance>] [-l <level tolerance>] [-s <start time> ] [-e] [-t]\n";
 	cout << " \t[-lt <duration>] [-slt <duration>] [-tt <duration>] [-ml <duration>]\n\n";
 	cout << "<WAVE file>:\n\t16-bit PCM WAV file to analyse\n\n";
@@ -23,12 +23,13 @@ void ArgParser::printUsage(const char *name)
 	cout << "-f <freq tolerance>:\n\tTolerance of the 1200/2400 frequencies [0,1[\n\t- default is 0.1\n\n";
 	cout << "-l <level tolerance>:\n\tSchmitt-trigger level tolerance [0,1[\n\t- default is 0\n\n";
 	cout << "-s <start time>:\n\tThe time to start detecting files from\n\t- default is 0\n\n";
-	cout << "-lt <duration>:\n\tThe min duration of the first block's lead tone\n\t- default is 2.0\n\n";
-	cout << "-slt <duration>:\n\tThe min duration of the subsequent block's lead tone\n\t- default is 2.0\n\n";
-	cout << "-tt <duration>:\n\tThe min duration of a trailer tone\n\t- default is 0.0\n\n";
-	cout << "-ml <duration>:\n\tThe min duration of a micro lead tone preceeding a data block\n\t- default is 0.0\n\n";
-	cout << "-e             :\n\tApply error correction\n\n";
-	cout << "-t             :\n\tTurn on tracing showing detected faults.\n\n";
+	cout << "-lt <d>:\n\tThe duration of the first block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockLeadToneDuration << " s\n\n";
+	cout << "-slt <d>:\n\tThe duration of the subsequent block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.otherBlockLeadToneDuration << " s\n\n";
+	cout << "-tt <d>:\n\tThe duration of a trailer tone\n\t- default is " << tapeTiming.nomBlockTiming.trailerToneDuration << " s\n\n";
+	cout << "-ml <d>:\n\tThe duration of a micro lead tone preceeding a data block\n\t- default is " << tapeTiming.nomBlockTiming.microLeadToneDuration << " s\n\n";
+	cout << "-b baudrate:\n\tBaudrate (300 or 1200)\n\t- default is " << tapeTiming.baudRate << "\n\n";
+	cout << "-e:\n\tApply error correction\n\n";
+	cout << "-t:\n\tTurn on tracing showing detected faults.\n\n";
 	cout << "If no output directory is specifed, then all generated files will be created in the current work directory\n\n";
 	cout << "\n";
 }
