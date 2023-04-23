@@ -70,7 +70,7 @@ BlockDecoder::BlockDecoder(CycleDecoder& cycleDecoder, ArgParser &argParser) : m
  * ending with the reading of the stop bit of the CRC byte that ends the block.
  * 
  *
- * A first block starts with 5.1 seconds  of a 2400 Hz lead tone.
+ * A first block normally starts with about 4.2 seconds of a 2400 Hz lead tone.
  * 
  * Before the next block there seems to be 2 seconds of silence, noise or mis-shaped waves that
  * are neither 1200 nor 2400 cycles.
@@ -96,6 +96,10 @@ BlockDecoder::BlockDecoder(CycleDecoder& cycleDecoder, ArgParser &argParser) : m
  * if the recording has paused in the middle of a file, or 0.9 seconds between data blocks recorded in one go).
  * At the end of the stream is a 5.3 second, 2400 Hz trailer tone (reduced to 0.2 seconds when
  * pausing in the middle of a file (giving at least 1.3 seconds' delay between data blocks.)"
+ * 
+ * The lead tone duration, the micro lead tone duration and the trailer tone duration are all configurable.
+ * The first and last ones could variy between blocks and are therefore functional arguments whereas the micro
+ * lead tone is a private member of the class (initalised at instantiation).
  *
  */
 bool BlockDecoder::readBlock(
@@ -174,14 +178,18 @@ bool BlockDecoder::readBlock(
 	readBlock.hdr.lenHigh = len / 256;
 	readBlock.hdr.lenLow = len % 256;
 	
-	// Get data bytes
-	if (collected_stop_bit_cycles < mStopBitCycles) {
+	// Detect micro lead tone between header and data block
+	if (collected_stop_bit_cycles == mStopBitCycles) {
 		if (!mCycleDecoder.waitForTone(mArgParser.mMinMicroLeadTone, duration)) {
 			if (mTracing)
 				DEBUG_PRINT(getTimeNum(), ERR, "Failed to detect a start of data tone for file '%s'\n", readBlock.hdr.name);
-		}
+		} 
+	}
+	else {
+		DEBUG_PRINT(getTimeNum(), ERR, "Header for file '%s' ended with a short stop bit (%d cycles) and no lead tone\n", readBlock.hdr.name, collected_stop_bit_cycles);
 	}
 
+	// Get data bytes
 	if (len > 0) {
 		if (!getBytes(readBlock.data, len, CRC)) {
 			if (mTracing)
@@ -375,16 +383,17 @@ bool BlockDecoder::getStopBit(int &nCollectedCycles)
 	if (!mCycleDecoder.getNextCycle(first_cycle_sample) || (!mErrorCorrection && first_cycle_sample.freq != CycleDecoder::Frequency::F2))
 		return false;
 
-	// Normally we shall se mStopBitCycles-1 F2 cycles here (from byte to byte)
-	// But if it is the last byte before a trailer tone or to allow even loss of carrier as end of last byte,
-	// we allow zero up to mStopBitCycles-1 F2 cycles...
+	// Normally we shall see mStopBitCycles-1 F2 cycles here (from byte to byte)
+	// But if it is the last byte before a trailer tone or to allow even loss of carrier at end of last byte,
+	// we allow any number of cycles (even zero).
 	if (!mCycleDecoder.collectCycles(CycleDecoder::Frequency::F2, cycle_sample, mStopBitCycles-1, nCollectedCycles)) {
 		return false;
 	}
-	if (nCollectedCycles != mStopBitCycles - 1)
+	nCollectedCycles += 1; // Add the first cycle already sampled
+	if (nCollectedCycles != mStopBitCycles)
 		if (mTracing)
 			DEBUG_PRINT(getTimeNum(), ERR, "%d cycles were collected (with a detected next cycle of %s) for the stop bit when expecting %d cycles\n",
-				nCollectedCycles + 1, _FREQUENCY(mCycleDecoder.getCycle().freq), mStopBitCycles
+				nCollectedCycles, _FREQUENCY(mCycleDecoder.getCycle().freq), mStopBitCycles
 			);
 
 	return true;

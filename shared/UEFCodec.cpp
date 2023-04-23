@@ -152,19 +152,19 @@ bool UEFCodec::encode(string &filePath)
     /*
      * Timing parameters
      * 
-     * Mostly based on observed timing in Acron Atom tape recordings but
+     * Mostly based on observed timing in Acorn Atom tape recordings but
      * in some cases changed as Atomulator emulator won't wok otherwise.
      * 
      */
 
-    float first_block_lead_tone_duration = 5.1; // lead tone duration of first block 
-    float other_block_lead_tone_duration = 5.1; // lead tone duration of all other blocks (2 s expected here but Atomulator needs 5.1 s)
+    float first_block_lead_tone_duration = 4.2;// lead tone duration of first block 
+    float other_block_lead_tone_duration = 4.0;// lead tone duration of all other blocks (2 s expected here but Atomulator needs 4 s)
     float data_block_micro_lead_tone_duration = 0.5; //  micro lead tone (separatiing block header and block data) duration
     float lead_tone_duration = first_block_lead_tone_duration; // let first block have a longer lead tone
 
     float first_block_gap =  0.0000136;
     float other_block_gap = 2;
-    float last_block_gap = 5.4;
+    float last_block_gap = 2.5;// 5.4;
     float block_gap = other_block_gap;
     float base_freq = 1201; // Hz
 

@@ -104,7 +104,7 @@ bool DataCodec::encode(string& filePath)
 
     fout.close();
 
-    DBG_PRINT(ERR, "DATA file '%s' created from %lu blocks...\n", filePath.c_str(), mTapFile.blocks.size());
+    DBG_PRINT(DBG, "DATA file '%s' created from %lu blocks...\n", filePath.c_str(), mTapFile.blocks.size());
 
 
     return true;

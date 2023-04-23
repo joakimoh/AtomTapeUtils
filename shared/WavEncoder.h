@@ -20,11 +20,11 @@ private:
 	TAPFile mTapFile;
 	Samples mSamples;
 
-	double mLeadToneDuration = 5.1;
-	double mOtherBlockLeadToneDuration = 2.1;
-	double mDataBlockMicroLeadToneDuration = 0.6;
-	double mBlockGap = 2.1;
-	double mLastBlock_gap = 5.5;
+	double mLeadToneDuration = 4.2;
+	double mOtherBlockLeadToneDuration = 2.0;
+	double mDataBlockMicroLeadToneDuration = 0.5;
+	double mBlockGap = 2.0;
+	double mLastBlock_gap = 2.5;
 
 	int mBaudrate;
 	int mMaxSampleAmplitude = 16384;
