@@ -8,6 +8,7 @@
 #include <string>
 #include "TAPCodec.h"
 #include "WaveSampleTypes.h"
+#include "../shared/TapeProperties.h"
 
 
 using namespace std;
@@ -19,14 +20,8 @@ private:
 
 	TAPFile mTapFile;
 	Samples mSamples;
+	TapeProperties mTapeTiming;
 
-	double mLeadToneDuration = 4.2;
-	double mOtherBlockLeadToneDuration = 2.0;
-	double mDataBlockMicroLeadToneDuration = 0.5;
-	double mBlockGap = 2.0;
-	double mLastBlock_gap = 2.5;
-
-	int mBaudrate;
 	int mMaxSampleAmplitude = 16384;
 	double mHighSamples = (double) F_S / F2_FREQ;
 	double mLowSamples = (double) F_S / F1_FREQ;
@@ -41,9 +36,11 @@ private:
 public:
 
 
-	WavEncoder(int baudrate);
+	WavEncoder();
 
-	WavEncoder(TAPFile& tapFile, int baudrate);
+	WavEncoder(TAPFile& tapFile);
+
+	bool setTapeTiming(TapeProperties tapeTiming);
 
 	bool writeByte(Byte byte);
 	bool writeDataBit(int bit);

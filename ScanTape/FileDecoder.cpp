@@ -72,7 +72,7 @@ bool FileDecoder::readFile(ofstream &logFile)
 
  
 
-    double min_lead_tone_duration = mArgParser.mMinFBLeadTone;
+    double min_lead_tone_duration = mArgParser.tapeTiming.minBlockTiming.firstBlockLeadToneDuration;
 
     // Read all blocks belonging to the same file
     while (!last_block) {
@@ -89,7 +89,7 @@ bool FileDecoder::readFile(ofstream &logFile)
         mBlockDecoder.checkpoint();
         bool lead_tone_detected;
         bool success = mBlockDecoder.readBlock(
-            min_lead_tone_duration, mArgParser.mMinTrailerTone, read_block, block_type, block_no,
+            min_lead_tone_duration, mArgParser.tapeTiming.minBlockTiming.trailerToneDuration, read_block, block_type, block_no,
             lead_tone_detected);
 
         // If no lead tone was detected it must be the end of the tape
@@ -162,7 +162,7 @@ bool FileDecoder::readFile(ofstream &logFile)
             last_valid_block_end_time = block_end_time;
 
 
-            min_lead_tone_duration = mArgParser.mMinOBLeadTone;
+            min_lead_tone_duration = mArgParser.tapeTiming.minBlockTiming.otherBlockLeadToneDuration;
             
 
             read_block.tapeStartTime = block_start_time;

@@ -7,9 +7,12 @@
 #include <string>
 #include <gzstream.h>
 #include "TAPCodec.h"
+#include "../shared/TapeProperties.h"
 
 
 using namespace std;
+
+
 
 class UEFCodec
 {
@@ -17,6 +20,10 @@ class UEFCodec
 private:
 
 	TAPFile mTapFile;
+
+	TapeProperties mTapeTiming;
+
+	
 
 
 	//
@@ -144,6 +151,7 @@ public:
 
 	UEFCodec(string& abcFileName);
 
+	bool setTapeTiming(TapeProperties tapeTiming);
 	/*
 	 * Encode TAP File structure as UEF file 
 	 */

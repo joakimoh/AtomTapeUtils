@@ -24,7 +24,8 @@ void ArgParser::printUsage(const char *name)
 	cout << "-l <level tolerance>:\n\tSchmitt-trigger level tolerance [0,1[\n\t- default is 0\n\n";
 	cout << "-s <start time>:\n\tThe time to start detecting files from\n\t- default is 0\n\n";
 	cout << "-lt <duration>:\n\tThe min duration of the first block's lead tone\n\t- default is 2.0\n\n";
-	cout << "-slt <duration>:\n\tThe min duration of the subsequent block's lead tone\n\t- default is 2.0\n\n";	cout << "-tt <duration>:\n\tThe min duration of a trailer tone\n\t- default is 0.0\n\n";
+	cout << "-slt <duration>:\n\tThe min duration of the subsequent block's lead tone\n\t- default is 2.0\n\n";
+	cout << "-tt <duration>:\n\tThe min duration of a trailer tone\n\t- default is 0.0\n\n";
 	cout << "-ml <duration>:\n\tThe min duration of a micro lead tone preceeding a data block\n\t- default is 0.0\n\n";
 	cout << "-e             :\n\tApply error correction\n\n";
 	cout << "-t             :\n\tTurn on tracing showing detected faults.\n\n";
@@ -95,7 +96,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			if (baud_rate != 300 && baud_rate != 1200)
 				cout << "-b without a valid baud rate\n";
 			else {
-				mBaudRate = stoi(argv[ac + 1]);
+				tapeTiming.baudRate = stoi(argv[ac + 1]);
 				ac++;
 			}
 		}
@@ -113,7 +114,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			if (val < 0)
 				cout << "-lt without a valid  tone duration\n";
 			else {
-				mMinFBLeadTone = val;
+				tapeTiming.minBlockTiming.firstBlockLeadToneDuration = val;
 				ac++;
 			}
 		}
@@ -122,7 +123,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			if (val < 0)
 				cout << "-lt without a valid  tone duration\n";
 			else {
-				mMinOBLeadTone = val;
+				tapeTiming.minBlockTiming.otherBlockLeadToneDuration = val;
 				ac++;
 			}
 		}	
@@ -131,16 +132,16 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			if (val < 0)
 				cout << "-s without a valid tone duration\n";
 			else {
-				mMinTrailerTone = val;
+				tapeTiming.minBlockTiming.trailerToneDuration = val;
 				ac++;
 			}
 		}
 		else if (strcmp(argv[ac], "-ml") == 0 && ac + 1 < argc) {
 			double start_time = strtod(argv[ac + 1], NULL);
 			if (start_time < 0)
-				cout << "-s without a valid toen duration\n";
+				cout << "-s without a valid tone duration\n";
 			else {
-				mMinMicroLeadTone = strtod(argv[ac + 1], NULL);
+				tapeTiming.minBlockTiming.microLeadToneDuration = strtod(argv[ac + 1], NULL);
 				ac++;
 			}
 		}

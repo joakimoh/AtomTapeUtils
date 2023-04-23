@@ -48,6 +48,7 @@ int main(int argc, const char* argv[])
     ABC_codec.getTAPFile(TAP_file);
 
     UEFCodec UEF_codec = UEFCodec(TAP_file);
+    UEF_codec.setTapeTiming(arg_parser.tapeTiming);
 
     if (!UEF_codec.encode(arg_parser.mDstFileName)) {
         DBG_PRINT(ERR, "Failed to encode program file '%s' as UEF file '%s'\n",

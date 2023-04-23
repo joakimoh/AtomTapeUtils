@@ -41,14 +41,14 @@ int main(int argc, const char* argv[])
     cout << "Start time = " << arg_parser.mStartTime << "\n";
     cout << "Input file = '" << arg_parser.mWavFile << "'\n";
     cout << "Generate directory path = " << arg_parser.mGenDir << "\n";
-    cout << "Baudrate = " << arg_parser.mBaudRate << "\n";
+    cout << "Baudrate = " << arg_parser.tapeTiming.baudRate << "\n";
     cout << "Debug time range = [" << encodeTime(arg_parser.mDbgStart) << ", " <<  encodeTime(arg_parser.mDbgEnd) << "]\n";
     cout << "Frequency tolerance = " << arg_parser.mFreqThreshold << "\n";
     cout << "Schmitt-trigger level tolerance = " << arg_parser.mLevelThreshold << "\n";
-    cout << "Min lead tone duration of first block = " << arg_parser.mMinFBLeadTone << "\n";
-    cout << "Min lead tone duration of subsequent blocks = " << arg_parser.mMinOBLeadTone << "\n";
-    cout << "Min trailer tone duration = " << arg_parser.mMinTrailerTone << "\n";
-    cout << "Min micro lead duration = " << arg_parser.mMinMicroLeadTone << "\n";
+    cout << "Min lead tone duration of first block = " << arg_parser.tapeTiming.minBlockTiming.firstBlockLeadToneDuration << " s\n";
+    cout << "Min lead tone duration of subsequent blocks = " << arg_parser.tapeTiming.minBlockTiming.otherBlockLeadToneDuration << " s\n";
+    cout << "Min trailer tone duration = " << arg_parser.tapeTiming.minBlockTiming.trailerToneDuration << " s\n";
+    cout << "Min micro lead duration = " << arg_parser.tapeTiming.minBlockTiming.microLeadToneDuration << " s\n";
  
 
     //
@@ -88,13 +88,13 @@ int main(int argc, const char* argv[])
 
     fout << "Input file = '" << arg_parser.mWavFile << "'\n";
     fout << "Start time = " << arg_parser.mStartTime << "\n";
-    fout << "Baudrate = " << arg_parser.mBaudRate << "\n";
+    fout << "Baudrate = " << arg_parser.tapeTiming.baudRate << "\n";
     fout << "Frequency tolerance = " << arg_parser.mFreqThreshold << "\n";
     fout << "Schmitt-trigger level tolerance = " << arg_parser.mLevelThreshold << "\n";
-    fout << "Min lead tone duration of first block= " << arg_parser.mMinFBLeadTone << "\n";
-    fout << "Min lead tone duration of subsequent blocks = " << arg_parser.mMinOBLeadTone << "\n";
-    fout << "Min trailer tone duration = " << arg_parser.mMinTrailerTone << "\n";
-    fout << "Min micro lead duration = " << arg_parser.mMinMicroLeadTone << "\n";
+    fout << "Min lead tone duration of first block= " << arg_parser.tapeTiming.minBlockTiming.firstBlockLeadToneDuration << " s\n";
+    fout << "Min lead tone duration of subsequent blocks = " << arg_parser.tapeTiming.minBlockTiming.otherBlockLeadToneDuration << " s\n";
+    fout << "Min trailer tone duration = " << arg_parser.tapeTiming.minBlockTiming.trailerToneDuration << " s\n";
+    fout << "Min micro lead duration = " << arg_parser.tapeTiming.minBlockTiming.microLeadToneDuration << " s\n";
 
 
     // Read complete Atom files using the File Decoder

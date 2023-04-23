@@ -87,7 +87,11 @@ UEFCodec::UEFCodec(string & abcFileName)
 
 }
 
-
+bool UEFCodec::setTapeTiming(TapeProperties tapeTiming)
+{
+    mTapeTiming = tapeTiming;
+    return true;
+}
 
 bool UEFCodec::encode(string &filePath)
 {
@@ -111,14 +115,29 @@ bool UEFCodec::encode(string &filePath)
     int block_no = 0;
     int n_blocks = (int)mTapFile.blocks.size();
 
+    
 
+    /*
+     * Timing parameters
+     *
+     * Mostly based on observed timing in Acorn Atom tape recordings but
+     * in some cases changed as Atomulator emulator won't wok otherwise.
+     *
+     */
 
-    //
-    // UEF parameters
-    //
-    int phase = 0;
-    float base_frequency = 1200;
-    int baudrate = 300;
+    int baudrate = mTapeTiming.baudRate;
+
+    float first_block_lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;// lead tone duration of first block 
+    float other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;// lead tone duration of all other blocks (2 s expected here but Atomulator needs 4 s)
+    float data_block_micro_lead_tone_duration = mTapeTiming.nomBlockTiming.microLeadToneDuration; //  micro lead tone (separatiing block header and block data) duration
+    float lead_tone_duration = first_block_lead_tone_duration; // let first block have a longer lead tone
+
+    float first_block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
+    float other_block_gap = mTapeTiming.nomBlockTiming.otherBlockGap;
+    float last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
+    float block_gap = other_block_gap;
+    float base_freq = mTapeTiming.baseFreq;
+    float phase = mTapeTiming.phase;
 
 
     //
@@ -149,24 +168,7 @@ bool UEFCodec::encode(string &filePath)
         DBG_PRINT(ERR, "Failed to write phase chunk with phase %d degrees\n", phase);
     }
 
-    /*
-     * Timing parameters
-     * 
-     * Mostly based on observed timing in Acorn Atom tape recordings but
-     * in some cases changed as Atomulator emulator won't wok otherwise.
-     * 
-     */
 
-    float first_block_lead_tone_duration = 4.2;// lead tone duration of first block 
-    float other_block_lead_tone_duration = 4.0;// lead tone duration of all other blocks (2 s expected here but Atomulator needs 4 s)
-    float data_block_micro_lead_tone_duration = 0.5; //  micro lead tone (separatiing block header and block data) duration
-    float lead_tone_duration = first_block_lead_tone_duration; // let first block have a longer lead tone
-
-    float first_block_gap =  0.0000136;
-    float other_block_gap = 2;
-    float last_block_gap = 2.5;// 5.4;
-    float block_gap = other_block_gap;
-    float base_freq = 1201; // Hz
 
 
     // Write an intial gap before the file starts
@@ -192,13 +194,13 @@ bool UEFCodec::encode(string &filePath)
  
 
         // Write base frequency
-        if (!writeBaseFrequencyChunk(fout, base_frequency)) {
-            DBG_PRINT(ERR, "Failed to encode base frequency %f as float\n", base_frequency);
+        if (!writeBaseFrequencyChunk(fout, base_freq)) {
+            DBG_PRINT(ERR, "Failed to encode base frequency %f as float\n", base_freq);
         }
 
         // Write a lead tone for the block
         if (!writeHighToneChunk(fout, lead_tone_duration, baudrate)) {
-            DBG_PRINT(ERR, "Failed to write %f Hz lead tone of duration %f s\n", base_frequency, lead_tone_duration);
+            DBG_PRINT(ERR, "Failed to write %f Hz lead tone of duration %f s\n", base_freq, lead_tone_duration);
         }
 
         // Change lead tone duration for remaining blocks
@@ -276,7 +278,7 @@ bool UEFCodec::encode(string &filePath)
 
         // Add micro lead/trailer tone between header and data
         if (!writeHighToneChunk(fout, data_block_micro_lead_tone_duration, baudrate)) {
-            DBG_PRINT(ERR, "Failed to write %f Hz micro lead tone of duration %f s\n", base_frequency, data_block_micro_lead_tone_duration)
+            DBG_PRINT(ERR, "Failed to write %f Hz micro lead tone of duration %f s\n", base_freq, data_block_micro_lead_tone_duration)
         }
 
         // Write (again the) base frequency 

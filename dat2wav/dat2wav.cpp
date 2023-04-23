@@ -50,7 +50,8 @@ int main(int argc, const char* argv[])
 
     DATA_codec.getTAPFile(TAP_file);
 
-    WavEncoder WAV_encoder = WavEncoder(TAP_file, arg_parser.mBaudrate);
+    WavEncoder WAV_encoder = WavEncoder(TAP_file);
+    WAV_encoder.setTapeTiming(arg_parser.tapeTiming);
 
     cout << "WAV encoder created...\n";
 

@@ -43,20 +43,20 @@ BlockDecoder::BlockDecoder(CycleDecoder& cycleDecoder, ArgParser &argParser) : m
 
 	mTracing = argParser.tracing;
 
-	if (mArgParser.mBaudRate == 300) {
+	if (mArgParser.tapeTiming.baudRate == 300) {
 		mStartBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
 		mLowDataBitCycles = 4; // Data bit length in cycles of F1 frequency carrier
 		mHighDataBitCycles = 8; // Data bit length in cycles of F2 frequency carrier
 		mStopBitCycles = 9; // Stop bit length in cycles of F2 frequency carrier
 	}
-	else if (mArgParser.mBaudRate == 1200) {
+	else if (mArgParser.tapeTiming.baudRate == 1200) {
 		mStartBitCycles = 1; // Start bit length in cycles of F1 frequency carrier
 		mLowDataBitCycles = 1; // Data bit length in cycles of F1 frequency carrier
 		mHighDataBitCycles = 2; // Data bit length in cycles of F2 frequency carrier
 		mStopBitCycles = 3; // Stop bit length in cycles of F2 frequency carrier
 	}
 	else {
-		throw invalid_argument("Unsupported baud rate " + mArgParser.mBaudRate);
+		throw invalid_argument("Unsupported baud rate " + mArgParser.tapeTiming.baudRate);
 	}
 
 	if (argParser.mErrorCorrection)
@@ -180,7 +180,7 @@ bool BlockDecoder::readBlock(
 	
 	// Detect micro lead tone between header and data block
 	if (collected_stop_bit_cycles == mStopBitCycles) {
-		if (!mCycleDecoder.waitForTone(mArgParser.mMinMicroLeadTone, duration)) {
+		if (!mCycleDecoder.waitForTone(mArgParser.tapeTiming.minBlockTiming.microLeadToneDuration, duration)) {
 			if (mTracing)
 				DEBUG_PRINT(getTimeNum(), ERR, "Failed to detect a start of data tone for file '%s'\n", readBlock.hdr.name);
 		} 

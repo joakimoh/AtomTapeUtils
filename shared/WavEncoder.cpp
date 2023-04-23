@@ -7,46 +7,53 @@
 #include "../shared/PcmFile.h"
 #include "../shared/Debug.h"
 #include "../shared/Utility.h"
+#include "../shared/TapeProperties.h"
 
 using namespace std;
 
 
-WavEncoder::WavEncoder(TAPFile& tapFile, int baudrate): mTapFile(tapFile), mBaudrate(baudrate)
+WavEncoder::WavEncoder(TAPFile& tapFile): mTapFile(tapFile)
 {
-    if (mBaudrate == 300) {
+    if (mTapeTiming.baudRate == 300) {
         mStartBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
         mLowDataBitCycles = 4; // Data bit length in cycles of F1 frequency carrier
         mHighDataBitCycles = 8; // Data bit length in cycles of F2 frequency carrier
         mStopBitCycles = 9; // Stop bit length in cycles of F2 frequency carrier
     }
-    else if (mBaudrate == 1200) {
+    else if (mTapeTiming.baudRate == 1200) {
         mStartBitCycles = 1; // Start bit length in cycles of F1 frequency carrier
         mLowDataBitCycles = 1; // Data bit length in cycles of F1 frequency carrier
         mHighDataBitCycles = 2; // Data bit length in cycles of F2 frequency carrier
         mStopBitCycles = 3; // Stop bit length in cycles of F2 frequency carrier
     }
     else {
-        throw invalid_argument("Unsupported baud rate " + baudrate);
+        throw invalid_argument("Unsupported baud rate " + mTapeTiming.baudRate);
     }
 }
 
-WavEncoder::WavEncoder(int baudrate)
+WavEncoder::WavEncoder()
 {
-    if (mBaudrate == 300) {
+    if (mTapeTiming.baudRate == 300) {
         mStartBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
         mLowDataBitCycles = 4; // Data bit length in cycles of F1 frequency carrier
         mHighDataBitCycles = 8; // Data bit length in cycles of F2 frequency carrier
         mStopBitCycles = 9; // Stop bit length in cycles of F2 frequency carrier
     }
-    else if (mBaudrate == 1200) {
+    else if (mTapeTiming.baudRate == 1200) {
         mStartBitCycles = 1; // Start bit length in cycles of F1 frequency carrier
         mLowDataBitCycles = 1; // Data bit length in cycles of F1 frequency carrier
         mHighDataBitCycles = 2; // Data bit length in cycles of F2 frequency carrier
         mStopBitCycles = 3; // Stop bit length in cycles of F2 frequency carrier
     }
     else {
-        throw invalid_argument("Unsupported baud rate " + baudrate);
+        throw invalid_argument("Unsupported baud rate " + mTapeTiming.baudRate);
     }
+}
+
+bool WavEncoder::setTapeTiming(TapeProperties tapeTiming)
+{
+    mTapeTiming = tapeTiming;
+    return true;
 }
 
 /*
@@ -54,11 +61,11 @@ WavEncoder::WavEncoder(int baudrate)
  */
 bool WavEncoder::encode(string& filePath)
 {
-    double lead_tone_duration = mLeadToneDuration;
-    double other_block_lead_tone_duration = mOtherBlockLeadToneDuration;
-    double data_block_micro_lead_tone_duration = mDataBlockMicroLeadToneDuration;
-    double block_gap = mBlockGap;
-    double last_block_gap = mLastBlock_gap;
+    double lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;
+    double other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;
+    double data_block_micro_lead_tone_duration = mTapeTiming.nomBlockTiming.microLeadToneDuration;
+    double block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
+    double last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
 
    
 
