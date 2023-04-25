@@ -72,9 +72,9 @@ UEFCodec::UEFCodec()
 
 }
 
-UEFCodec::UEFCodec(TAPFile& tapFile): mTapFile(tapFile)
+UEFCodec::UEFCodec(TAPFile& tapFile, bool useOriginalTiming): mTapFile(tapFile)
 {
-    
+    mUseOriginalTiming = useOriginalTiming;
 }
 
 UEFCodec::UEFCodec(string & abcFileName)
@@ -87,6 +87,7 @@ UEFCodec::UEFCodec(string & abcFileName)
 
 }
 
+
 bool UEFCodec::setTapeTiming(TapeProperties tapeTiming)
 {
     mTapeTiming = tapeTiming;
@@ -97,6 +98,8 @@ bool UEFCodec::encode(string &filePath)
 {
     if (mTapFile.blocks.empty()) 
         return false;
+
+
 
 
     DBG_PRINT(DBG, "Writing to file '%s'...\n", filePath.c_str());
@@ -124,20 +127,23 @@ bool UEFCodec::encode(string &filePath)
      * in some cases changed as Atomulator emulator won't wok otherwise.
      *
      */
-
     int baudrate = mTapeTiming.baudRate;
+    if (mUseOriginalTiming && mTapFile.validTiming)
+        baudrate = mTapFile.baudRate;
 
+    float base_freq = mTapeTiming.baseFreq;
+    float high_tone_freq = 2 * base_freq;
+
+    // Default values for block timing (if mUseOriginalTiming is true the recored block timing will instead by used later on)
     float first_block_lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;// lead tone duration of first block 
     float other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;// lead tone duration of all other blocks (2 s expected here but Atomulator needs 4 s)
     float data_block_micro_lead_tone_duration = mTapeTiming.nomBlockTiming.microLeadToneDuration; //  micro lead tone (separatiing block header and block data) duration
-    float lead_tone_duration = first_block_lead_tone_duration; // let first block have a longer lead tone
-
     float first_block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
     float other_block_gap = mTapeTiming.nomBlockTiming.otherBlockGap;
-    float last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
-    float block_gap = other_block_gap;
-    float base_freq = mTapeTiming.baseFreq;
+    float last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;  
     float phase = mTapeTiming.phase;
+    float lead_tone_duration = first_block_lead_tone_duration; // let first block have a longer lead tone
+    float block_gap = other_block_gap;
 
 
     //
@@ -157,7 +163,7 @@ bool UEFCodec::encode(string &filePath)
     }
 
  
-    // Baudrate 300
+    // Baudrate
     if (!writeBaudrateChunk(fout, baudrate)) {
         DBG_PRINT(ERR, "Failed to write buadrate chunk with baudrate %d.\n", baudrate);
     }
@@ -191,7 +197,7 @@ bool UEFCodec::encode(string &filePath)
 
     while (ATM_block_iter < mTapFile.blocks.end()) {
 
- 
+
 
         // Write base frequency
         if (!writeBaseFrequencyChunk(fout, base_freq)) {
@@ -199,9 +205,12 @@ bool UEFCodec::encode(string &filePath)
         }
 
         // Write a lead tone for the block
+        if (mUseOriginalTiming && mTapFile.validTiming)
+            lead_tone_duration = (ATM_block_iter->leadToneCycles) / high_tone_freq;
         if (!writeHighToneChunk(fout, lead_tone_duration, baudrate)) {
             DBG_PRINT(ERR, "Failed to write %f Hz lead tone of duration %f s\n", base_freq, lead_tone_duration);
         }
+;
 
         // Change lead tone duration for remaining blocks
         lead_tone_duration = other_block_lead_tone_duration;
@@ -269,6 +278,7 @@ bool UEFCodec::encode(string &filePath)
 
 
 
+
         
 
         // --------------------------------------------------------------------------
@@ -277,9 +287,12 @@ bool UEFCodec::encode(string &filePath)
 
 
         // Add micro lead/trailer tone between header and data
+        if (mUseOriginalTiming && mTapFile.validTiming)
+            data_block_micro_lead_tone_duration = ATM_block_iter-> microToneCycles / high_tone_freq;
         if (!writeHighToneChunk(fout, data_block_micro_lead_tone_duration, baudrate)) {
             DBG_PRINT(ERR, "Failed to write %f Hz micro lead tone of duration %f s\n", base_freq, data_block_micro_lead_tone_duration)
         }
+
 
         // Write (again the) base frequency 
         if (!writeBaseFrequencyChunk(fout, base_freq)) {
@@ -321,7 +334,7 @@ bool UEFCodec::encode(string &filePath)
             DBG_PRINT(ERR, "Failed to write CRC data chunk%s\n", "");
         }
 
-        ATM_block_iter++;
+        
 
         // --------------------------------------------------------------------------
         //
@@ -342,9 +355,14 @@ bool UEFCodec::encode(string &filePath)
         // Write a gap at the end of the block
         if (block_no == n_blocks - 1)
             block_gap = last_block_gap;
+        if (mUseOriginalTiming && mTapFile.validTiming)
+            block_gap = ATM_block_iter->blockGap;
         if (!writeFloatPrecGapChunk(fout, block_gap)) {
             DBG_PRINT(ERR, "Failed to write %f s and of block gap\n", block_gap);
         }
+
+        ATM_block_iter++;
+
 
 
         DBG_PRINT(DBG, "Block #%d written\n", block_no);

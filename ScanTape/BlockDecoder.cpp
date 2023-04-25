@@ -125,8 +125,8 @@ bool BlockDecoder::readBlock(
 	readBlock.hdr.name[0] = 0xff;
 
 	// Wait for lead tone
-	double duration;
-	if (!mCycleDecoder.waitForTone(leadToneDuration, duration)) {
+	double duration, dummy;
+	if (!mCycleDecoder.waitForTone(leadToneDuration, duration, dummy, readBlock.leadToneCycles)) {
 		// This is not necessariyl an error - it could be because the end of the tape as been reached...
 		return false;
 	}
@@ -138,6 +138,10 @@ bool BlockDecoder::readBlock(
 			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read header preamble (0x2a bytes)%s\n", "");
 		return false;
 	}
+
+	// Get phaseshift when transitioning from lead tone to start bit.
+	// (As recorded by the Cycle Decoder when reading the preamble.)
+	readBlock.phaseShift = mCycleDecoder.getPhase();
 
 	// Initialize CRC with sum of preamble
 	CRC = (Byte) (0x2a * 4);
@@ -180,7 +184,7 @@ bool BlockDecoder::readBlock(
 	
 	// Detect micro lead tone between header and data block
 	if (collected_stop_bit_cycles == mStopBitCycles) {
-		if (!mCycleDecoder.waitForTone(mArgParser.tapeTiming.minBlockTiming.microLeadToneDuration, duration)) {
+		if (!mCycleDecoder.waitForTone(mArgParser.tapeTiming.minBlockTiming.microLeadToneDuration, duration, dummy, readBlock.microToneCycles)) {
 			if (mTracing)
 				DEBUG_PRINT(getTimeNum(), ERR, "Failed to detect a start of data tone for file '%s'\n", readBlock.hdr.name);
 		} 
@@ -213,14 +217,27 @@ bool BlockDecoder::readBlock(
 		return false;
 	}
 
+	// Detect trailer tone (if specified to have a non-zero duration)
+	readBlock.trailerToneCycles = 0; // clear in case to trailer tone is present
 	if (collected_stop_bit_cycles == mStopBitCycles) {
-		if (!mCycleDecoder.waitForTone(trailerToneDuration, duration)) {
+		if (!mCycleDecoder.waitForTone(trailerToneDuration, duration, dummy, readBlock.trailerToneCycles)) {
 			if (mTracing)
 				DEBUG_PRINT(getTimeNum(), ERR, "Failed to detect a trailer tone for file '%s'\n", readBlock.hdr.name);
 			return false;
 		}
 	}
 
+	// Detect gap to next block by waiting for the next block's lead tone
+	// After detection, there will be a rool back to the end of the block
+	// so that the next block detection will not miss the lead tone.
+	checkpoint();
+	int dummy_cycles;
+	if (!mCycleDecoder.waitForTone(leadToneDuration, duration, readBlock.blockGap, dummy_cycles)) {
+		// Must either be end of tape, start of a different file, or a corrupted tape
+		// The block will therefore be assumed to be the last block of a file with a default gap of 2 s
+		readBlock.blockGap = 2.0;
+	}
+	rollback();
 
 	return true;
 }

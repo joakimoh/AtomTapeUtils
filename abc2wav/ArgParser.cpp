@@ -14,10 +14,14 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Usage:\t" << name << " <ABC file> [-o <output file] [-b <b>] [-lt <d>] [-slt <d>] [-tt <d>] [-ml <d>] [-fg <d>] [-sg <d>] [-lg <d>]\n";
-	cout << "<ABC file>:\n\tAcorn Atom BASIC program file to decode\n\n";
+	cout << "Usage:\t" << name << " <ABC file> [-o <output file] [-b <b>] [-lt <d>] [-slt <d>]\n";
+	cout <<	"\t[-tt <d>] [-ml <d>] [-fg <d>] [-sg <d>] [-lg <d>] [-ps <phase shift>]\n";
+	cout << "\n";
+	cout << "<ABC file>:\n\tAcorn Atom BASIC program file to decode\n";
+	cout << "\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
-	cout << "input file name (excluding extension) suffixed with '.wav'.\n\n";
+	cout << "input file name (excluding extension) suffixed with '.wav'.\n";
+	cout << "\n";
 	cout << "-lt <d>:\n\tThe duration of the first block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockLeadToneDuration << " s\n\n";
 	cout << "-slt <d>:\n\tThe duration of the subsequent block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.otherBlockLeadToneDuration << " s\n\n";
 	cout << "-tt <d>:\n\tThe duration of a trailer tone\n\t- default is " << tapeTiming.nomBlockTiming.trailerToneDuration << " s\n\n";
@@ -26,6 +30,7 @@ void ArgParser::printUsage(const char* name)
 	cout << "-sg <d>:\n\tThe duration of the gap before the other blocks\n\t- default is " << tapeTiming.nomBlockTiming.otherBlockGap << " s\n\n";
 	cout << "-lg <d>:\n\tThe duration of the gap after the last block\n\t- default is " << tapeTiming.nomBlockTiming.lastBlockGap << " s\n\n";
 	cout << "-b baudrate:\n\tBaudrate (300 or 1200)\n\t- default is " << tapeTiming.baudRate << "\n\n";
+	cout << "-ps <phase shift>:\n\tPhase shift when transitioning from high to low tone [0,180] degrees\n\t- default is " << tapeTiming.phase << " degrees\n\n";
 	cout << "\n";
 }
 
@@ -52,6 +57,13 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			tapeTiming.baudRate = stoi(argv[ac + 1]);
 			if (tapeTiming.baudRate != 300 && tapeTiming.baudRate != 1200)
 				cout << "-b without a valid baud rate\n";
+			else
+				ac++;
+		}
+		else if (strcmp(argv[ac], "-ps") == 0) {
+			tapeTiming.phase = stoi(argv[ac + 1]);
+			if (tapeTiming.phase < 0 || tapeTiming.phase > 180)
+				cout << "-ps without a valid phase shift\n";
 			else
 				ac++;
 		}

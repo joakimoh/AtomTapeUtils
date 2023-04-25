@@ -21,6 +21,7 @@ private:
 	TAPFile mTapFile;
 	Samples mSamples;
 	TapeProperties mTapeTiming;
+	bool mUseOriginalTiming = false;
 
 	int mMaxSampleAmplitude = 16384;
 	double mHighSamples = (double) F_S / F2_FREQ;
@@ -38,7 +39,7 @@ public:
 
 	WavEncoder();
 
-	WavEncoder(TAPFile& tapFile);
+	WavEncoder(TAPFile& tapFile, bool useOriginalTiming);
 
 	bool setTapeTiming(TapeProperties tapeTiming);
 

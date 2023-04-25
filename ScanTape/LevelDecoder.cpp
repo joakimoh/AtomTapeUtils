@@ -10,17 +10,20 @@ using namespace std;
 // Save the current file position
 bool LevelDecoder::checkpoint()
 {
-	mStateCheckpoint = mState;
-	mSamplesIndexCheckpoint = mSamplesIndex;
+	CheckPointSample checkpoint_sample = { mSamplesIndex, mState };
+	mCheckPoint.push_back(checkpoint_sample);
 	return true;
 }
 
 // Roll back to a previously saved file position
 bool LevelDecoder::rollback()
 {
-	 mState = mStateCheckpoint;
-	 mSamplesIndex = mSamplesIndexCheckpoint;
-	 return true;
+	CheckPointSample checkpoint_sample;
+	checkpoint_sample = mCheckPoint.back();
+	mCheckPoint.pop_back();
+	mState = checkpoint_sample.state;
+	mSamplesIndex = checkpoint_sample.index;
+	return true;
 }
 
 LevelDecoder::LevelDecoder(

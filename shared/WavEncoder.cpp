@@ -12,7 +12,7 @@
 using namespace std;
 
 
-WavEncoder::WavEncoder(TAPFile& tapFile): mTapFile(tapFile)
+WavEncoder::WavEncoder(TAPFile& tapFile, bool useOriginalTiming): mTapFile(tapFile), mUseOriginalTiming(useOriginalTiming)
 {
     if (mTapeTiming.baudRate == 300) {
         mStartBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
@@ -67,6 +67,8 @@ bool WavEncoder::encode(string& filePath)
     double block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
     double last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
 
+    float high_tone_freq = mTapeTiming.baseFreq * 2;
+
    
 
     if (mTapFile.blocks.empty())
@@ -91,6 +93,8 @@ bool WavEncoder::encode(string& filePath)
 
 
         // Write a lead tone for the block
+        if (mUseOriginalTiming)
+            lead_tone_duration = (ATM_block_iter->leadToneCycles) / high_tone_freq;
         if (!writeTone(lead_tone_duration)) {
             DBG_PRINT(ERR, "Failed to write lead tone of duration %f s\n", lead_tone_duration);
         }
@@ -161,6 +165,8 @@ bool WavEncoder::encode(string& filePath)
 
 
         // Add micro lead/trailer tone between header and data
+        if (mUseOriginalTiming)
+            data_block_micro_lead_tone_duration = (ATM_block_iter->microToneCycles) / high_tone_freq;
         if (!writeTone(data_block_micro_lead_tone_duration)) {
             DBG_PRINT(ERR, "Failed to write micro lead tone of duration %f s\n", data_block_micro_lead_tone_duration)
         }
@@ -216,7 +222,9 @@ bool WavEncoder::encode(string& filePath)
 
 
         // Write a gap at the end of the block
-        if (block_no == n_blocks - 1)
+        if (mUseOriginalTiming)
+            block_gap = (ATM_block_iter->blockGap);
+        else if (block_no == n_blocks - 1)
             block_gap = last_block_gap;
 
         if (!writeGap(block_gap)) {

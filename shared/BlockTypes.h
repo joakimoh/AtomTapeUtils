@@ -58,22 +58,44 @@ typedef struct {
 } ATMHdr;
 
 typedef struct {
+
 	ATMHdr hdr;
-	double tapeStartTime;
-	double tapeEndTime;
 	vector<Byte> data;
+
+
+	// Overall block timing when parsing WAV file
+	double tapeStartTime; // start of block
+	double tapeEndTime; // end of block
+
+	// Detailed block timing - used for UEF/CSW file generation later on
+	int phaseShift = 180; // phase [degrees] when shifting from high to low frequency - normally 180 degrees
+	int leadToneCycles; // no of high frequency cycles for lead tone - normally 4.2 * 2400 = 10 080
+	int microToneCycles; // no of high frequency cycles between block header and data part - normally 0.5 * 2400 = 12 000
+	int trailerToneCycles; // no of high frequency cycles for trailer tone - normally 0 (no trailer tone at all)
+	double blockGap = 2.0; // gap after block (before the next block commence) - normally 2 s
+
 
 } ATMBlock;
 
 typedef vector<ATMBlock>::iterator ATMBlockIter;
 
 typedef struct TAPFile_struct {
+
 	vector<ATMBlock> blocks;
-	bool complete = false;
+
+	bool complete = false; // true if all blocks were successfully detected
+
 	int firstBlock; // first encountered block's no
 	int lastBlock; // last encountered block's no
-	string validFileName;
-	bool isAbcProgram = false;
+
+	string validFileName; // file name used in file system
+
+	bool isAbcProgram = false; // true if the file seems to contain BASIC code
+
+	bool validTiming = false; // true if the files timing information is valid
+
+	int baudRate = 300;
+
 } TAPFile;
 
 #endif

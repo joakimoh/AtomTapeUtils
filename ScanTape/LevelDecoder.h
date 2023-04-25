@@ -36,10 +36,14 @@ private:
 	int mNSamplesLowLevel = 0;
 	int mNSamplesHighLevel = 0;
 
+	typedef struct CheckPointSample_struct { int index; Level state; } CheckPointSample;
 
 	// Checkpoint data for rollback
-	int mSamplesIndexCheckpoint;
-	Level mStateCheckpoint;
+	//int mSamplesIndexCheckpoint;
+	//Level mStateCheckpoint;
+
+	vector<CheckPointSample> mCheckPoint;
+	
 
 public:
 

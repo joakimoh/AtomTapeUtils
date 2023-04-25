@@ -92,6 +92,7 @@ bool FileDecoder::readFile(ofstream &logFile)
             min_lead_tone_duration, mArgParser.tapeTiming.minBlockTiming.trailerToneDuration, read_block, block_type, block_no,
             lead_tone_detected);
 
+
         // If no lead tone was detected it must be the end of the tape
         if (!lead_tone_detected) {
             break;
@@ -263,6 +264,10 @@ bool FileDecoder::readFile(ofstream &logFile)
 
         mTapFile.firstBlock = first_block_no;
         mTapFile.lastBlock = last_block_no;
+
+        mTapFile.validTiming = true;
+
+        mTapFile.baudRate = mArgParser.tapeTiming.baudRate;
  
         sprintf(s, "\n%15s %4x %4x %4x %2d %5d %32s %32s\n\n", file_name.c_str(),
             load_adr_start, load_adr_end, exec_adr_start, last_block_no+1, file_sz,

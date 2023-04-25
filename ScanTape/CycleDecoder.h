@@ -33,8 +33,9 @@ private:
 	bool mTracing;
 
 	CycleSample mCycleSample = { Frequency::NoCarrier, 0, 0 };
+	Frequency mPrevcycle = Frequency::NoCarrier;
 
-	CycleSample mCycleSampleCheckpoint;
+	vector<CycleSample> mCycleSampleCheckpoints;
 
 	ArgParser mArgParser;
 
@@ -62,6 +63,8 @@ private:
 	int mMinNSamplesF12Cycle; // Min duration of a 3T/2 cycle where T = 1/F2
 	int mMaxNSamplesF12Cycle; // Min duration of a 3T/2 cycle where T = 1/F2
 
+	int mPhaseShift = 180; // phase [degrees] when shifting from high to low frequency - normally 180 degrees
+
 	LevelDecoder::Level mLevel = LevelDecoder::Level::NoCarrier;
 
 	bool getSameLevelCycles(int& nSamples);
@@ -70,6 +73,8 @@ private:
 
 
 public:
+
+	int getPhase() { return mPhaseShift;  }
 
 	CycleDecoder(LevelDecoder& levelDecoder, ArgParser &argParser);
 
@@ -87,7 +92,7 @@ public:
 	 * waitForTone is used by BlockDecoder for detecting both lead and trailer tones of varying lengths.
 	 * The expected length is provided as argument 'toneDuration'.
 	 */
-	bool waitForTone(double minDuration, double &duration);
+	bool waitForTone(double minDuration, double &duration, double &waitingTime, int &highToneCycles);
 
 
 	// Get last sampled cycle

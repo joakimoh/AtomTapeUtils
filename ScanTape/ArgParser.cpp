@@ -15,9 +15,13 @@ bool ArgParser::failed()
 void ArgParser::printUsage(const char *name)
 {
 	cout << "Usage:\t" << name << " <WAV file> [-g <generate dir path] [-d <debug start time> <debug stop time>] [-b <b>]\n";
-	cout << "\t[-f <freq tolerance>] [-l <level tolerance>] [-s <start time> ] [-e] [-t]\n";
-	cout << " \t[-lt <duration>] [-slt <duration>] [-tt <duration>] [-ml <duration>]\n\n";
+	cout << "\t[-f <freq tolerance>] [-l <level tolerance>] [-s <start time> ] [-e] [-t] [-pot]\n";
+	cout << " \t[-lt <duration>] [-slt <duration>] [-tt <duration>] [-ml <duration>]\n";
+	cout << "\n";
 	cout << "<WAVE file>:\n\t16-bit PCM WAV file to analyse\n\n";
+	cout << "\n";
+	cout << "If no output directory is specifed, then all generated files will be created in the current work directory\n";
+	cout << "\n";
 	cout << "-g generate dir path :\n\tProvide path to directory where generated files shall be put\n\t- default is work directory\n\n";
 	cout << "-d <debug start time> <debug stop time>:\n\tWAV file time range (format mm:ss.ss) for which debugging shall be turned on\n\t- default is off for all times\n\n";
 	cout << "-f <freq tolerance>:\n\tTolerance of the 1200/2400 frequencies [0,1[\n\t- default is 0.1\n\n";
@@ -30,7 +34,7 @@ void ArgParser::printUsage(const char *name)
 	cout << "-b baudrate:\n\tBaudrate (300 or 1200)\n\t- default is " << tapeTiming.baudRate << "\n\n";
 	cout << "-e:\n\tApply error correction\n\n";
 	cout << "-t:\n\tTurn on tracing showing detected faults.\n\n";
-	cout << "If no output directory is specifed, then all generated files will be created in the current work directory\n\n";
+	cout << "-pot:\n\tPreserve original tape timing when generating UEF & CSW files - default is " << tapeTiming.preserve << "\n\n";
 	cout << "\n";
 }
 
@@ -60,6 +64,9 @@ ArgParser::ArgParser(int argc, const char* argv[])
 				cout << "-g without a valid directory\n";
 			mGenDir = argv[ac+1];
 			ac++;
+		}
+		else if (strcmp(argv[ac], "-pot") == 0) {
+			tapeTiming.preserve = true;
 		}
 		else if (strcmp(argv[ac], "-d") == 0 && ac + 2 < argc) {
 			double t1 = decodeTime(argv[ac + 1]);
@@ -101,6 +108,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 				ac++;
 			}
 		}
+
 		else if (strcmp(argv[ac], "-s") == 0 && ac + 1 < argc) {
 			double val = strtod(argv[ac + 1], NULL);
 			if (val < 0)

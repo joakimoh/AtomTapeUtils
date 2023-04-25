@@ -68,7 +68,7 @@ int main(int argc, const char* argv[])
     }
 
     // generate UEF file
-    UEFCodec UEF_codec = UEFCodec(TAP_file);
+    UEFCodec UEF_codec = UEFCodec(TAP_file, false);
     string UEF_file_name = crEncodedFileNamefromDir(arg_parser.mDstDir, TAP_file, "uef");
     if (!UEF_codec.encode(UEF_file_name)) {
         cout << "Failed to write the UEF file!\n";

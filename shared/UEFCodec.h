@@ -23,6 +23,8 @@ private:
 
 	TapeProperties mTapeTiming;
 
+	bool mUseOriginalTiming = false;
+
 	
 
 
@@ -147,7 +149,7 @@ public:
 
 	static bool encodeFloat(float val, Byte encoded_val[4]);
 
-	UEFCodec(TAPFile& tapFile);
+	UEFCodec(TAPFile& tapFile, bool useOriginalTiming);
 
 	UEFCodec(string& abcFileName);
 

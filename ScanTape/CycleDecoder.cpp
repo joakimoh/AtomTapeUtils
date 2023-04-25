@@ -11,7 +11,7 @@ using namespace std;
 // Save the current file position
 bool CycleDecoder::checkpoint()
 {
-	mCycleSampleCheckpoint = mCycleSample;
+	mCycleSampleCheckpoints.push_back(mCycleSample);
 	mLevelDecoder.checkpoint();
 	return true;
 }
@@ -19,7 +19,8 @@ bool CycleDecoder::checkpoint()
 // Roll back to a previously saved file position
 bool CycleDecoder::rollback()
 {
-	mCycleSample = mCycleSampleCheckpoint;
+	mCycleSample = mCycleSampleCheckpoints.back();
+	mCycleSampleCheckpoints.pop_back();
 	mLevelDecoder.rollback();
 	return true;
 
@@ -135,10 +136,16 @@ bool CycleDecoder::getNextCycle(CycleSample& cycleSample)
 	if (n_samples >= mMinNSamplesF1Cycle && n_samples <= mMaxNSamplesF1Cycle) {
 		// An F1 frequency CYCLE (which has a LONG duration)
 		freq = Frequency::F1;
+		if (mPrevcycle == Frequency::F2)
+			mPhaseShift = 180; // record the phase when shifting frequency)
+		mPrevcycle = freq;
 	}
 	else if (n_samples >= mMinNSamplesF2Cycle && n_samples <= mMaxNSamplesF2Cycle) {
 		// An F2 frequency CYCLE (which has a SHORT duration)
 		freq = Frequency::F2;
+		if (mPrevcycle == Frequency::F1)
+			mPhaseShift = 180; // record the phase when shifting frequency
+		mPrevcycle = freq;
 	}
 	else if (n_samples >= mMinNSamplesF12Cycle && n_samples <= mMaxNSamplesF12Cycle) {
 		// Check for a combination of one phase of F1 & F2 phases each.
@@ -155,9 +162,13 @@ bool CycleDecoder::getNextCycle(CycleSample& cycleSample)
 		// matters is only that an equal amount of F12 cycles are treated as F1 & F2.)
 		if (mCycleSample.freq == Frequency::F1) {
 			freq = Frequency::F2;
+			mPhaseShift = 0; // record the phase when shifting frequency 
+			mPrevcycle = freq;
 		}
 		else if (mCycleSample.freq == Frequency::F2) {
 			freq = Frequency::F1;
+			mPhaseShift = 0; // record the phase when shifting frequency
+			mPrevcycle = freq;
 		}
 		else { // mCycleSample.freq == Frequency::NoCarrier
 			if (mTracing)
@@ -236,10 +247,12 @@ bool CycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 /*
 * Wait for high frequency (F2) lead or trailer tone of a minimum duration
 */
-bool CycleDecoder::waitForTone(double minDuration, double &duration) {
+bool CycleDecoder::waitForTone(double minDuration, double &duration, double& waitingTime, int& highToneCycles) {
 
 	bool found = false;
 	CycleSample cycle_sample;
+
+	double t_wait_start = getTime();
 
 
 	// Search for lead tone of the right duration
@@ -249,7 +262,7 @@ bool CycleDecoder::waitForTone(double minDuration, double &duration) {
 		if (!waitUntilCycle(Frequency::F2, cycle_sample))
 			return false;
 
-		double t_start = getTime();
+		double t_start = getTime();	
 
 		// Get all following cycles
 		int n_cycles = 0;
@@ -261,8 +274,11 @@ bool CycleDecoder::waitForTone(double minDuration, double &duration) {
 		double t_end = getTime();
 		duration = t_end - t_start;
 
-		if (duration > minDuration)
+		if (duration > minDuration) {
 			found = true;
+			highToneCycles = n_cycles + 1;
+			waitingTime = t_start - t_wait_start;
+		}
 	}
 
 	

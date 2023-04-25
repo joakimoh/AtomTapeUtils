@@ -48,7 +48,7 @@ int main(int argc, const char* argv[])
     DATA_codec.getTAPFile(TAP_file);
 
 
-    UEFCodec UEF_codec = UEFCodec(TAP_file);
+    UEFCodec UEF_codec = UEFCodec(TAP_file, false);
     UEF_codec.setTapeTiming(arg_parser.tapeTiming);
 
     if (!UEF_codec.encode(arg_parser.mDstFileName)) {

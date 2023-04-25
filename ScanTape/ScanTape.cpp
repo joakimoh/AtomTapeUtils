@@ -49,6 +49,7 @@ int main(int argc, const char* argv[])
     cout << "Min lead tone duration of subsequent blocks = " << arg_parser.tapeTiming.minBlockTiming.otherBlockLeadToneDuration << " s\n";
     cout << "Min trailer tone duration = " << arg_parser.tapeTiming.minBlockTiming.trailerToneDuration << " s\n";
     cout << "Min micro lead duration = " << arg_parser.tapeTiming.minBlockTiming.microLeadToneDuration << " s\n";
+    cout << "Tape timing when generated UEF/CSW files = " << (arg_parser.tapeTiming.preserve ? "Original" : "Standard") << "\n";
  
 
     //
@@ -95,7 +96,8 @@ int main(int argc, const char* argv[])
     fout << "Min lead tone duration of subsequent blocks = " << arg_parser.tapeTiming.minBlockTiming.otherBlockLeadToneDuration << " s\n";
     fout << "Min trailer tone duration = " << arg_parser.tapeTiming.minBlockTiming.trailerToneDuration << " s\n";
     fout << "Min micro lead duration = " << arg_parser.tapeTiming.minBlockTiming.microLeadToneDuration << " s\n";
-
+    fout << "Tape timing when generated UEF/CSW files = " << (arg_parser.tapeTiming.preserve?"Original":"Standard") << "\n";
+    
 
     // Read complete Atom files using the File Decoder
     while (!level_decoder.endOfSamples()) {
@@ -144,7 +146,7 @@ int main(int argc, const char* argv[])
                         //return -1;
                     }
 
-                    UEFCodec UEF_codec = UEFCodec(tapFile);
+                    UEFCodec UEF_codec = UEFCodec(tapFile, arg_parser.tapeTiming.preserve);
                     string UEF_file_name = crEncodedFileNamefromDir(arg_parser.mGenDir, tapFile, "uef");
                     if (!UEF_codec.encode(UEF_file_name)) {
                         cout << "Failed to write the UEF file!\n";

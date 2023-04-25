@@ -32,6 +32,8 @@ typedef struct TapeProperties_struct
 	BlockTiming minBlockTiming = { 3.8,		1.5, 0.0,		0.3, 0.0,		1.5, 0.0 };
 	BlockTiming nomBlockTiming = { 4.2,		4.0, 0.0,		0.5, 0.0000136,	2.0, 2.5 }; // 4 to work for Atomulator
 	BlockTiming maxBlockTiming = { 999999,	2.5, 999999,	0.8, 99999,		2.5, 999999 };
+	 
+	bool preserve = false; // If set, the original tape timing shall be used when generating UEF/CSW/WAV files
 
 
 } TapeProperties;
