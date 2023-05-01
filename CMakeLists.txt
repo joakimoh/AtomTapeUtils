@@ -35,7 +35,6 @@ add_executable (
 )
 
 
-
 add_executable ( 
 	dat2bin  "dat2bin/dat2bin.cpp"
 	"dat2bin/ArgParser.h"  "dat2bin/ArgParser.cpp"
@@ -70,7 +69,6 @@ add_executable (
 	"shared/Utility.h" "shared/Utility.cpp"
 	"shared/TAPCodec.h" "shared/TAPCodec.cpp"
 	"shared/MMCCodec.h" "shared/MMCCodec.cpp"
-	"shared/AtomBasicCodec.h" "shared/AtomBasicCodec.cpp"
 )
 
 target_sources(mmc2dat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
@@ -85,7 +83,6 @@ add_executable (
 	"shared/DataCodec.h" "shared/DataCodec.cpp"  
 	"shared/Utility.h" "shared/Utility.cpp"
 	"shared/TAPCodec.h" "shared/TAPCodec.cpp"
-	"shared/AtomBasicCodec.h" "shared/AtomBasicCodec.cpp"
 	"shared/MMCCodec.h" "shared/MMCCodec.cpp"
 )
 
@@ -118,12 +115,25 @@ add_executable (
 	"shared/Utility.h" "shared/Utility.cpp"
 	"shared/UEFCodec.h" "shared/UEFCodec.cpp"
 	"shared/TAPCodec.h" "shared/TAPCodec.cpp"
-	"shared/AtomBasicCodec.h" "shared/AtomBasicCodec.cpp"
 )
 
 target_sources(dat2uef PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
 
 target_link_libraries(dat2uef PUBLIC gzstream PRIVATE ZLIB::ZLIB)
+
+add_executable ( 
+	uef2wav  "uef2wav/uef2wav.cpp"
+	"uef2wav/ArgParser.h"  "uef2wav/ArgParser.cpp"
+	"shared/WavEncoder.h" "shared/WavEncoder.cpp"  
+	"shared/Utility.h" "shared/Utility.cpp"
+	"shared/UEFCodec.h" "shared/UEFCodec.cpp"
+	"shared/TAPCodec.h" "shared/TAPCodec.cpp"
+	"shared/TapeProperties.h" "shared/PcmFile.h" "shared/PcmFile.cpp"
+)
+
+target_sources(uef2wav PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
+
+target_link_libraries(uef2wav PUBLIC gzstream PRIVATE ZLIB::ZLIB)
 
 
 
@@ -220,6 +230,21 @@ target_sources(uef2abc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
 
 target_link_libraries(uef2abc PUBLIC gzstream PRIVATE ZLIB::ZLIB)
 
+add_executable ( 
+	uef2dat "uef2dat/uef2dat.cpp" 
+	"shared/BlockTypes.h"
+	"uef2dat/ArgParser.h"  "uef2dat/ArgParser.cpp"
+	"shared/TAPCodec.h" "shared/TAPCodec.cpp" 
+	"shared/DataCodec.h" "shared/DataCodec.cpp" 
+	"shared/UEFCodec.h" "shared/UEFCodec.cpp"  
+	"shared/Utility.h" "shared/Utility.cpp"
+	"shared/TapeProperties.h" "shared/PcmFile.h"  "shared/PcmFile.cpp"
+)
+
+target_sources(uef2dat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
+
+target_link_libraries(uef2dat PUBLIC gzstream PRIVATE ZLIB::ZLIB)
+
 
 
 add_executable(
@@ -227,7 +252,9 @@ add_executable(
 	"shared/BlockTypes.h" "shared/CommonTypes.h"
 	"ScanTape/ArgParser.h" "ScanTape/ArgParser.cpp"
 	"ScanTape/LevelDecoder.h" "ScanTape/LevelDecoder.cpp"
-	"ScanTape/CycleDecoder.h" "ScanTape/CycleDecoder.cpp"
+	"ScanTape/CycleDecoder.h"
+	"ScanTape/CSWCycleDecoder.h" "ScanTape/CSWCycleDecoder.cpp"
+	"ScanTape/WavCycleDecoder.h" "ScanTape/WavCycleDecoder.cpp"
 	"ScanTape/BlockDecoder.h" "ScanTape/BlockDecoder.cpp"
 	"ScanTape/FileDecoder.h" "ScanTape/FileDecoder.cpp"
 	"shared/DataCodec.h" "shared/DataCodec.cpp"
@@ -237,6 +264,8 @@ add_executable(
 	"shared/Utility.h" "shared/Utility.cpp"
 	"shared/TapeProperties.h" "shared/PcmFile.h"  "shared/PcmFile.cpp"
 	"shared/MMCCodec.h" "shared/MMCCodec.cpp"
+	"shared/CSWCodec.h" "shared/CSWCodec.cpp"
+	"shared/zpipe.h" "shared/zpipe.cpp"
 )
 
 target_sources(ScanTape PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)

@@ -21,7 +21,7 @@ class Filter {
 
 public:
 
-	Filter(ArgParser argParser);
+	Filter(int Freq, ArgParser argParser);
 
 	bool averageFilter(Samples& inSamples, Samples& outSamples);
 
@@ -31,6 +31,9 @@ public:
 
 
 private:
+
+	int mFS; // sample frequency (normally 44 100 Hz for WAV files)
+	double mTS = 1 / mFS; // sample duration = 1 / sample frequency
 
 	int mSaturationLevelLow;
 	int mSaturationLevelHigh;

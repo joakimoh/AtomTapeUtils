@@ -11,6 +11,7 @@
 #include "../shared/CommonTypes.h"
 #include "ArgParser.h"
 #include "../shared/WavEncoder.h"
+#include "../shared/UEFCodec.h"
 #include "../shared/DataCodec.h"
 #include "../shared/Debug.h"
 #include "../shared/Utility.h"
@@ -22,7 +23,7 @@ using namespace std::filesystem;
 
 /*
  *
- * Create WAV file from Acorn Atom BASIC (ABC) program
+ * Create WAV file from UEF file
  * *
  */
 int main(int argc, const char* argv[])
@@ -34,20 +35,15 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    cout << "Output file is: '" << arg_parser.mDstFileName << "'\n";
+    UEFCodec UEF_codec = UEFCodec();
 
-    DataCodec DATA_codec = DataCodec();
-
-    if (!DATA_codec.decode(arg_parser.mSrcFileName)) {
-        DBG_PRINT(ERR, "Failed to encode DATA file '%s' as WAW file '%s'\n",
-            arg_parser.mSrcFileName.c_str(), arg_parser.mDstFileName.c_str()
-        );
+    if (!UEF_codec.decode(arg_parser.mSrcFileName)) {
+        cout << "Failed to decode UEF file '" << arg_parser.mSrcFileName << "'\n";
     }
-    cout << "DATA file decoded successfully...\n";
 
     TAPFile TAP_file;
 
-    DATA_codec.getTAPFile(TAP_file);
+    UEF_codec.getTAPFile(TAP_file);
 
     WavEncoder WAV_encoder = WavEncoder(TAP_file, false, 44100);
     WAV_encoder.setTapeTiming(arg_parser.tapeTiming);
@@ -55,7 +51,7 @@ int main(int argc, const char* argv[])
     cout << "WAV encoder created...\n";
 
     if (!WAV_encoder.encode(arg_parser.mDstFileName)) {
-        cout << "Failed to encode DATA file '" << arg_parser.mSrcFileName << "' as WAV file '" << arg_parser.mDstFileName << "'\n";
+        cout << "Failed to encode program file '" << arg_parser.mSrcFileName << "' as WAV file '" << arg_parser.mDstFileName << "'\n";
     }
     cout << "WAVE file created...\n";
 

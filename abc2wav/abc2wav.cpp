@@ -50,7 +50,7 @@ int main(int argc, const char* argv[])
 
     ABC_codec.getTAPFile(TAP_file);
 
-    WavEncoder WAV_encoder = WavEncoder(TAP_file, false);
+    WavEncoder WAV_encoder = WavEncoder(TAP_file, false, 44100);
     WAV_encoder.setTapeTiming(arg_parser.tapeTiming);
 
     cout << "WAV encoder created...\n";

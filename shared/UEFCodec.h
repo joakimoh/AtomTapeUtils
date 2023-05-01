@@ -151,8 +151,6 @@ public:
 
 	UEFCodec(TAPFile& tapFile, bool useOriginalTiming);
 
-	UEFCodec(string& abcFileName);
-
 	bool setTapeTiming(TapeProperties tapeTiming);
 	/*
 	 * Encode TAP File structure as UEF file 

@@ -27,7 +27,7 @@ bool LevelDecoder::rollback()
 }
 
 LevelDecoder::LevelDecoder(
-	Samples &samples, double startTime, ArgParser &argParser
+	int sampleFreq, Samples &samples, double startTime, ArgParser &argParser
 ): mSamples(samples), mArgParser(argParser) { // A reference can only be initialised this way!
 
 	mTracing = argParser.tracing;
@@ -37,12 +37,15 @@ LevelDecoder::LevelDecoder(
 	mSamples = samples;
 	mSamplesIndex = 0;
 
+	mFS = sampleFreq;
+	mTS = 1 / mFS;
+
 	// A phase should never be longer than the max value of half an F1 cycle
-	mNLevelSamplesMax = (int) round((1 + mArgParser.mFreqThreshold) * F_S / (F1_FREQ * 2)); 
+	mNLevelSamplesMax = (int) round((1 + mArgParser.mFreqThreshold) * mFS / (F1_FREQ * 2)); 
 
 	// Advance to time startTime before searching for data
 	if (startTime > 0)
-		while (mSamplesIndex < mSamples.size() && (mSamplesIndex * T_S < startTime)) mSamplesIndex++;
+		while (mSamplesIndex < mSamples.size() && (mSamplesIndex * mTS < startTime)) mSamplesIndex++;
 
 	
 }
@@ -96,5 +99,5 @@ LevelDecoder::Level LevelDecoder::getLevel() {
 
 double LevelDecoder::getTime()
 {
-	return LevelDecoder::getSampleNo() * T_S;
+	return LevelDecoder::getSampleNo() * mTS;
 }

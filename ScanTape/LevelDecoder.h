@@ -17,6 +17,9 @@ public:
 
 private:
 
+	int mFS; // sample frequency (normally 44 100 Hz for WAV files)
+	double mTS = 1 / mFS; // sample duration = 1 / sample frequency
+
 	int mNLevelSamplesMax;
 
 	ArgParser mArgParser;
@@ -47,7 +50,7 @@ private:
 
 public:
 
-	LevelDecoder(Samples& samples, double startTime, ArgParser &argParser);
+	LevelDecoder(int sampleFreq, Samples& samples, double startTime, ArgParser &argParser);
 
 	bool getNextSample(Level &level, int &sampleNo);
 

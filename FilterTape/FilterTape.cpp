@@ -58,8 +58,10 @@ int main(int argc, const char* argv[])
     dt = t_end - t_start;
     cout << "Elapsed time: " << dt.count() << " seconds...\n";
 
+    int sample_freq = 44100;
+
     // Initialise sample filter
-    Filter filter(arg_parser);
+    Filter filter(sample_freq, arg_parser);
 
     Samples& samples_to_filter = samples;
 

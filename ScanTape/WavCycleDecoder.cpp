@@ -1,5 +1,6 @@
+
 #include "../shared/CommonTypes.h"
-#include "CycleDecoder.h"
+#include "WavCycleDecoder.h"
 #include "../shared/Debug.h"
 #include "ArgParser.h"
 #include "../shared/WaveSampleTypes.h"
@@ -8,55 +9,27 @@
 
 using namespace std;
 
-// Save the current file position
-bool CycleDecoder::checkpoint()
-{
-	mCycleSampleCheckpoints.push_back(mCycleSample);
-	mLevelDecoder.checkpoint();
-	return true;
-}
-
-// Roll back to a previously saved file position
-bool CycleDecoder::rollback()
-{
-	mCycleSample = mCycleSampleCheckpoints.back();
-	mCycleSampleCheckpoints.pop_back();
-	mLevelDecoder.rollback();
-	return true;
-
-}
-
-CycleDecoder::CycleDecoder(
-	LevelDecoder& levelDecoder, ArgParser &argParser
-) : mLevelDecoder(levelDecoder), mArgParser(argParser)
+// Constructor
+WavCycleDecoder::WavCycleDecoder(
+	int sampleFreq, LevelDecoder& levelDecoder, ArgParser& argParser
+) : CycleDecoder(argParser), mLevelDecoder(levelDecoder)
 {
 	mTracing = argParser.tracing;
 
+	mFS = sampleFreq;
+	mTS = 1.0 / mFS;
 
 	// Min & max durations of F1 & F2 frequency low/high phases
-	mMinNSamplesF1Cycle = (int) round((1 - mArgParser.mFreqThreshold) * F_S / F1_FREQ); // Min duration of an F1 cycle
-	mMaxNSamplesF1Cycle = (int) round((1 + mArgParser.mFreqThreshold) * F_S / F1_FREQ); // Max duration of an F1 cycle
-	int n_samples_F1 = round(F_S / F1_FREQ);
-	mMinNSamplesF2Cycle = (int) round((1 - mArgParser.mFreqThreshold) * F_S / F2_FREQ); // Min duration of an F2 cycle
-	mMaxNSamplesF2Cycle = (int) round((1 + mArgParser.mFreqThreshold) * F_S / F2_FREQ); // Max duration of an F2 cycle
-	int n_samples_F2 = (int) round(F_S / F2_FREQ);
+	mMinNSamplesF1Cycle = (int)round((1 - mArgParser.mFreqThreshold) * mFS / F1_FREQ); // Min duration of an F1 cycle
+	mMaxNSamplesF1Cycle = (int)round((1 + mArgParser.mFreqThreshold) * mFS / F1_FREQ); // Max duration of an F1 cycle
+	int n_samples_F1 = round(mFS / F1_FREQ);
+	mMinNSamplesF2Cycle = (int)round((1 - mArgParser.mFreqThreshold) * mFS / F2_FREQ); // Min duration of an F2 cycle
+	mMaxNSamplesF2Cycle = (int)round((1 + mArgParser.mFreqThreshold) * mFS / F2_FREQ); // Max duration of an F2 cycle
+	int n_samples_F2 = (int)round(mFS / F2_FREQ);
 
-	// If cycles start with a low phase but the cycle detection records cycles starting with a high
-	// phase, then when there is a switch from an F1 to and F2 (or F2 to an F1) cycle, the cycle
-	// stretching over the transition will be around 3T/2 where T=1/F2 and to T (for F2) and 2T (for F1)
-	// as is normally the case. This corresponds to use case (1) below. If the detection instead
-	// records cycles staring with a low phase, all detected cycles will always have a length of
-	// either T or 2T. This corresponds to use case (1) below.
-	//
-	// ----    ----        --------        --------    ----    ----		High	signal level
-	//     ----                    --------                ----			Low
-	//     |   T   |      2T       |     2T        |   T   |   T   |	(1)
-	// |  T    |    3T/2   |      2T      |   3T/2     |  T    |		(2)
-	//
-
-	mMinNSamplesF12Cycle = (int) round((1 - mArgParser.mFreqThreshold) * 3 * F_S / (F2_FREQ * 2));// Min duration of a 3T/2 cycle where T = 1/F2
-	int n_samples_F12 = (int) round(3 * F_S / (F2_FREQ * 2));
-	mMaxNSamplesF12Cycle = (int) round((1 + mArgParser.mFreqThreshold) * 3 * F_S / (F2_FREQ * 2)); // Min duration of a 3T/2 cycle where T = 1/F2
+	mMinNSamplesF12Cycle = (int)round((1 - mArgParser.mFreqThreshold) * 3 * mFS / (F2_FREQ * 2));// Min duration of a 3T/2 cycle where T = 1/F2
+	int n_samples_F12 = (int)round(3 * mFS / (F2_FREQ * 2));
+	mMaxNSamplesF12Cycle = (int)round((1 + mArgParser.mFreqThreshold) * 3 * mFS / (F2_FREQ * 2)); // Min duration of a 3T/2 cycle where T = 1/F2
 
 	if (mTracing) {
 		DBG_PRINT(DBG, "F1 with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F1, mMinNSamplesF1Cycle, mMaxNSamplesF1Cycle);
@@ -67,7 +40,26 @@ CycleDecoder::CycleDecoder(
 
 }
 
-bool CycleDecoder::getSameLevelCycles(int& nSamples) {
+// Save the current cycle
+bool WavCycleDecoder::checkpoint()
+{
+	mCycleSampleCheckpoints.push_back(mCycleSample);
+	mLevelDecoder.checkpoint();
+	return true;
+}
+
+// Roll back to a previously saved cycle
+bool WavCycleDecoder::rollback()
+{
+	mCycleSample = mCycleSampleCheckpoints.back();
+	mCycleSampleCheckpoints.pop_back();
+	mLevelDecoder.rollback();
+	return true;
+
+}
+
+// Collect as many samples as possible of the same level (High or Low)
+bool WavCycleDecoder::getSameLevelCycles(int& nSamples) {
 
 	LevelDecoder::Level initial_level = mLevel;
 
@@ -85,11 +77,9 @@ bool CycleDecoder::getSameLevelCycles(int& nSamples) {
 	return transition;
 }
 
-
-/*
- * Assumes the first sample is the start of a Phase 
- */
-bool CycleDecoder::getNextCycle(CycleSample& cycleSample)
+// Get the next cycle (which is ether a low - F1 - or high - F2 - tone cycle)
+// Assumes the first sample is the start of a Phase
+bool WavCycleDecoder::getNextCycle(CycleSample& cycleSample)
 {
 
 	int n_samples_first_phase = 0, n_samples_second_phase = 0;
@@ -148,23 +138,13 @@ bool CycleDecoder::getNextCycle(CycleSample& cycleSample)
 		mPrevcycle = freq;
 	}
 	else if (n_samples >= mMinNSamplesF12Cycle && n_samples <= mMaxNSamplesF12Cycle) {
-		// Check for a combination of one phase of F1 & F2 phases each.
-		// This could happen if the cycle detection is offset one phase from
-		// the start of a new cycle used in the FSK,.e.g., if cycle detection considers
-		// a cycle to start with a high phase when it actually starts with a low
-		// phase. The result will then be that one detected cycle actually
-		// corresponds to one phase of an F1 cycle and one phase of an F2 cycle.
-		// This results in a cycle duration of 3T/2 where T = 1/F2 (F2 = 2F1).
-		// This "fake" cycle is referred to as an F12 cycle here.
-		// If the transition is from F1, the cycle is treated as an F1 cycle
-		// whereas if the transition is from an F2 cycle, it is treated as an F2
-		// cycle. (Threating it the opposite way around would also work; what
-		// matters is only that an equal amount of F12 cycles are treated as F1 & F2.)
+		// One F1 phase followed by one F2 phase. Treat this as an F2 cycle.
 		if (mCycleSample.freq == Frequency::F1) {
 			freq = Frequency::F2;
 			mPhaseShift = 0; // record the phase when shifting frequency 
 			mPrevcycle = freq;
 		}
+		// One F2 phase followed by one F1 phase. Treat this as an F1 cycle.
 		else if (mCycleSample.freq == Frequency::F2) {
 			freq = Frequency::F1;
 			mPhaseShift = 0; // record the phase when shifting frequency
@@ -185,7 +165,7 @@ bool CycleDecoder::getNextCycle(CycleSample& cycleSample)
 	}
 
 	int sample_end = mLevelDecoder.getSampleNo();
-	
+
 
 	// Add sample
 	cycleSample = { freq, sample_start, sample_end };
@@ -195,9 +175,8 @@ bool CycleDecoder::getNextCycle(CycleSample& cycleSample)
 
 }
 
-
-
-bool CycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
+// Wait until a cycle of a certain frequency is detected
+bool WavCycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 
 	bool found_complete_cycle = false;
 	int sample_no;
@@ -223,9 +202,9 @@ bool CycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 				// Try to get a complete cycle 
 				if (getNextCycle(cycleSample) && (cycleSample.freq == freq || freq == Frequency::Undefined)) {
 					found_complete_cycle = true;
-					
+
 				}
-				if (cycleSample.freq == Frequency::NoCarrier && no_carrier_cycle_detected) {
+				if (cycleSample.freq == Frequency::NoCarrier && !no_carrier_cycle_detected) {
 					no_carrier_cycle_detected = true;
 				}
 			}
@@ -244,10 +223,8 @@ bool CycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 
 }
 
-/*
-* Wait for high frequency (F2) lead or trailer tone of a minimum duration
-*/
-bool CycleDecoder::waitForTone(double minDuration, double &duration, double& waitingTime, int& highToneCycles) {
+// Wait for a high tone (F2)
+bool WavCycleDecoder::waitForTone(double minDuration, double& duration, double& waitingTime, int& highToneCycles) {
 
 	bool found = false;
 	CycleSample cycle_sample;
@@ -262,45 +239,58 @@ bool CycleDecoder::waitForTone(double minDuration, double &duration, double& wai
 		if (!waitUntilCycle(Frequency::F2, cycle_sample))
 			return false;
 
-		double t_start = getTime();	
+
+
+		double t_start = getTime();
 
 		// Get all following cycles
 		int n_cycles = 0;
 		while (getNextCycle(cycle_sample) && cycle_sample.freq == Frequency::F2) {
 			n_cycles++;
 		}
-
 		
 		double t_end = getTime();
 		duration = t_end - t_start;
+
 
 		if (duration > minDuration) {
 			found = true;
 			highToneCycles = n_cycles + 1;
 			waitingTime = t_start - t_wait_start;
+			
 		}
 	}
 
-	
+
 
 	return found;
 
 }
 
-bool CycleDecoder::collectCycles(Frequency freq, int nRequiredCycles, CycleSample &lastValidCycleSample, int& nCollectedCycles) {
+// Get last sampled cycle
+CycleDecoder::CycleSample WavCycleDecoder::getCycle()
+{
+	return mCycleSample;
+}
+
+// Collect a specified no of cycles of a certain frequency
+bool WavCycleDecoder::collectCycles(Frequency freq, int nRequiredCycles, CycleSample& lastValidCycleSample, int& nCollectedCycles) {
 
 	CycleSample sample;
-	for (int c = 0; c < nRequiredCycles; c++) {
-		nCollectedCycles = c;
+	nCollectedCycles = 0;
+	for (int c = 0; c < nRequiredCycles; c++) {	
 		if (!getNextCycle(sample) || sample.freq != freq)
 			return false;
 		lastValidCycleSample = sample;
+		nCollectedCycles = c + 1;
 	}
+
 	return true;
 }
 
-bool CycleDecoder::collectCycles(Frequency freq, CycleSample& lastValidCycleSample, int maxCycles, int &nCollectedCycles) {
-	
+// Collect a max no of cycles of a certain frequency
+bool WavCycleDecoder::collectCycles(Frequency freq, CycleSample& lastValidCycleSample, int maxCycles, int& nCollectedCycles) {
+
 	CycleSample sample;
 	nCollectedCycles = 0;
 	while (getNextCycle(sample) && sample.freq == freq && nCollectedCycles < maxCycles) {
@@ -312,13 +302,8 @@ bool CycleDecoder::collectCycles(Frequency freq, CycleSample& lastValidCycleSamp
 	return true;
 }
 
-
-CycleDecoder::CycleSample CycleDecoder::getCycle()
+// Get tape time
+double WavCycleDecoder::getTime()
 {
-	return mCycleSample;
-}
-
-double CycleDecoder::getTime()
-{
-	return mLevelDecoder.getSampleNo() * T_S;
+	return mLevelDecoder.getSampleNo() * mTS;
 }

@@ -67,7 +67,7 @@ bool AtomBasicCodec::encode(string & filePath)
                     end_of_program = true;
                     int n_non_ABC_bytes = ATM_block_iter->data.end() - bi;
                     if (ATM_block_iter->data.end() - bi > 0) {
-                        DBG_PRINT(ERR, "Program file '%s' contains %d extra bytes after end of program - skipping this data!\n", filePath.c_str(), n_non_ABC_bytes);
+                        DBG_PRINT(ERR, "Program file '%s' contains %d extra bytes after end of program - skipping this data for ABC file generation!\n", name.c_str(), n_non_ABC_bytes);
                     }
                 }
                 else {

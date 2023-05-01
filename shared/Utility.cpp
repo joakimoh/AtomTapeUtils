@@ -106,17 +106,24 @@ char digitToHex(int d)
         return 'X';
 }
 /*
-* Create a valid Atom Tape Block Name from a DOS filename.
+* Create a valid Atom Tape Block Name from a DOS/Linux/MacOs filename.
 * 
-* Each sequence _hh_ is replaced by an ASCII character with
-* hex value hh.
+* For Atom a filename can contain any printable character (no limitation)
+* but cannot be longer than 13 characters in total.
+*
+* Each occurrence of _hh where hh is a hex number is assumed to be an escape
+* sequence and will be replaced by an ASCII character with hex value hh.
+* 
+* A filename longer than 13 characters will be truncated to 13 characters.
+* 
 */
 string blockNameFromFilename(string fn)
 {
     string s = "";
     int len = (int)fn.length();
     int p = 0;
-    while (p < len) {
+    int atom_file_pos = 0;
+    while (p < len && atom_file_pos < 13) {
         char c = fn[p];
         // Look for escape sequences __ and _hh 
         if (fn[p] == '_') {
@@ -136,6 +143,7 @@ string blockNameFromFilename(string fn)
             }
         }
         s += c;
+        atom_file_pos++;
         p++;
         
     }
@@ -143,12 +151,23 @@ string blockNameFromFilename(string fn)
     return s;
 }
 
+/*
+* Create a valid DOS/Linux/MacOs filename from an Acorn Atom tape filename.
+* 
+* Characters that are not allowed in a DOS/Linux/MacOs filename are:
+* /<>:"\|?* and ASCII 0-31
+* 
+* '_' is used as an escape sequence (_hh where hh is the ASCII in hex)
+* and will therefore not either be allowed in the filename chosen.
+*
+* Filenames cannot either end in SPACE or DOT.*/
 string filenameFromBlockName(string fileName)
 {
+    string invalid_chars = "\"/<>:\|?*";
     string s = "";
     for (auto& c : fileName) {
-        if (c == '-' || (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
-            s += c;
+        if (c != '_' && invalid_chars.find(c) == string::npos && c >= ' ')
+             s += c;
         else if (c == '_')
             s += "__";
         else {

@@ -8,12 +8,14 @@
 
 #include "ArgParser.h"
 
-Filter::Filter(ArgParser argParser)
+Filter::Filter(int sampleFreq, ArgParser argParser)
 {
+    mFS = sampleFreq;
+    mTS = 1 / mFS;
     mAveragePoints = argParser.mNAveragingSamples;
     mDerivativeThreshold = argParser.mDerivativeThreshold;
     mMaxSampleAmplitude = argParser.mSinusAmplitude;
-    minPeakDistanceSamples = (int) round(argParser.mMinPeakDistance * F_S / F2_FREQ);
+    minPeakDistanceSamples = (int) round(argParser.mMinPeakDistance * mFS / F2_FREQ);
     mSaturationLevelLow = argParser.mSaturationLevelLow * SAMPLE_LOW_MIN;
     mSaturationLevelHigh = argParser.mSaturationLevelHigh * SAMPLE_HIGH_MAX;
 

@@ -57,7 +57,7 @@ typedef struct {
 	Byte lenLow;
 } ATMHdr;
 
-typedef struct {
+typedef struct ATMBlock_struct {
 
 	ATMHdr hdr;
 	vector<Byte> data;

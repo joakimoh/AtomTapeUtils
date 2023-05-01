@@ -27,7 +27,7 @@ void ArgParser::printUsage(const char* name)
 	cout << "-tt <d>:\n\tThe duration of a trailer tone\n\t- default is " << tapeTiming.nomBlockTiming.trailerToneDuration << " s\n\n";
 	cout << "-ml <d>:\n\tThe duration of a micro lead tone preceeding a data block\n\t- default is " << tapeTiming.nomBlockTiming.microLeadToneDuration << " s\n\n";
 	cout << "-fg <d>:\n\tThe duration of the gap before the first block\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockGap << " s\n\n";
-	cout << "-sg <d>:\n\tThe duration of the gap before the other blocks\n\t- default is " << tapeTiming.nomBlockTiming.otherBlockGap << " s\n\n";
+	cout << "-sg <d>:\n\tThe duration of the gap before the other blocks\n\t- default is " << tapeTiming.nomBlockTiming.blockGap << " s\n\n";
 	cout << "-lg <d>:\n\tThe duration of the gap after the last block\n\t- default is " << tapeTiming.nomBlockTiming.lastBlockGap << " \n\n";
 	cout << "-b baudrate:\n\tBaudrate (300 or 1200) - default is " << tapeTiming.baudRate << "\n\n";
 	cout << "-ps <phase shift>:\n\tPhase shift when transitioning from high to low tone [0,180] degrees\n\t- default is " << tapeTiming.phase << " degrees\n\n";
@@ -123,7 +123,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			if (val < 0)
 				cout << "-lt without a valid gap duration\n";
 			else {
-				tapeTiming.nomBlockTiming.otherBlockGap = val;
+				tapeTiming.nomBlockTiming.blockGap = val;
 				ac++;
 			}
 		}

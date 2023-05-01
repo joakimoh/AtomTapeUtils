@@ -12,7 +12,7 @@
 using namespace std;
 
 
-WavEncoder::WavEncoder(TAPFile& tapFile, bool useOriginalTiming): mTapFile(tapFile), mUseOriginalTiming(useOriginalTiming)
+WavEncoder::WavEncoder(TAPFile& tapFile, bool useOriginalTiming, int sampleFreq): mTapFile(tapFile), mUseOriginalTiming(useOriginalTiming), mFS(sampleFreq)
 {
     if (mTapeTiming.baudRate == 300) {
         mStartBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
@@ -29,9 +29,11 @@ WavEncoder::WavEncoder(TAPFile& tapFile, bool useOriginalTiming): mTapFile(tapFi
     else {
         throw invalid_argument("Unsupported baud rate " + mTapeTiming.baudRate);
     }
+    mHighSamples = (double) mFS / F2_FREQ;
+    mLowSamples = (double) mFS / F1_FREQ;
 }
 
-WavEncoder::WavEncoder()
+WavEncoder::WavEncoder(int sampleFreq) : mFS(sampleFreq)
 {
     if (mTapeTiming.baudRate == 300) {
         mStartBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
@@ -48,6 +50,8 @@ WavEncoder::WavEncoder()
     else {
         throw invalid_argument("Unsupported baud rate " + mTapeTiming.baudRate);
     }
+    mHighSamples = (double)mFS / F2_FREQ;
+    mLowSamples = (double)mFS / F1_FREQ;
 }
 
 bool WavEncoder::setTapeTiming(TapeProperties tapeTiming)
@@ -91,10 +95,11 @@ bool WavEncoder::encode(string& filePath)
 
     while (ATM_block_iter < mTapFile.blocks.end()) {
 
-
         // Write a lead tone for the block
-        if (mUseOriginalTiming)
+        if (mUseOriginalTiming) {
             lead_tone_duration = (ATM_block_iter->leadToneCycles) / high_tone_freq;
+            mPhase = ATM_block_iter->phaseShift;
+        }
         if (!writeTone(lead_tone_duration)) {
             DBG_PRINT(ERR, "Failed to write lead tone of duration %f s\n", lead_tone_duration);
         }
@@ -368,7 +373,7 @@ bool WavEncoder::writeTone(double duration)
 
 bool WavEncoder::writeGap(double duration)
 {
-    int n_samples = (int) round(duration * F_S);
+    int n_samples = (int) round(duration * mFS);
     for (int s = 0; s < n_samples; s++) {
         mSamples.push_back(0);
     }
@@ -389,9 +394,11 @@ bool WavEncoder::writeCycle(bool highFreq, int n)
         n_samples = (int) round(mLowSamples * n);
     }
 
+    double phase = ((mPhase + 180) % 360) * PI / 180;
+
     double f = 2 * n * PI / n_samples;
     for (int s = 0; s < n_samples; s++) {
-        Sample y = (Sample) round(sin(s * f) * mMaxSampleAmplitude);
+        Sample y = (Sample) round(sin(s * f + phase) * mMaxSampleAmplitude);
         mSamples.push_back(y);
     }
     return true;

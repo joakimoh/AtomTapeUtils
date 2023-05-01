@@ -9,7 +9,8 @@
 #include <math.h>
 
 #include "LevelDecoder.h"
-#include "CycleDecoder.h"
+#include "WavCycleDecoder.h"
+#include "CSWCycleDecoder.h"
 #include "BlockDecoder.h"
 #include "FileDecoder.h"
 #include "../shared/WaveSampleTypes.h"
@@ -20,6 +21,7 @@
 #include "../shared/PcmFile.h"
 #include "../shared/Utility.h"
 #include "../shared/MMCCodec.h"
+#include "../shared/CSWCodec.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -51,25 +53,41 @@ int main(int argc, const char* argv[])
     cout << "Min micro lead duration = " << arg_parser.tapeTiming.minBlockTiming.microLeadToneDuration << " s\n";
     cout << "Tape timing when generated UEF/CSW files = " << (arg_parser.tapeTiming.preserve ? "Original" : "Standard") << "\n";
  
-
-    //
-    // Open input file if it is a valid 16-bit PCM WAV file
-    //
-
+    CycleDecoder* cycle_decoder = NULL;
+    LevelDecoder* level_decoder = NULL;
     Samples samples;
-    if (!readSamples(arg_parser.mWavFile, samples)) {
-        cout << "Couldn't open PCM Wave file '" << arg_parser.mWavFile << "'\n";
-        return -1;
+    Bytes pulses;
+    int sample_freq = 44100;
+
+    // Is it a CSW file?
+    if (CSWCodec::isCSWFile(arg_parser.mWavFile)) {
+        cout << "CSW file detected - scanning it...\n";
+        CSWCodec CSW_codec = CSWCodec();
+        CycleDecoder::Phase first_phase;
+        if (!CSW_codec.decode(arg_parser.mWavFile, pulses, sample_freq, first_phase)) {
+            cout << "Couldn't decode CSW Wave file '" << arg_parser.mWavFile << "'\n";
+            return -1;
+        }
+        cycle_decoder = new CSWCycleDecoder(sample_freq, first_phase, pulses, arg_parser);
     }
+    else // If not a CSW file it must be a WAV file
+    {
+        cout << "WAV file assumed - scanning it...\n";
+        if (!readSamples(arg_parser.mWavFile, samples)) {
+            cout << "Couldn't open PCM Wave file '" << arg_parser.mWavFile << "'\n";
+            return -1;
+        }
 
-    // Create Level Decoder used to filter wave form into a well-defined level stream
-    LevelDecoder level_decoder(samples, arg_parser.mStartTime, arg_parser);
+        // Create Level Decoder used to filter wave form into a well-defined level stream
+        level_decoder = new LevelDecoder(sample_freq, samples, arg_parser.mStartTime, arg_parser);
 
-    // Create Cycle Decoder used to produce a cycle stream from the level stream
-    CycleDecoder cycle_decoder(level_decoder, arg_parser);
+        // Create Cycle Decoder used to produce a cycle stream from the level stream
+        cycle_decoder = new WavCycleDecoder(sample_freq , *level_decoder, arg_parser);
+    }
+    
 
     // Create A Block Decoder used to detect and read one block from a cycle stream
-    BlockDecoder block_decoder(cycle_decoder, arg_parser);
+    BlockDecoder block_decoder(*cycle_decoder, arg_parser);
 
     // Create a File Decoder used to detect and read a complete Atom Tape File
     FileDecoder fileDecoder(block_decoder, arg_parser);
@@ -100,10 +118,9 @@ int main(int argc, const char* argv[])
     
 
     // Read complete Atom files using the File Decoder
-    while (!level_decoder.endOfSamples()) {
+    bool read_file;
+    while ((read_file = fileDecoder.readFile(fout))) {
 
-        
-        bool read_file = fileDecoder.readFile(fout);
         TAPFile tapFile;
         if (!fileDecoder.getTAPFile(tapFile)) {
             cout << "Failed to get TAP file\n";

@@ -59,16 +59,21 @@ public:
 
 private:
 
+	// Detect a start bit by looking for exactly mStartBitCycles low tone (F1) cycles
 	bool getStartBit();
 
 	bool getDataBit(Bit& bit);
 
+	//
+	// Detect a stop bit by looking for at least one and maximum mStopBitCycles high tone (F2) cycles
+	// (Even if there should normally be mStopBitCycles cycles)
+	//
 	bool getStopBit(int &nCollectedCycles);
 
 	bool getByte(Byte *byte, int & nCollectedCycles);
 	bool getByte(Byte* byte);
 
-	bool checkByte(Byte refValue);
+	bool checkByte(Byte refValue, Byte &readVal);
 
 	bool checkBytes(Byte refVal, int n);
 

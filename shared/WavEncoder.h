@@ -24,8 +24,9 @@ private:
 	bool mUseOriginalTiming = false;
 
 	int mMaxSampleAmplitude = 16384;
-	double mHighSamples = (double) F_S / F2_FREQ;
-	double mLowSamples = (double) F_S / F1_FREQ;
+	int mFS;
+	double mHighSamples;
+	double mLowSamples;;
 
 	int mStartBitCycles;	// #cycles for start bit - should be 1 "bit"
 	int mLowDataBitCycles; // #cycles for LOW "0" data bit - for F2 frequency
@@ -34,12 +35,14 @@ private:
 
 	Byte mCRC;
 
+	int mPhase = 180;
+
 public:
 
 
-	WavEncoder();
+	WavEncoder(int sampleFreq);
 
-	WavEncoder(TAPFile& tapFile, bool useOriginalTiming);
+	WavEncoder(TAPFile& tapFile, bool useOriginalTiming, int sampleFreq);
 
 	bool setTapeTiming(TapeProperties tapeTiming);
 

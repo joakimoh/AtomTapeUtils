@@ -15,8 +15,6 @@ const Sample	SAMPLE_HIGH_MAX = 32767;
 const Sample	SAMPLE_LOW_MIN = -32768;
 const Sample	SAMPLE_UNDEFINED = 0;
 
-const int		F_S = 44100; // sample frequency
-const double	T_S = 1.0 / (double)F_S;
 const int		F1_FREQ = 1200; // low FSK frequency
 const int		F2_FREQ = 2400; // high FSK frequency
 

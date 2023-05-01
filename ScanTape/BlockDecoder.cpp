@@ -69,38 +69,6 @@ BlockDecoder::BlockDecoder(CycleDecoder& cycleDecoder, ArgParser &argParser) : m
  * Read a complete Acorn Atom tape block, starting with the detection of its lead tone and
  * ending with the reading of the stop bit of the CRC byte that ends the block.
  * 
- *
- * A first block normally starts with about 4.2 seconds of a 2400 Hz lead tone.
- * 
- * Before the next block there seems to be 2 seconds of silence, noise or mis-shaped waves that
- * are neither 1200 nor 2400 cycles.
- * 
- * The second and all subsequent blocks belonging to the same file starts with 2 seconds of a 2400
- * lead tone (i.e., different than the 5.1 seconds for the first block).
- * 
- * Within each block there seems to be a 0.5 seconds micro lead tone between the block header and the block data.
- * It starts with a bit shorter stop bit (8 cycles of 2400 Hz instead of 9 cycles as is normally the case) followed by
- * 0.5 sec of a 2400 tone before the data block start bit comes.
- * 
- * Between two files, there seems to up to 2.5 seconds of silence, noise or malformed waves that
- * are neither 1200 nor 2400 cycles.
- * 
- * Sometimes there could be gaps between bytes in a data block with seconds of a 2400 tone inbetween.
- * 
- * Contrary to what is stated on beebwiki, there seems to be no trailer tone whatsoever ending a block or a file.
- * The lead tone for subsequent block are also longer (2 sec) than what beewiki states (0.9/1.1 sec).
- * 
- * Beebwiki states:
- * 
- * "Each data stream is preceded by 5.1 seconds of 2400 Hz lead tone (reduced to 1.1 seconds
- * if the recording has paused in the middle of a file, or 0.9 seconds between data blocks recorded in one go).
- * At the end of the stream is a 5.3 second, 2400 Hz trailer tone (reduced to 0.2 seconds when
- * pausing in the middle of a file (giving at least 1.3 seconds' delay between data blocks.)"
- * 
- * The lead tone duration, the micro lead tone duration and the trailer tone duration are all configurable.
- * The first and last ones could variy between blocks and are therefore functional arguments whereas the micro
- * lead tone is a private member of the class (initalised at instantiation).
- *
  */
 bool BlockDecoder::readBlock(
 	double leadToneDuration, double trailerToneDuration, ATMBlock &readBlock,
@@ -220,7 +188,7 @@ bool BlockDecoder::readBlock(
 	// Detect trailer tone (if specified to have a non-zero duration)
 	readBlock.trailerToneCycles = 0; // clear in case to trailer tone is present
 	if (collected_stop_bit_cycles == mStopBitCycles) {
-		if (!mCycleDecoder.waitForTone(trailerToneDuration, duration, dummy, readBlock.trailerToneCycles)) {
+		if (trailerToneDuration > 0 && !mCycleDecoder.waitForTone(trailerToneDuration, duration, dummy, readBlock.trailerToneCycles)) {
 			if (mTracing)
 				DEBUG_PRINT(getTimeNum(), ERR, "Failed to detect a trailer tone for file '%s'\n", readBlock.hdr.name);
 			return false;
@@ -228,7 +196,7 @@ bool BlockDecoder::readBlock(
 	}
 
 	// Detect gap to next block by waiting for the next block's lead tone
-	// After detection, there will be a rool back to the end of the block
+	// After detection, there will be a roll back to the end of the block
 	// so that the next block detection will not miss the lead tone.
 	checkpoint();
 	int dummy_cycles;
@@ -242,9 +210,8 @@ bool BlockDecoder::readBlock(
 	return true;
 }
 
-bool BlockDecoder::checkByte(Byte refVal) {
-	Byte byte = 0x11;
-	if (!getByte(&byte) || byte != refVal) {
+bool BlockDecoder::checkByte(Byte refVal, Byte &readVal) {
+	if (!getByte(&readVal) || readVal != refVal) {
 		return false;
 	}
 	return true;
@@ -256,9 +223,10 @@ bool BlockDecoder::checkBytes(Byte refVal, int n) {
 	bool failed = false;
 	int start_cycle = 0;
 	for (int i = start_cycle; i < n && !failed; i++) {
-		if (!checkByte(refVal)) {
+		Byte val = 0;
+		if (!checkByte(refVal, val)) {
 			if (mTracing)
-				DEBUG_PRINT(getTimeNum(), ERR, "Byte #%d out of %d bytes differs from reference value 0x%.2x or couldn't be read!\n", i, n, refVal);
+				DEBUG_PRINT(getTimeNum(), ERR, "Byte #%d (%.2x) out of %d bytes differs from reference value 0x%.2x or couldn't be read!\n", i, val, n, refVal);
 			failed = true;
 		}
 	}
@@ -305,6 +273,9 @@ bool BlockDecoder::getBytes(Bytes &bytes, int n, Byte &CRC) {
 	return !failed;
 }
 
+//
+// Detect a start bit by looking for exactly mStartBitCycles low tone cycles
+//
 bool BlockDecoder::getStartBit()
 {
 
@@ -331,17 +302,17 @@ bool BlockDecoder::getStartBit()
 }
 
 string BlockDecoder::getTime() {
-	double t = mCycleDecoder.getCycle().sampleEnd * T_S;
+	double t = mCycleDecoder.getTime();
 	char t_str[64];
 	int t_h = (int) trunc(t / 3600);
-	int t_m = (int) trunc((t - t_h) / 60);
+	int t_m = (int) trunc((t - t_h * 3600) / 60);
 	double t_s = t - t_h * 3600 - t_m * 60;
 	sprintf(t_str, "%dh:%dm:%.6fs (%fs)", t_h, t_m, t_s, t);
 	return string(t_str);
 }
 
 double BlockDecoder::getTimeNum() {
-	return mCycleDecoder.getCycle().sampleEnd * T_S;
+	return mCycleDecoder.getTime();
 }
 
 bool BlockDecoder::getDataBit(Bit& bit)
@@ -389,6 +360,10 @@ bool BlockDecoder::getDataBit(Bit& bit)
 
 }
 
+//
+// Detect a stop bit by looking for least one and maximum mStopBitCycles high tone (F2) cycles
+// (Even if there should normally be mStopBitCycles cycles)
+//
 bool BlockDecoder::getStopBit(int &nCollectedCycles)
 {
 

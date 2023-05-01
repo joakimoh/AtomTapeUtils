@@ -9,7 +9,6 @@
 #include "BlockTypes.h"
 #include "Debug.h"
 #include "Utility.h"
-#include "AtomBasicCodec.h"
 #include "BlockTypes.h"
 
 
@@ -77,16 +76,6 @@ UEFCodec::UEFCodec(TAPFile& tapFile, bool useOriginalTiming): mTapFile(tapFile)
     mUseOriginalTiming = useOriginalTiming;
 }
 
-UEFCodec::UEFCodec(string & abcFileName)
-{
-
-    AtomBasicCodec codec = AtomBasicCodec();
-
-    codec.encode(abcFileName);
-    codec.getTAPFile(mTapFile);
-
-}
-
 
 bool UEFCodec::setTapeTiming(TapeProperties tapeTiming)
 {
@@ -139,11 +128,10 @@ bool UEFCodec::encode(string &filePath)
     float other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;// lead tone duration of all other blocks (2 s expected here but Atomulator needs 4 s)
     float data_block_micro_lead_tone_duration = mTapeTiming.nomBlockTiming.microLeadToneDuration; //  micro lead tone (separatiing block header and block data) duration
     float first_block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
-    float other_block_gap = mTapeTiming.nomBlockTiming.otherBlockGap;
+    float block_gap = mTapeTiming.nomBlockTiming.blockGap;
     float last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;  
     float phase = mTapeTiming.phase;
     float lead_tone_duration = first_block_lead_tone_duration; // let first block have a longer lead tone
-    float block_gap = other_block_gap;
 
 
     //
