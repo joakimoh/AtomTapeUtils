@@ -9,7 +9,7 @@ All utilites are run from command line (DOS or Linux). There are many utilities 
 
 ### You have a tape with old Acorn Atom programs that you have digitalised into a WAV file and you want to extract the programs from it.
 
-The WAV file must be a 44.1 kHz/16-bit/mono PCM file. 
+The WAV file must be a 16-bit/mono PCM file (preferable 44.1 kHz but other samplein rates could be used as well).
 Filter the WAV file *my_tape.wav* to clean it up a bit before trying to decode it.
 (This filtering can be skipped if you already have an audio file of excellent quality.)
 
@@ -18,6 +18,9 @@ Filter the WAV file *my_tape.wav* to clean it up a bit before trying to decode i
 Then extract programs from it
 
 > ScanTape my_filtered_tape.wav -g my_files_dir
+
+The ScanTape utility can also take a CSW file as input should you previously have converted your WAV files into CSW files.
+The utility will automatically detect whether it is a WAV or CSW file.
 
 For each detected Acorn Atom program file, the following files will be generated and stored in the directory *my_files_dir*:
 - *program name*.abc - text file with the BASIC program (looks as it would appear when listed on the Acorn Atom)
@@ -33,6 +36,10 @@ The program name will be used as the file name. Any detected non-alphanumeric ch
 Convert to UEF format (for loading into emulator)
 
 > abc2uef myprog.abc -o myprog.uef
+
+Convert to CSW format (for loading into emulator; you need first to generate the UEF file)
+
+> uef2csw myprog.uef -o myprog.uef
 
 Convert to MMC format (for loading into emulator or onto memory card of an AtoMMC device)
 
@@ -65,3 +72,4 @@ Optionally, you could do all this (except for the WAV file generation) with just
 
 ### Utility program flags
 There are many possibilities to tailor especially the tape filtering and tape scannning. Write *utility name* and press enter to get information about the command line flags you can provide to do this tailoring. One useful feature (enabled by flag '-m') is e.g. the ability to generate a WAV file that includes both the original audio and the filtered audio for manual inspection when you are experiencing difficulties with some tapes (i.e. they are not successfully decoded with ScanTape later on). This WAV file cannot be used by ScanTape though as ScanTape expects only one channel with audio data. You could also turn on logging of detected faults during decoding of a tape (flag '-t') that will tell you at what points in time the decoding fails (like preamble byte #2 read failure).
+To have more verbose output (each utility as default runs in silent mode with none or very little output), the flag '-v' can be used.
