@@ -37,6 +37,8 @@ private:
 
 	bool mVerbose = false;
 
+	bool mReadingCRC = false;
+
 
 public:
 

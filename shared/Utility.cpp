@@ -67,12 +67,12 @@ string crEncodedFileNamefromDir(string dirPath, TAPFile mTapFile, string fileExt
 double decodeTime(string time)
 {
     stringstream ts(time);
-    double min, sec;
+    double hour, min, sec;
     char c;
 
-    ts >> min >> c >> sec;
+    ts >> hour >> c >> min >> c >> sec;
 
-    return (min * 60 + sec);
+    return (hour * 3600 + min * 60 + sec);
 
 }
 

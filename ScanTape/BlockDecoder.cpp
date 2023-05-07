@@ -186,13 +186,21 @@ bool BlockDecoder::readBlock(
 		}
 	}
 
+	if (mVerbose)
+		cout << "Block data read at " << encodeTime(getTime()) << "\n";
+
 	// Get CRC
 	uint8_t received_CRC = 0;
+	mReadingCRC = true;
 	if (!getByte(&received_CRC, collected_stop_bit_cycles)) {
 		if (mTracing)
 			DEBUG_PRINT(getTime(), ERR, "Failed to read CRC for file '%s'\n", readBlock.hdr.name);
 		return false;
 	}
+	mReadingCRC = false;
+
+	if (mVerbose)
+		cout << "CRC read at " << encodeTime(getTime()) << "\n";
 
 	// Check CRC
 	if (received_CRC != CRC) {
@@ -388,8 +396,8 @@ bool BlockDecoder::getStopBit(int &nCollectedCycles)
 	}
 	nCollectedCycles += 1; // Add the first cycle already sampled
 
-	// Check that the stop bit has the correct no of F2 cycles
-	if (nCollectedCycles != mStopBitCycles)
+	// Check that the stop bit has the correct no of F2 cycles (one less when the stop bit for the CRC)
+	if (( nCollectedCycles != mStopBitCycles && !mReadingCRC) || (nCollectedCycles != mStopBitCycles-1 && mReadingCRC))
 		if (mTracing)
 			DEBUG_PRINT(getTime(), ERR, "%d cycles were collected (with a detected next cycle of %s) for the stop bit when expecting %d cycles\n",
 				nCollectedCycles, _FREQUENCY(mCycleDecoder.getCycle().freq), mStopBitCycles
@@ -422,8 +430,9 @@ bool BlockDecoder::getByte(Byte  *byte, int &nCollectedCycles)
 	}
 
 	if (!getStopBit(nCollectedCycles)) {
-		if (mTracing)
-			DEBUG_PRINT(getTime(), ERR, "Failed to read stop bit%s\n", "")
+		if (mTracing) {
+			DEBUG_PRINT(getTime(), ERR, "Failed to read stop bit%s\n", "");
+		}
 		return false;
 	}
 

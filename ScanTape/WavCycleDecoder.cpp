@@ -94,8 +94,10 @@ bool WavCycleDecoder::getNextCycle(CycleSample& cycleSample)
 
 	// If initial level is neither Low nor High (i.e, NoCarrier) then stop
 	if (!(first_phase_level == Level::LowLevel || first_phase_level == Level::HighLevel)) {
+		/*
 		if (mTracing)
-			printf("%s: Illegal % s level detected\n", encodeTime(getTime()), _LEVEL(first_phase_level));
+			printf("%s: Illegal % s level detected\n", encodeTime(getTime()).c_str(), _LEVEL(first_phase_level));
+		*/
 		return false;
 	}
 
@@ -110,15 +112,17 @@ bool WavCycleDecoder::getNextCycle(CycleSample& cycleSample)
 		first_phase_level == Level::LowLevel && second_phase_level != Level::HighLevel ||
 		first_phase_level == Level::HighLevel && second_phase_level != Level::LowLevel
 		) {
+		/*
 		if (mTracing)
-			printf("%s: Illegal transition %s to %s detected\n", encodeTime(getTime()), _LEVEL(first_phase_level), _LEVEL(second_phase_level));
+			printf("%s: Illegal transition %s to %s detected\n", encodeTime(getTime()).c_str(), _LEVEL(first_phase_level), _LEVEL(second_phase_level));
+		*/
 		return false;
 	}
 
 	// Get second phase samples
 	if (!getSameLevelCycles(n_samples_second_phase)) {
 		if (mTracing)
-			printf("%s: Failed to read second phase of cycle%s\n", encodeTime(getTime()));
+			printf("%s: Failed to read second phase of cycle%s\n", encodeTime(getTime()).c_str());
 		return false;
 	}
 
@@ -154,15 +158,19 @@ bool WavCycleDecoder::getNextCycle(CycleSample& cycleSample)
 			mPrevcycle = freq;
 		}
 		else { // mCycleSample.freq == Frequency::NoCarrierFrequency
+			/*
 			if (mTracing)
-				printf("%s: Invalid transitional cycle of duration % d detected for a previous cycle of type% s\n", encodeTime(getTime()), n_samples, _FREQUENCY(mCycleSample.freq));
+				printf("%s: Invalid transitional cycle of duration % d detected for a previous cycle of type% s\n", encodeTime(getTime()).c_str(), n_samples, _FREQUENCY(mCycleSample.freq));
+			*/
 			return false;
 		}
 	}
 	else {
 		if (mTracing) {
-			printf("%s: Invalid cycle of duration %d detected for a previous cycle type of %s\n", encodeTime(getTime()), n_samples, _FREQUENCY(mCycleSample.freq));
-			printf("%s: [%d,%d, %d]\n", mMinNSamplesF12Cycle, n_samples, mMaxNSamplesF12Cycle);
+			/*
+			printf("%s: Invalid cycle of duration %d detected for a previous cycle type of %s\n", encodeTime(getTime()).c_str(), n_samples, _FREQUENCY(mCycleSample.freq));
+			printf("%s: [%d,%d, %d]\n", encodeTime(getTime()).c_str(), mMinNSamplesF12Cycle, n_samples, mMaxNSamplesF12Cycle);
+			*/
 		}
 		return false;
 	}

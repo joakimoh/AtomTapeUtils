@@ -35,9 +35,12 @@ using namespace std;
 
 
 #define DEBUG(C, f, T, X, ...)  { \
+/* \
 	if (X <= ERR && X  != 0 ) \
 		fprintf(f, "*E* " __VA_ARGS__); \
-	else if (C)\
+	else \
+*/ \
+	if (C)\
 		fprintf(f, __VA_ARGS__); \
 	fflush(f); \
 }
