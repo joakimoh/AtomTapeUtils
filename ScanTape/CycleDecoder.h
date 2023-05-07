@@ -5,15 +5,14 @@
 
 #include <vector>
 #include "ArgParser.h"
+#include "../shared/WaveSampleTypes.h"
+
 
 class CycleDecoder
 {
 
 public:
 
-	typedef enum { F1, F2, NoCarrier, Undefined } Frequency;
-
-	typedef enum { Low, High, Unspecified } Phase;
 
 	typedef struct {
 		Frequency freq;
@@ -33,8 +32,8 @@ protected:
 	int mFS; // sample frequency (normally 44 100 Hz for WAV files)
 	double mTS; // sample duration = 1 / sample frequency
 
-	CycleSample mCycleSample = { Frequency::NoCarrier, 0, 0 };
-	Frequency mPrevcycle = Frequency::NoCarrier;
+	CycleSample mCycleSample = { Frequency::NoCarrierFrequency, 0, 0 };
+	Frequency mPrevcycle = Frequency::NoCarrierFrequency;
 
 	vector<CycleSample> mCycleSampleCheckpoints;
 

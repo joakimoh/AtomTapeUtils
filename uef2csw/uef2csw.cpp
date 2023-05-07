@@ -11,7 +11,8 @@
 #include "../shared/CommonTypes.h"
 #include "ArgParser.h"
 #include "../shared/UEFCodec.h"
-#include "../shared/DataCodec.h"
+#include "../shared/CSWCodec.h"
+
 
 using namespace std;
 using namespace std::filesystem;
@@ -20,12 +21,13 @@ using namespace std::filesystem;
 
 /*
  * 
- * Create a DATA file from UEF file
- * * 
+ * Create Acorn Atom CSW file from UEF file
+ * 
+ * 
  */
 int main(int argc, const char* argv[])
 {
-
+    
 
     ArgParser arg_parser = ArgParser(argc, argv);
 
@@ -42,12 +44,17 @@ int main(int argc, const char* argv[])
 
     UEF_codec.getTAPFile(TAP_file);
 
-    DataCodec DATA_codec = DataCodec(TAP_file, arg_parser.verbose);
 
-    if (!DATA_codec.encode(arg_parser.dstFileName)) {
+    CSWCodec CSW_codec = CSWCodec(TAP_file,arg_parser.mPreserveOriginalTiming, arg_parser.verbose);
+
+    if (!CSW_codec.encode(arg_parser.dstFileName, arg_parser.mSampleFreq)) {
         
-        cout << "Failed to encode UEF file '" << arg_parser.srcFileName << "' as DATA file '" << arg_parser.dstFileName << "'\n";
+        cout << "Failed to encode UEF file '" << arg_parser.srcFileName << "' as CSW file '" << arg_parser.dstFileName << "'\n";
     }
+
+
+
+    
 
     return 0;
 }

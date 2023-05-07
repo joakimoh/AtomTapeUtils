@@ -35,20 +35,20 @@ private:
 
 	bool mTracing;
 
+	bool mVerbose = false;
+
 
 public:
 
 	int nReadBytes;
 
-	BlockDecoder(CycleDecoder& cycleDecoder, ArgParser & argParser);
+	BlockDecoder(CycleDecoder& cycleDecoder, ArgParser & argParser, bool verbose);
 
 	bool readBlock(
-		double leadToneDuration, double trailerToneDuration, ATMBlock &readBlock, BlockType &block_type, 
+		double leadToneDuration, ATMBlock &readBlock, BlockType &block_type, 
 		int &blockNo, bool &leadToneDetected);
 
-	double getTimeNum();
-
-	string getTime();
+	double getTime();
 
 	// Save the current file position
 	bool checkpoint();
@@ -70,6 +70,7 @@ private:
 	//
 	bool getStopBit(int &nCollectedCycles);
 
+	// Get one byte
 	bool getByte(Byte *byte, int & nCollectedCycles);
 	bool getByte(Byte* byte);
 
@@ -79,6 +80,7 @@ private:
 
 	bool getFileName(char name[13], Byte &CRC, int &len);
 
+	// Get bytes
 	bool getBytes(Bytes& block, int n, Byte &CRC);
 
 

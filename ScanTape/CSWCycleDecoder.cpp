@@ -2,6 +2,7 @@
 #include "CSWCycleDecoder.h"
 #include "../shared/Debug.h"
 #include "../shared/WaveSampleTypes.h"
+#include "../shared/Utility.h"
 
 #include <iostream>
 
@@ -9,8 +10,8 @@ using namespace std;
 
 // Constructor
 CSWCycleDecoder::CSWCycleDecoder(
-	int sampleFreq, CycleDecoder::Phase firstPhase, Bytes& pulses, ArgParser& argParser
-) : CycleDecoder(argParser), mPulses(pulses)
+	int sampleFreq, Phase firstPhase, Bytes& pulses, ArgParser& argParser, bool verbose
+) : CycleDecoder(argParser), mPulses(pulses), mVerbose(verbose)
 {
 
 	// Initialise pulse data
@@ -26,23 +27,23 @@ CSWCycleDecoder::CSWCycleDecoder(
 	mTS = 1.0 / mFS;
 
 	// Min & max durations of F1 & F2 frequency low/high phases
-	mMinNSamplesF1Cycle = (int)round((1 - mArgParser.mFreqThreshold) * mFS / F1_FREQ); // Min duration of an F1 cycle
-	mMaxNSamplesF1Cycle = (int)round((1 + mArgParser.mFreqThreshold) * mFS / F1_FREQ); // Max duration of an F1 cycle
+	mMinNSamplesF1Cycle = (int)round((1 - mArgParser.freqThreshold) * mFS / F1_FREQ); // Min duration of an F1 cycle
+	mMaxNSamplesF1Cycle = (int)round((1 + mArgParser.freqThreshold) * mFS / F1_FREQ); // Max duration of an F1 cycle
 	int n_samples_F1 = round(mFS / F1_FREQ);
-	mMinNSamplesF2Cycle = (int)round((1 - mArgParser.mFreqThreshold) * mFS / F2_FREQ); // Min duration of an F2 cycle
-	mMaxNSamplesF2Cycle = (int)round((1 + mArgParser.mFreqThreshold) * mFS / F2_FREQ); // Max duration of an F2 cycle
+	mMinNSamplesF2Cycle = (int)round((1 - mArgParser.freqThreshold) * mFS / F2_FREQ); // Min duration of an F2 cycle
+	mMaxNSamplesF2Cycle = (int)round((1 + mArgParser.freqThreshold) * mFS / F2_FREQ); // Max duration of an F2 cycle
 	int n_samples_F2 = (int)round(mFS / F2_FREQ);
 
-	mMinNSamplesF12Cycle = (int)round((1 - mArgParser.mFreqThreshold) * 3 * mFS / (F2_FREQ * 2));// Min duration of a 3T/2 cycle where T = 1/F2
+	mMinNSamplesF12Cycle = (int)round((1 - mArgParser.freqThreshold) * 3 * mFS / (F2_FREQ * 2));// Min duration of a 3T/2 cycle where T = 1/F2
 	int n_samples_F12 = (int)round(3 * mFS / (F2_FREQ * 2));
-	mMaxNSamplesF12Cycle = (int)round((1 + mArgParser.mFreqThreshold) * 3 * mFS / (F2_FREQ * 2)); // Min duration of a 3T/2 cycle where T = 1/F2
+	mMaxNSamplesF12Cycle = (int)round((1 + mArgParser.freqThreshold) * 3 * mFS / (F2_FREQ * 2)); // Min duration of a 3T/2 cycle where T = 1/F2
 
-	if (mTracing) {
-		DBG_PRINT(DBG, "F1 with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F1, mMinNSamplesF1Cycle, mMaxNSamplesF1Cycle);
-		DBG_PRINT(DBG, "F2 with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F2, mMinNSamplesF2Cycle, mMaxNSamplesF2Cycle);
-		DBG_PRINT(DBG, "transitional cycles (F1->F2 or F2->F1) with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F12, mMinNSamplesF12Cycle, mMaxNSamplesF12Cycle);
+	if (mVerbose) {
+		printf("F1 with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F1, mMinNSamplesF1Cycle, mMaxNSamplesF1Cycle);
+		printf("F2 with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F2, mMinNSamplesF2Cycle, mMaxNSamplesF2Cycle);
+		printf("transitional cycles (F1->F2 or F2->F1) with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F12, mMinNSamplesF12Cycle, mMaxNSamplesF12Cycle);
 	}
-	mCycleSample = { Frequency::NoCarrier, 0, 0 };
+	mCycleSample = { Frequency::NoCarrierFrequency, 0, 0 };
 
 }
 
@@ -73,7 +74,7 @@ bool CSWCycleDecoder::rollback()
 }
 
 bool CSWCycleDecoder::collectCycles(
-	CSWCycleDecoder::Frequency freq, int nRequiredCycles,
+	Frequency freq, int nRequiredCycles,
 	CSWCycleDecoder::CycleSample& lastValidCycleSample, int& nCollectedCycles
 )
 {
@@ -91,7 +92,7 @@ bool CSWCycleDecoder::collectCycles(
 }
 
 bool CSWCycleDecoder::collectCycles(
-	CSWCycleDecoder::Frequency freq, CycleSample& lastValidCycleSample, int maxCycles, int& nCollectedCycles
+	Frequency freq, CycleSample& lastValidCycleSample, int maxCycles, int& nCollectedCycles
 )
 {
 	CycleSample sample;
@@ -115,7 +116,6 @@ bool CSWCycleDecoder::getPulseLength(int &nextPulseIndex)
 	if (mPulseIndex < mPulses.size() && mPulses[mPulseIndex] != 0) {
 		mPulseLength = mPulses[mPulseIndex];
 		nextPulseIndex = mPulseIndex + 1;
-
 	} else
 	{
 		if (mPulseIndex + 4 < mPulses.size() && mPulses[mPulseIndex] == 0) {
@@ -143,8 +143,12 @@ bool CSWCycleDecoder::getNextPulse()
 		return false;
 	}
 
+	if (mVerbose && mPulseLength > 100) {
+		cout << (mPulseLevel == Phase::HighPhase ? "HIGH" : "LOW") << " pulse of duration " << mPulseLength;
+		cout << " samples (" << (double) mPulseLength * mTS << " s)\n";
+	}
 	// Update pulse level (invert it)
-	mPulseLevel = (mPulseLevel == CycleDecoder::Phase::High? CycleDecoder::Phase::Low: CycleDecoder::Phase::High);
+	mPulseLevel = (mPulseLevel == Phase::HighPhase? Phase::LowPhase: Phase::HighPhase);
 
 	// Update sample no based on previous pulse's length
 	mSampleIndex += mPulseLength;
@@ -162,7 +166,7 @@ bool CSWCycleDecoder::getNextCycle(CycleSample& cycleSample)
 
 	int sample_start = mSampleIndex;
 
-	CycleDecoder::Phase first_phase_level = mPulseLevel;
+	Phase first_phase_level = mPulseLevel;
 
 	// Get first phase samples
 	int n_samples_first_phase = mPulseLength;
@@ -210,16 +214,16 @@ bool CSWCycleDecoder::getNextCycle(CycleSample& cycleSample)
 			mPhaseShift = 0; // record the phase when shifting frequency
 			mPrevcycle = freq;
 		}
-		else { // mCycleSample.freq == Frequency::NoCarrier
+		else { // mCycleSample.freq == Frequency::NoCarrierFrequency
 			if (mTracing)
-				DEBUG_PRINT(getTime(), DBG, "Invalid transitional cycle of duration %d detected for a previous cycle of type %s\n", n_samples, _FREQUENCY(mCycleSample.freq));
+				printf("%s: Invalid transitional cycle of duration % d detected for a previous cycle of type% s\n", encodeTime(getTime()), n_samples, _FREQUENCY(mCycleSample.freq));
 			return false;
 		}
 	}
 	else {
 		if (mTracing) {
-			DEBUG_PRINT(getTime(), DBG, "Invalid cycle of duration %d detected for a previous cycle type of %s\n", n_samples, _FREQUENCY(mCycleSample.freq));
-			DEBUG_PRINT(getTime(), DBG, "[%d,%d, %d]\n", mMinNSamplesF12Cycle, n_samples, mMaxNSamplesF12Cycle);
+			printf("%s: Invalid cycle of duration %d detected for a previous cycle type of %s\n", encodeTime(getTime()), n_samples, _FREQUENCY(mCycleSample.freq));
+			printf("%s: [%d,%d, %d]\n", encodeTime(getTime()), mMinNSamplesF12Cycle, n_samples, mMaxNSamplesF12Cycle);
 		}
 		return false;
 	}
@@ -248,14 +252,14 @@ bool CSWCycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 			// Wait for a first Low value
 			bool found_low_level = false;			
 			while ((more_pulses = getNextPulse()) && !found_low_level) {
-				if (mPulseLevel == CSWCycleDecoder::Phase::Low)
+				if (mPulseLevel == Phase::LowPhase)
 					found_low_level = true;
 			}
 
 			if (found_low_level) {
 
 				// Try to get a complete cycle 
-				if (getNextCycle(cycleSample) && cycleSample.freq == freq) {
+				if (getNextCycle(cycleSample) && (cycleSample.freq == freq || freq == Frequency::UndefinedFrequency)) {
 					found_complete_cycle = true;				
 				}
 
@@ -267,8 +271,7 @@ bool CSWCycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 	}
 
 	catch (const char* e) {
-		if (mTracing)
-			DBG_PRINT(ERR, "Exception while searching for a complete cycle : %s\n", e);
+		printf("Exception while searching for a complete cycle : %s\n", e);
 		return false;
 	}
 
@@ -276,7 +279,7 @@ bool CSWCycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 }
 
 /*
-* Wait for high frequency (F2) lead or trailer tone of a minimum duration
+* Wait for high frequency (F2) tone of a minimum duration
 */
 bool CSWCycleDecoder::waitForTone(double minDuration, double &duration, double& waitingTime, int& highToneCycles) {
 
@@ -286,6 +289,7 @@ bool CSWCycleDecoder::waitForTone(double minDuration, double &duration, double& 
 	double t_wait_start = getTime();
 
 	highToneCycles = 0;
+	duration = 0;
 
 	// Search for lead tone of the right duration
 	while (!found && mPulseIndex < mPulses.size()) {
@@ -309,6 +313,8 @@ bool CSWCycleDecoder::waitForTone(double minDuration, double &duration, double& 
 			found = true;
 			highToneCycles = n_cycles + 1;
 			waitingTime = t_start - t_wait_start;
+			if (mVerbose)
+				cout << "Tone of duration " << duration << " s detected after waiting " << waitingTime << " s...\n";
 		}
 	}
 

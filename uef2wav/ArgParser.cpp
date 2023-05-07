@@ -15,22 +15,24 @@ bool ArgParser::failed()
 void ArgParser::printUsage(const char* name)
 {
 	cout << "Usage:\t" << name << " <UEF file> [-o <output file] [-b <b>] [-lt <d>] [-slt <d>]\n";
-	cout <<	"\t[-tt <d>] [-ml <d>] [-fg <d>] [-sg <d>] [-lg <d>] [-ps <phase shift>]\n";
-	cout << "\n";
-	cout << "<EUF file>:\n\tUEF file to decode\n";
+	cout <<	"\t[-ml <d>] [-fg <d>] [-sg <d>] [-lg <d>] [-ps <phase shift>] [-v]\n";
+	cout << "\t[-pot] [-f <sample freq>]\n\n";
+	cout << "<UEF file>:\n\tUEF file to decode\n";
 	cout << "\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.wav'.\n";
 	cout << "\n";
 	cout << "-lt <d>:\n\tThe duration of the first block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockLeadToneDuration << " s\n\n";
 	cout << "-slt <d>:\n\tThe duration of the subsequent block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.otherBlockLeadToneDuration << " s\n\n";
-	cout << "-tt <d>:\n\tThe duration of a trailer tone\n\t- default is " << tapeTiming.nomBlockTiming.trailerToneDuration << " s\n\n";
 	cout << "-ml <d>:\n\tThe duration of a micro lead tone preceeding a data block\n\t- default is " << tapeTiming.nomBlockTiming.microLeadToneDuration << " s\n\n";
 	cout << "-fg <d>:\n\tThe duration of the gap before the first block\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockGap << " s\n\n";
 	cout << "-sg <d>:\n\tThe duration of the gap before the other blocks\n\t- default is " << tapeTiming.nomBlockTiming.blockGap << " s\n\n";
 	cout << "-lg <d>:\n\tThe duration of the gap after the last block\n\t- default is " << tapeTiming.nomBlockTiming.lastBlockGap << " s\n\n";
 	cout << "-b baudrate:\n\tBaudrate (300 or 1200)\n\t- default is " << tapeTiming.baudRate << "\n\n";
 	cout << "-ps <phase shift>:\n\tPhase shift when transitioning from high to low tone [0,180] degrees\n\t- default is " << tapeTiming.phase << " degrees\n\n";
+	cout << "-pot:\n\tPreserve original tape timing when generating the CSW file - default is " << mPreserveOriginalTiming << "\n\n";
+	cout << "-f <sample freq>:\n\tSample frequency to use - default is " << mSampleFreq << "\n\n";
+	cout << "-v:\n\tVerbose output\n\n";
 	cout << "\n";
 }
 
@@ -42,16 +44,31 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		return;
 	}
 
-	mSrcFileName = argv[1];
+	srcFileName = argv[1];
 
-	mDstFileName = crDefaultOutFileName(mSrcFileName, "wav");
+	dstFileName = crDefaultOutFileName(srcFileName, "wav");
 
 	int ac = 2;
 
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
-			mDstFileName = argv[ac + 1];
+			dstFileName = argv[ac + 1];
 			ac++;
+		}
+		else if (strcmp(argv[ac], "-f") == 0) {
+			long freq = strtol(argv[ac + 1], NULL, 10);
+			if (freq < 0)
+				cout << "-b without a valid baud rate\n";
+			else {
+				mSampleFreq = stoi(argv[ac + 1]);
+				ac++;
+			}
+		}
+		else if (strcmp(argv[ac], "-pot") == 0) {
+			mPreserveOriginalTiming = true;
+		}
+		else if (strcmp(argv[ac], "-v") == 0) {
+			verbose = true;
 		}
 		else if (strcmp(argv[ac], "-b") == 0) {
 			tapeTiming.baudRate = stoi(argv[ac + 1]);
@@ -82,15 +99,6 @@ ArgParser::ArgParser(int argc, const char* argv[])
 				cout << "-lt without a valid  tone duration\n";
 			else {
 				tapeTiming.nomBlockTiming.otherBlockLeadToneDuration = val;
-				ac++;
-			}
-		}
-		else if (strcmp(argv[ac], "-tt") == 0 && ac + 1 < argc) {
-			double val = strtod(argv[ac + 1], NULL);
-			if (val < 0)
-				cout << "-s without a valid tone duration\n";
-			else {
-				tapeTiming.nomBlockTiming.trailerToneDuration = val;
 				ac++;
 			}
 		}

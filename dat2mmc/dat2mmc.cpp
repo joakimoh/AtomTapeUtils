@@ -46,23 +46,23 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    cout << "Output file name = " << arg_parser.mDstFileName << "\n";
+    cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
-    DataCodec DATA_codec = DataCodec();
+    DataCodec DATA_codec = DataCodec(arg_parser.verbose);
 
-    if (!DATA_codec.decode(arg_parser.mSrcFileName)) {
-        DBG_PRINT(ERR, "Failed to decode DATA file '%s'\n", arg_parser.mSrcFileName.c_str());
+    if (!DATA_codec.decode(arg_parser.srcFileName)) {
+        printf("Failed to decode DATA file '%s'\n", arg_parser.srcFileName.c_str());
     }
 
     TAPFile TAP_file;
 
     DATA_codec.getTAPFile(TAP_file);
 
-    MMCCodec MMC_codec(TAP_file);
+    MMCCodec MMC_codec(TAP_file, arg_parser.verbose);
 
-    if (!MMC_codec.encode(arg_parser.mDstFileName)) {
-        DBG_PRINT(ERR, "Failed to encode DATA file '%s' as MMC file '%s'\n",
-            arg_parser.mSrcFileName.c_str(), arg_parser.mDstFileName.c_str()
+    if (!MMC_codec.encode(arg_parser.dstFileName)) {
+        printf("Failed to encode DATA file '%s' as MMC file '%s'\n",
+            arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );
     }
 

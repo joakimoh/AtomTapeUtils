@@ -21,6 +21,9 @@
 #include <assert.h>
 #include "zlib.h"
 #include <string>
+#include "CommonTypes.h"
+#include <iostream>
+#include <fstream>
 
 using namespace std;
 
@@ -90,6 +93,76 @@ int def(FILE* source, FILE* dest, int level)
     return Z_OK;
 }
 
+//
+// Modified version of def() that compresses a byte vector
+// and writes it to an already open file.
+
+bool encodeBytes(Bytes& bytes, ofstream& dest)
+{
+    int ret, flush;
+    unsigned have;
+    z_stream strm;
+    unsigned char in[CHUNK];
+    unsigned char out[CHUNK];
+    int bp = 0;
+    int written_bytes = 0;
+    int read_bytes = 0;
+
+    /* allocate deflate state */
+    strm.zalloc = Z_NULL;
+    strm.zfree = Z_NULL;
+    strm.opaque = Z_NULL;
+    ret = deflateInit(&strm, Z_DEFAULT_COMPRESSION);
+    if (ret != Z_OK)
+        return false;
+
+    /* compress until end of file */
+    do {
+        if (bp < bytes.size() - CHUNK) {
+            memcpy((char*)&in[0], &bytes[bp], CHUNK);
+            strm.avail_in = CHUNK;
+            bp += CHUNK;
+            flush = Z_NO_FLUSH;
+        }
+        else {
+            memcpy((char*)&in[0], &bytes[bp], bytes.size() - bp);
+            strm.avail_in = bytes.size() - bp;
+            bp = bytes.size();
+            flush = Z_FINISH;
+
+        }
+        strm.next_in = in;
+
+        read_bytes += strm.avail_in;
+
+        /* run deflate() on input until output buffer not full, finish
+           compression if all of source has been read in */
+        do {
+            strm.avail_out = CHUNK;
+            strm.next_out = out;
+            ret = deflate(&strm, flush);    /* no bad return value */
+            assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
+            have = CHUNK - strm.avail_out;
+            dest.write((char*) out, have);
+            written_bytes += have;
+            if (dest.fail()) {
+                (void)deflateEnd(&strm);
+                return false;
+            }
+        } while (strm.avail_out == 0);
+        assert(strm.avail_in == 0);     /* all input will be used */
+
+        /* done when last data in file processed */
+    } while (flush != Z_FINISH);
+    assert(ret == Z_STREAM_END);        /* stream will be complete */
+
+    /* clean up and return */
+    (void)deflateEnd(&strm);
+
+    return true;
+}
+
+
 /* Decompress from file source to file dest until stream ends or EOF.
    inf() returns Z_OK on success, Z_MEM_ERROR if memory could not be
    allocated for processing, Z_DATA_ERROR if the deflate data is
@@ -154,6 +227,79 @@ int inf(FILE* source, FILE* dest)
     return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
 }
 
+
+
+// Modified version of inf() that uncompresses bytes
+// from an already open file and writes them
+// into a byte vector.
+bool decodeBytes(ifstream& source, Bytes& bytes)
+{
+    int ret;
+    unsigned have;
+    z_stream strm;
+    unsigned char in[CHUNK];
+    unsigned char out[CHUNK];
+    unsigned bp = 0;
+    int written_bytes = 0;
+    int read_bytes = 0;
+
+    /* allocate inflate state */
+    strm.zalloc = Z_NULL;
+    strm.zfree = Z_NULL;
+    strm.opaque = Z_NULL;
+    strm.avail_in = 0;
+    strm.next_in = Z_NULL;
+    ret = inflateInit(&strm);
+    if (ret != Z_OK)
+        return false;
+
+    /* decompress until deflate stream ends or end of file */
+    do {
+        source.read((char*)in, CHUNK);
+        strm.avail_in = source.gcount();
+        read_bytes += strm.avail_in;
+        if (strm.avail_in == 0)
+            break;
+        strm.next_in = in;
+ 
+        /* run inflate() on input until output buffer not full */
+        do {
+            strm.avail_out = CHUNK;
+            strm.next_out = out;
+            ret = inflate(&strm, Z_NO_FLUSH);
+            assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
+            switch (ret) {
+            case Z_NEED_DICT:
+                ret = Z_DATA_ERROR;     /* and fall through */
+            case Z_DATA_ERROR:
+            case Z_MEM_ERROR:
+                (void)inflateEnd(&strm);
+                return false;
+            }
+            have = CHUNK - strm.avail_out;
+            try {
+                if (bytes.capacity() < bp + have)
+                    bytes.resize(bp + have);
+                memcpy(&bytes[bp], &out[0], have * sizeof(out[0]));
+                written_bytes += have;
+                bp += have;
+             }
+            catch (bad_alloc) {
+                 (void)inflateEnd(&strm);
+                return false;
+            }
+        } while (strm.avail_out == 0);
+
+        /* done when inflate() says it's done */
+    } while (ret != Z_STREAM_END);
+
+    /* clean up and return */
+    (void)inflateEnd(&strm);
+
+ 
+    return ret == Z_STREAM_END ? true : false;
+}
+
 /* report a zlib or i/o error */
 void zerr(int ret)
 {
@@ -177,34 +323,4 @@ void zerr(int ret)
     case Z_VERSION_ERROR:
         fputs("zlib version mismatch!\n", stderr);
     }
-}
-
-bool deflate(string fin_name, string fout_name)
-{
-    FILE* fin = fopen(fin_name.c_str(), "rb");
-    FILE* fout = fopen(fout_name.c_str(), "wb");
-    int ret;
-
-    ret = def(fin, fout, Z_DEFAULT_COMPRESSION);
-    fclose(fin);
-    fclose(fout);
-    if (ret != Z_OK)
-        zerr(ret);
-
-    return  (ret == Z_OK);
-}
-
-bool inflate(string fin_name, string fout_name)
-{
-    FILE* fin = fopen(fin_name.c_str(), "rb");
-    FILE* fout = fopen(fout_name.c_str(), "wb");
-    int ret;
-
-    ret = inf(fin, fout);
-    fclose(fin);
-    fclose(fout);
-    if (ret != Z_OK)
-        zerr(ret);
-
-    return  (ret == Z_OK);
 }

@@ -12,13 +12,13 @@ using namespace std;
 namespace fs = std::filesystem;
 
 
-MMCCodec::MMCCodec()
+MMCCodec::MMCCodec(bool verbose) : mVerbose(verbose)
 {
 
 }
 
 
-MMCCodec::MMCCodec(TAPFile& tapFile) : mTapFile(tapFile)
+MMCCodec::MMCCodec(TAPFile& tapFile, bool verbose) : mTapFile(tapFile), mVerbose(verbose)
 {
 
 }
@@ -41,7 +41,8 @@ bool MMCCodec::encode(string& filePath)
         return false;
     }
 
-    DBG_PRINT(DBG, "Writing to MMC file %s\n", filePath.c_str());
+    if (mVerbose)
+        printf("Writing to MMC file %s\n", filePath.c_str());
 
     ATMBlockIter ATM_block_iter;
     ATM_block_iter = mTapFile.blocks.begin();
@@ -84,7 +85,8 @@ bool MMCCodec::encode(string& filePath)
     
     string atom_filename = ATM_block_iter->hdr.name;
 
-    DBG_PRINT(DBG, "%s %.4x %4.x %.4x\n", atom_filename.c_str(), load_addr, exec_addr, atom_file_sz);
+    if (mVerbose)
+        printf("%s %.4x %4.x %.4x\n", atom_filename.c_str(), load_addr, exec_addr, atom_file_sz);
     
 
     int block_no = 0;
@@ -112,17 +114,16 @@ bool MMCCodec::encode(string& filePath)
         string block_name = ATM_block_iter->hdr.name;
         int block_load_addr = ATM_block_iter->hdr.loadAdrHigh * 256 + ATM_block_iter->hdr.loadAdrLow;
         int block_exec_addr = ATM_block_iter->hdr.execAdrHigh * 256 + ATM_block_iter->hdr.execAdrLow;
-        DBG_PRINT(DBG, "%s %.4x %.4x %.4x %.3x\n", block_name.c_str(), block_load_addr, block_exec_addr, block_no, block_sz);
+
+        if (mVerbose)
+            printf("%s %.4x %.4x %.4x %.3x\n", block_name.c_str(), block_load_addr, block_exec_addr, block_no, block_sz);
+
         block_no++;
 
         ATM_block_iter++;
     }
 
     fout.close();
-
-    
-
-    DBG_PRINT(DBG, "MMC file '%s' created from %ld blocks...\n", filePath.c_str(), mTapFile.blocks.size());
 
     return true;
 
@@ -136,7 +137,7 @@ bool MMCCodec::decode(string& mmcFileName)
     ifstream fin(mmcFileName, ios::in | ios::binary | ios::ate);
 
     if (!fin) {
-        DBG_PRINT(ERR, "Failed top open file '%s'!\n", mmcFileName.c_str());
+        printf("Failed top open file '%s'!\n", mmcFileName.c_str());
         return false;
     }
     filesystem::path fin_p = mmcFileName;
@@ -170,8 +171,8 @@ bool MMCCodec::decode(string& mmcFileName)
     fin.read((char*)&byte_H, 1);
     int atom_file_len = byte_H * 256 + byte_L;
 
-
-    DBG_PRINT(DBG, "%s %.4x %4.x %.4x\n", atom_filename.c_str(), file_load_addr, file_exec_addr, atom_file_len);
+    if (mVerbose)
+        printf("%s %.4x %4.x %.4x\n", atom_filename.c_str(), file_load_addr, file_exec_addr, atom_file_len);
 
     Bytes data;
     // Get data
@@ -179,8 +180,6 @@ bool MMCCodec::decode(string& mmcFileName)
     while (fin.read((char*) &c,1)) {
         data.push_back(c);
     }
-
-    DBG_PRINT(DBG, "%ld data read from MMC file\n", data.size());
 
 
     //

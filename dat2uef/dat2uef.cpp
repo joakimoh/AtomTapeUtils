@@ -33,13 +33,13 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    cout << "Output file name = " << arg_parser.mDstFileName << "\n";
+    cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
-    DataCodec DATA_codec = DataCodec();
+    DataCodec DATA_codec = DataCodec(arg_parser.verbose);
     int load_address;
     Bytes data;
-    if (!DATA_codec.decode(arg_parser.mSrcFileName)) {
-        DBG_PRINT(ERR, "Failed to decode program file '%s'\n", arg_parser.mSrcFileName.c_str());
+    if (!DATA_codec.decode(arg_parser.srcFileName)) {
+        printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
         return false;
     }
 
@@ -48,12 +48,12 @@ int main(int argc, const char* argv[])
     DATA_codec.getTAPFile(TAP_file);
 
 
-    UEFCodec UEF_codec = UEFCodec(TAP_file, false);
+    UEFCodec UEF_codec = UEFCodec(TAP_file, false, arg_parser.verbose);
     UEF_codec.setTapeTiming(arg_parser.tapeTiming);
 
-    if (!UEF_codec.encode(arg_parser.mDstFileName)) {
-        DBG_PRINT(ERR, "Failed to encode DATA file '%s' as UEF file '%s'\n",
-            arg_parser.mSrcFileName.c_str(), arg_parser.mDstFileName.c_str()
+    if (!UEF_codec.encode(arg_parser.dstFileName)) {
+        printf("Failed to encode DATA file '%s' as UEF file '%s'\n",
+            arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );
     }
 

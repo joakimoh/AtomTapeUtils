@@ -34,13 +34,13 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    cout << "Output file is: '" << arg_parser.mDstFileName << "'\n";
+    cout << "Output file is: '" << arg_parser.dstFileName << "'\n";
 
-    DataCodec DATA_codec = DataCodec();
+    DataCodec DATA_codec = DataCodec(arg_parser.verbose);
 
-    if (!DATA_codec.decode(arg_parser.mSrcFileName)) {
-        DBG_PRINT(ERR, "Failed to encode DATA file '%s' as WAW file '%s'\n",
-            arg_parser.mSrcFileName.c_str(), arg_parser.mDstFileName.c_str()
+    if (!DATA_codec.decode(arg_parser.srcFileName)) {
+        printf("Failed to encode DATA file '%s' as WAW file '%s'\n",
+            arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );
     }
     cout << "DATA file decoded successfully...\n";
@@ -49,13 +49,13 @@ int main(int argc, const char* argv[])
 
     DATA_codec.getTAPFile(TAP_file);
 
-    WavEncoder WAV_encoder = WavEncoder(TAP_file, false, 44100);
+    WavEncoder WAV_encoder = WavEncoder(TAP_file, false, 44100, arg_parser.verbose);
     WAV_encoder.setTapeTiming(arg_parser.tapeTiming);
 
     cout << "WAV encoder created...\n";
 
-    if (!WAV_encoder.encode(arg_parser.mDstFileName)) {
-        cout << "Failed to encode DATA file '" << arg_parser.mSrcFileName << "' as WAV file '" << arg_parser.mDstFileName << "'\n";
+    if (!WAV_encoder.encode(arg_parser.dstFileName)) {
+        cout << "Failed to encode DATA file '" << arg_parser.srcFileName << "' as WAV file '" << arg_parser.dstFileName << "'\n";
     }
     cout << "WAVE file created...\n";
 

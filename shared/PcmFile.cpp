@@ -21,7 +21,7 @@ string str4(char c[4])
     return ss.str();
 }
 
-bool readSamples(string fileName, Samples &samples)
+bool readSamples(string fileName, Samples &samples, int& sampleFreq)
 {
 
     ifstream fin(fileName, ios::in | ios::binary | ios::ate);
@@ -33,7 +33,6 @@ bool readSamples(string fileName, Samples &samples)
 
     auto fin_sz = fin.tellg();
 
-    cout << "size of file '" << fileName << "' is " << fin_sz << " bytes.\n";
 
     
     
@@ -46,7 +45,7 @@ bool readSamples(string fileName, Samples &samples)
 
     // CheckType of format - should be 1 for PCM
     if (h_head.audioFormat != 1 /* PCM */) {
-        cout << "Input file has no data or is not a valid 44.1 kHz one channel 16 - bit PCM Wave file!\n";
+        cout << "Input file has no data or is not a valid one channel 16 - bit PCM Wave file!\n";
         fin.close();
         return false;
     }
@@ -71,12 +70,11 @@ bool readSamples(string fileName, Samples &samples)
     // Check that the there is only one channel with 16-bit samples and a sample frequency of 44.1 kHz
     if (!(
         h_head.numChannels == 1 &&
-        h_head.sampleRate == 44100 /* 44.1 kHz */ &&
         h_head.bitsPerSample == 16 /* 16b-bit */
 
         )
         ) {
-        cout << "Input file is not a 44.1 kHz one channel 16 - bit PCM Wave file:\n";
+        cout << "Input file is not an one channel 16 - bit PCM Wave file:\n";
         cout << "format: " << h_head.audioFormat << " (1 <=> PCM)\n";
         cout << "#channels: " << h_head.numChannels << " (1)\n";
         cout << "sample rate: " << h_head.sampleRate << " (44 100) \n";
@@ -87,9 +85,10 @@ bool readSamples(string fileName, Samples &samples)
         return false;
     }
 
+    sampleFreq = h_head.sampleRate;
+
     // Collect all samples into a vector 'samples'
     samples = Samples(h_tail.subchunk2Size / 2);
-    cout << "#samples = " << samples.size() << "\n";
     Sample* samples_p = &samples.front();
     fin.read((char*)samples_p, (streamsize) h_tail.subchunk2Size);
     fin.close();
@@ -97,7 +96,7 @@ bool readSamples(string fileName, Samples &samples)
     return true;
 }
 
-bool writeSamples(string fileName, Samples samples[], const int nChannels)
+bool writeSamples(string fileName, Samples samples[], const int nChannels, int sampleFreq)
 {
     // Check that each channel contains the same no of samples
     int n_samples = (int) samples[0].size();
@@ -122,7 +121,7 @@ bool writeSamples(string fileName, Samples samples[], const int nChannels)
     strncpy(h_head.subchunk1ID, "fmt ", 4);
     h_head.ChunkSize = 36 + nChannels * n_samples * nChannels * 2; // 36 + subChunk2Size = 36 + NumSamples * NumChannels * 2
     h_head.numChannels = nChannels;
-    h_head.byteRate = 44100 * nChannels * 2; //SampleRate * NumChannels * 2
+    h_head.byteRate = sampleFreq * nChannels * 2; //SampleRate * NumChannels * 2
     h_head.blockAlign = nChannels * 2; // NumChannels * 2
 
     HeaderTail h_tail;

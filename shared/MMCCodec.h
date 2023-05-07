@@ -24,9 +24,9 @@ public:
 	 * file structure. If the file is not complete,
 	 * then 'complete' shall be set to false.
 	 */
-	MMCCodec(TAPFile& tapFile);
+	MMCCodec(TAPFile& tapFile, bool verbose);
 
-	MMCCodec();
+	MMCCodec(bool verbose);
 
 	/*
 	 * Encode TAP File structure as an MMC file
@@ -52,6 +52,8 @@ public:
 private:
 
 	TAPFile mTapFile;
+
+	bool mVerbose = false;
 
 };
 

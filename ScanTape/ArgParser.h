@@ -14,15 +14,17 @@ public:
 
 	TapeProperties tapeTiming;
 
-	double mStartTime = 0;
-	string mGenDir = "";
-	double mDbgStart = 0, mDbgEnd = -1;
-	double mFreqThreshold = 0.1;
-	double mLevelThreshold = 0;
-	string mWavFile;
+	double startTime = 0;
+	string genDir = "";
+	double dbgStart = 0, dbgEnd = -1;
+	double freqThreshold = 0.1;
+	double levelThreshold = 0;
+	string wavFile;
 
 	bool mErrorCorrection = false;
 	bool tracing = false;
+
+	bool verbose = false;
 
 private:
 

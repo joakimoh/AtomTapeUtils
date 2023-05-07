@@ -14,8 +14,9 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Usage:\t" << name << " <ABC file> [-o <output file>]\n";
+	cout << "Usage:\t" << name << " <ABC file> [-o <output file>] [-v]\n";
 	cout << "<ABC file>:\n\tAcorn Atom BASIC program file to decode\n\n";
+	cout << "-v:\n\tVerbose output\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.dat'.\n\n";
 	cout << "\n";
@@ -36,15 +37,18 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		cout << "ABC file '" << argv[1] << "' cannot be opened!\n";
 		return;
 	}
-	mSrcFileName = argv[1];
-	mDstFileName = crDefaultOutFileName(mSrcFileName, "dat");
+	srcFileName = argv[1];
+	dstFileName = crDefaultOutFileName(srcFileName, "dat");
 
 	int ac = 2;
 
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
-			mDstFileName = argv[ac + 1];
+			dstFileName = argv[ac + 1];
 			ac++;
+		}
+		else if (strcmp(argv[ac], "-v") == 0) {
+			verbose = true;
 		}
 		else {
 			cout << "Unknown option " << argv[ac] << "\n";

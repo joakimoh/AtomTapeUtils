@@ -10,7 +10,7 @@
 class LevelDecoder {
 
 public:
-	typedef enum { Low, High, NoCarrier } Level;
+	
 
 	typedef vector<Level> Levels;
 	typedef vector<Level>::iterator LevelIter;
@@ -30,7 +30,7 @@ private:
 	bool mTracing;
 	
 
-	Level mState = NoCarrier;
+	Level mState = NoCarrierLevel;
 	
 
 	Sample mHighThreshold;

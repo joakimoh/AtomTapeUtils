@@ -25,7 +25,7 @@ private:
 
 	bool mUseOriginalTiming = false;
 
-	
+	bool mVerbose = false;
 
 
 	//
@@ -34,8 +34,8 @@ private:
 
 	// UEF Header
 	typedef struct UefHdr_struct {
-		char eufTag[10] = "UEF File!"; // null-terminaed by compiler!
-		Byte eufVer[2] = { 10, 0 };
+		char uefTag[10] = "UEF File!"; // null-terminated by compiler!
+		Byte uefVer[2] = { 10, 0 };
 	} UefHdr;
 
 	// UEF chunk header
@@ -125,31 +125,31 @@ private:
 
 
 	// Methods to write header and different types of chunks
-	static bool writeUEFHeader(ogzstream &fout, Byte majorVersion, Byte minorVersion);
-	static bool writeBaseFrequencyChunk(ogzstream&fout, float baseFrequency);
-	static bool writeFloatPrecGapChunk(ogzstream&fout, float duration);
-	static bool writeIntPrecGapChunk(ogzstream& fout, float duration, int baudRate);
-	static bool writeSecurityCyclesChunk(ogzstream&fout, int nCycles, Byte firstPulse, Byte lastPulse, Bytes cycles);
-	static string decode_security_cycles(SecurityCycles0114Hdr& hdr, Bytes cycles);
-	static bool writeBaudrateChunk(ogzstream&fout, int baudrate);
-	static bool writePhaseChunk(ogzstream&fout, int phase);
-	static bool writeHighToneChunk(ogzstream&fout, float duration, int baudRate);
-	static bool writeData104Chunk(ogzstream&fout, Byte bitsPerPacket, Byte parity, Byte stopBitInfo, Bytes data, Byte &CRC);
-	static bool writeData100Chunk(ogzstream&fout, Bytes data, Byte & CRC);
-	static bool writeOriginChunk(ogzstream&fout, string origin);
+	bool writeUEFHeader(ogzstream &fout, Byte majorVersion, Byte minorVersion);
+	bool writeBaseFrequencyChunk(ogzstream&fout, float baseFrequency);
+	bool writeFloatPrecGapChunk(ogzstream&fout, float duration);
+	bool writeIntPrecGapChunk(ogzstream& fout, float duration, int baudRate);
+	bool writeSecurityCyclesChunk(ogzstream&fout, int nCycles, Byte firstPulse, Byte lastPulse, Bytes cycles);
+	string decode_security_cycles(SecurityCycles0114Hdr& hdr, Bytes cycles);
+	bool writeBaudrateChunk(ogzstream&fout, int baudrate);
+	bool writePhaseChunk(ogzstream&fout, int phase);
+	bool writeHighToneChunk(ogzstream&fout, float duration, int baudRate);
+	bool writeData104Chunk(ogzstream&fout, Byte bitsPerPacket, Byte parity, Byte stopBitInfo, Bytes data, Byte &CRC);
+	bool writeData100Chunk(ogzstream&fout, Bytes data, Byte & CRC);
+	bool writeOriginChunk(ogzstream&fout, string origin);
 
-	static bool addBytes2Vector(Bytes& v, Byte bytes[], int n);
+	bool addBytes2Vector(Bytes& v, Byte bytes[], int n);
 
 public:
 
 
-	UEFCodec();
+	UEFCodec(bool verbose);
 
 	static bool decodeFloat(Byte encoded_val[4], float& decoded_val);
 
 	static bool encodeFloat(float val, Byte encoded_val[4]);
 
-	UEFCodec(TAPFile& tapFile, bool useOriginalTiming);
+	UEFCodec(TAPFile& tapFile, bool useOriginalTiming, bool verbose);
 
 	bool setTapeTiming(TapeProperties tapeTiming);
 	/*

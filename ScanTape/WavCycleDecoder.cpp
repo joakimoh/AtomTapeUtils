@@ -4,6 +4,7 @@
 #include "../shared/Debug.h"
 #include "ArgParser.h"
 #include "../shared/WaveSampleTypes.h"
+#include "../shared/Utility.h"
 
 #include <iostream>
 
@@ -15,28 +16,30 @@ WavCycleDecoder::WavCycleDecoder(
 ) : CycleDecoder(argParser), mLevelDecoder(levelDecoder)
 {
 	mTracing = argParser.tracing;
+	mVerbose = mArgParser.verbose;
 
 	mFS = sampleFreq;
 	mTS = 1.0 / mFS;
 
 	// Min & max durations of F1 & F2 frequency low/high phases
-	mMinNSamplesF1Cycle = (int)round((1 - mArgParser.mFreqThreshold) * mFS / F1_FREQ); // Min duration of an F1 cycle
-	mMaxNSamplesF1Cycle = (int)round((1 + mArgParser.mFreqThreshold) * mFS / F1_FREQ); // Max duration of an F1 cycle
+	mMinNSamplesF1Cycle = (int)round((1 - mArgParser.freqThreshold) * mFS / F1_FREQ); // Min duration of an F1 cycle
+	mMaxNSamplesF1Cycle = (int)round((1 + mArgParser.freqThreshold) * mFS / F1_FREQ); // Max duration of an F1 cycle
 	int n_samples_F1 = round(mFS / F1_FREQ);
-	mMinNSamplesF2Cycle = (int)round((1 - mArgParser.mFreqThreshold) * mFS / F2_FREQ); // Min duration of an F2 cycle
-	mMaxNSamplesF2Cycle = (int)round((1 + mArgParser.mFreqThreshold) * mFS / F2_FREQ); // Max duration of an F2 cycle
+	mMinNSamplesF2Cycle = (int)round((1 - mArgParser.freqThreshold) * mFS / F2_FREQ); // Min duration of an F2 cycle
+	mMaxNSamplesF2Cycle = (int)round((1 + mArgParser.freqThreshold) * mFS / F2_FREQ); // Max duration of an F2 cycle
 	int n_samples_F2 = (int)round(mFS / F2_FREQ);
 
-	mMinNSamplesF12Cycle = (int)round((1 - mArgParser.mFreqThreshold) * 3 * mFS / (F2_FREQ * 2));// Min duration of a 3T/2 cycle where T = 1/F2
+	mMinNSamplesF12Cycle = (int)round((1 - mArgParser.freqThreshold) * 3 * mFS / (F2_FREQ * 2));// Min duration of a 3T/2 cycle where T = 1/F2
 	int n_samples_F12 = (int)round(3 * mFS / (F2_FREQ * 2));
-	mMaxNSamplesF12Cycle = (int)round((1 + mArgParser.mFreqThreshold) * 3 * mFS / (F2_FREQ * 2)); // Min duration of a 3T/2 cycle where T = 1/F2
+	mMaxNSamplesF12Cycle = (int)round((1 + mArgParser.freqThreshold) * 3 * mFS / (F2_FREQ * 2)); // Min duration of a 3T/2 cycle where T = 1/F2
 
-	if (mTracing) {
-		DBG_PRINT(DBG, "F1 with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F1, mMinNSamplesF1Cycle, mMaxNSamplesF1Cycle);
-		DBG_PRINT(DBG, "F2 with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F2, mMinNSamplesF2Cycle, mMaxNSamplesF2Cycle);
-		DBG_PRINT(DBG, "transitional cycles (F1->F2 or F2->F1) with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F12, mMinNSamplesF12Cycle, mMaxNSamplesF12Cycle);
+
+	if (mVerbose) {
+		printf("F1 with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F1, mMinNSamplesF1Cycle, mMaxNSamplesF1Cycle);
+		printf("F2 with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F2, mMinNSamplesF2Cycle, mMaxNSamplesF2Cycle);
+		printf("transitional cycles (F1->F2 or F2->F1) with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F12, mMinNSamplesF12Cycle, mMaxNSamplesF12Cycle);
 	}
-	mCycleSample = { Frequency::NoCarrier, 0, 0 };
+	mCycleSample = { Frequency::NoCarrierFrequency, 0, 0 };
 
 }
 
@@ -61,7 +64,7 @@ bool WavCycleDecoder::rollback()
 // Collect as many samples as possible of the same level (High or Low)
 bool WavCycleDecoder::getSameLevelCycles(int& nSamples) {
 
-	LevelDecoder::Level initial_level = mLevel;
+	Level initial_level = mLevel;
 
 	bool transition = false;
 	nSamples = 0;
@@ -90,9 +93,9 @@ bool WavCycleDecoder::getNextCycle(CycleSample& cycleSample)
 	int first_phase_level = mLevelDecoder.getLevel();
 
 	// If initial level is neither Low nor High (i.e, NoCarrier) then stop
-	if (!(first_phase_level == LevelDecoder::Level::Low || first_phase_level == LevelDecoder::Level::High)) {
+	if (!(first_phase_level == Level::LowLevel || first_phase_level == Level::HighLevel)) {
 		if (mTracing)
-			DEBUG_PRINT(getTime(), DBG, "Illegal %s level detected\n", _LEVEL(first_phase_level));
+			printf("%s: Illegal % s level detected\n", encodeTime(getTime()), _LEVEL(first_phase_level));
 		return false;
 	}
 
@@ -104,18 +107,18 @@ bool WavCycleDecoder::getNextCycle(CycleSample& cycleSample)
 
 	// If it isn't  Low->High or High-> low cycle, then stop
 	if (
-		first_phase_level == LevelDecoder::Level::Low && second_phase_level != LevelDecoder::Level::High ||
-		first_phase_level == LevelDecoder::Level::High && second_phase_level != LevelDecoder::Level::Low
+		first_phase_level == Level::LowLevel && second_phase_level != Level::HighLevel ||
+		first_phase_level == Level::HighLevel && second_phase_level != Level::LowLevel
 		) {
 		if (mTracing)
-			DEBUG_PRINT(getTime(), DBG, "Illegal transition %s to %s detected\n", _LEVEL(first_phase_level), _LEVEL(second_phase_level));
+			printf("%s: Illegal transition %s to %s detected\n", encodeTime(getTime()), _LEVEL(first_phase_level), _LEVEL(second_phase_level));
 		return false;
 	}
 
 	// Get second phase samples
 	if (!getSameLevelCycles(n_samples_second_phase)) {
 		if (mTracing)
-			DEBUG_PRINT(getTime(), DBG, "Failed to read second phase of cycle%s\n", "");
+			printf("%s: Failed to read second phase of cycle%s\n", encodeTime(getTime()));
 		return false;
 	}
 
@@ -150,16 +153,16 @@ bool WavCycleDecoder::getNextCycle(CycleSample& cycleSample)
 			mPhaseShift = 0; // record the phase when shifting frequency
 			mPrevcycle = freq;
 		}
-		else { // mCycleSample.freq == Frequency::NoCarrier
+		else { // mCycleSample.freq == Frequency::NoCarrierFrequency
 			if (mTracing)
-				DEBUG_PRINT(getTime(), DBG, "Invalid transitional cycle of duration %d detected for a previous cycle of type %s\n", n_samples, _FREQUENCY(mCycleSample.freq));
+				printf("%s: Invalid transitional cycle of duration % d detected for a previous cycle of type% s\n", encodeTime(getTime()), n_samples, _FREQUENCY(mCycleSample.freq));
 			return false;
 		}
 	}
 	else {
 		if (mTracing) {
-			DEBUG_PRINT(getTime(), DBG, "Invalid cycle of duration %d detected for a previous cycle type of %s\n", n_samples, _FREQUENCY(mCycleSample.freq));
-			DEBUG_PRINT(getTime(), DBG, "[%d,%d, %d]\n", mMinNSamplesF12Cycle, n_samples, mMaxNSamplesF12Cycle);
+			printf("%s: Invalid cycle of duration %d detected for a previous cycle type of %s\n", encodeTime(getTime()), n_samples, _FREQUENCY(mCycleSample.freq));
+			printf("%s: [%d,%d, %d]\n", mMinNSamplesF12Cycle, n_samples, mMaxNSamplesF12Cycle);
 		}
 		return false;
 	}
@@ -190,9 +193,9 @@ bool WavCycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 			// Wait for a first Low value
 			bool found_low_level = false;
 			while (!found_low_level && mLevelDecoder.getNextSample(mLevel, sample_no)) {
-				if (mLevel == LevelDecoder::Level::Low)
+				if (mLevel == Level::LowLevel)
 					found_low_level = true;
-				if (mLevel == LevelDecoder::Level::NoCarrier && !no_carrier_detected) {
+				if (mLevel == Level::NoCarrierLevel && !no_carrier_detected) {
 					no_carrier_detected = true;
 				}
 			}
@@ -200,11 +203,11 @@ bool WavCycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 			if (found_low_level) {
 
 				// Try to get a complete cycle 
-				if (getNextCycle(cycleSample) && (cycleSample.freq == freq || freq == Frequency::Undefined)) {
+				if (getNextCycle(cycleSample) && (cycleSample.freq == freq || freq == Frequency::UndefinedFrequency)) {
 					found_complete_cycle = true;
 
 				}
-				if (cycleSample.freq == Frequency::NoCarrier && !no_carrier_cycle_detected) {
+				if (cycleSample.freq == Frequency::NoCarrierFrequency && !no_carrier_cycle_detected) {
 					no_carrier_cycle_detected = true;
 				}
 			}
@@ -215,8 +218,7 @@ bool WavCycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 	}
 
 	catch (const char* e) {
-		if (mTracing)
-			DBG_PRINT(ERR, "Exception while searching for a complete cycle : %s\n", e);
+		printf("Exception while searching for a complete cycle : %s\n", e);
 		return false;
 	}
 

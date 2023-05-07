@@ -7,10 +7,11 @@ class AtomBasicCodec
 
 private:
 	TAPFile mTapFile;
+	bool mVerbose = false;
 
 public:
-	AtomBasicCodec(TAPFile &tapFile);
-	AtomBasicCodec();
+	AtomBasicCodec(TAPFile &tapFile, bool verbose);
+	AtomBasicCodec(bool verbose);
 
 	/*
 	 * Encode TAP File structure as Atom Basic program file

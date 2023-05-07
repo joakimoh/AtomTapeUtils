@@ -12,8 +12,8 @@ class ArgParser
 public:
 
 
-	string mDstFileName;
-	string mSrcFileName = "";
+	string dstFileName;
+	string srcFileName = "";
 
 
 private:

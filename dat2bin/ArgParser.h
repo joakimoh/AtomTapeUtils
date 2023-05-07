@@ -12,8 +12,9 @@ class ArgParser
 public:
 
 
-	string mDstFileName;
-	string mSrcFileName;
+	string dstFileName;
+	string srcFileName;
+	bool verbose = false;
 
 
 private:

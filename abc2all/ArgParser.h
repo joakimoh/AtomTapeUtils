@@ -12,8 +12,9 @@ class ArgParser
 public:
 
 
-	string mDstDir;
-	string mSrcFileName;
+	string dstDir;
+	string srcFileName;
+	bool verbose = false;
 
 
 private:
@@ -21,6 +22,8 @@ private:
 	void printUsage(const char *);
 
 	bool mParseSuccess = false;
+
+	
 
 public:
 

@@ -35,10 +35,10 @@ private:
 	int mFS; // sample frequency (normally 44 100 Hz for WAV files)
 	double mTS = 1 / mFS; // sample duration = 1 / sample frequency
 
-	int mSaturationLevelLow;
-	int mSaturationLevelHigh;
+	int saturationLevelLow;
+	int saturationLevelHigh;
 	int mAveragePoints;
-	double mDerivativeThreshold;
+	double derivativeThreshold;
 	int mMaxSampleAmplitude;
 	double minPeakDistanceSamples;
 

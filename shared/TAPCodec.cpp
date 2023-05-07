@@ -12,13 +12,13 @@ using namespace std;
 namespace fs = std::filesystem;
 
 
-TAPCodec::TAPCodec()
+TAPCodec::TAPCodec(bool verbose) : mVerbose(verbose)
 {
 
 }
 
 
-TAPCodec::TAPCodec(TAPFile &tapFile): mTapFile(tapFile)
+TAPCodec::TAPCodec(TAPFile &tapFile, bool verbose): mTapFile(tapFile), mVerbose(verbose)
 {
 
 }
@@ -64,8 +64,6 @@ bool TAPCodec::encode(string& filePath)
     }
 
     fout.close();
-
-    DBG_PRINT(DBG, "TAP file '%s' created from %ld blocks...\n", filePath.c_str(), mTapFile.blocks.size());
 
     return true;
 

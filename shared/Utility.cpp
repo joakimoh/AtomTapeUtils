@@ -76,14 +76,13 @@ double decodeTime(string time)
 
 }
 
-string encodeTime(double timeSec)
-{
-    int min = (int) trunc(timeSec / 60);
-    double sec = timeSec - 60 * min;
-
-    string s = to_string(min) + ":" + to_string(sec);
-
-    return s;
+string encodeTime(double t) {
+    char t_str[64];
+    int t_h = (int)trunc(t / 3600);
+    int t_m = (int)trunc((t - t_h * 3600) / 60);
+    double t_s = t - t_h * 3600 - t_m * 60;
+    sprintf(t_str, "%dh:%dm:%.6fs (%fs)", t_h, t_m, t_s, t);
+    return string(t_str);
 }
 
 string parseFileName(char *blockFileName)

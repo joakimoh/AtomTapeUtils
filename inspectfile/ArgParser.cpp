@@ -28,7 +28,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		return;
 	}
 
-	mSrcFileName = argv[1];
+	srcFileName = argv[1];
 
 
 	int ac = 2;
@@ -36,7 +36,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
 
-			mDstFileName = argv[ac + 1];
+			dstFileName = argv[ac + 1];
 			ac++;
 		}
 		else {

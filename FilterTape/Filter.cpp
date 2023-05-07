@@ -12,12 +12,12 @@ Filter::Filter(int sampleFreq, ArgParser argParser)
 {
     mFS = sampleFreq;
     mTS = 1 / mFS;
-    mAveragePoints = argParser.mNAveragingSamples;
-    mDerivativeThreshold = argParser.mDerivativeThreshold;
-    mMaxSampleAmplitude = argParser.mSinusAmplitude;
-    minPeakDistanceSamples = (int) round(argParser.mMinPeakDistance * mFS / F2_FREQ);
-    mSaturationLevelLow = argParser.mSaturationLevelLow * SAMPLE_LOW_MIN;
-    mSaturationLevelHigh = argParser.mSaturationLevelHigh * SAMPLE_HIGH_MAX;
+    mAveragePoints = argParser.nAveragingSamples;
+    derivativeThreshold = argParser.derivativeThreshold;
+    mMaxSampleAmplitude = argParser.sinusAmplitude;
+    minPeakDistanceSamples = (int) round(argParser.minPeakDistance * mFS / F2_FREQ);
+    saturationLevelLow = argParser.saturationLevelLow * SAMPLE_LOW_MIN;
+    saturationLevelHigh = argParser.saturationLevelHigh * SAMPLE_HIGH_MAX;
 
 }
 
@@ -61,8 +61,7 @@ bool Filter::normaliseFilter(Samples& samples, ExtremumSamples& outSamples, int&
         }
         else {
             // Extremum found
-            // cout << _EXTREMUM(extremum) << " => " << _EXTREMUM(new_extremum) << " at " << (double)(new_extremum_pos - samples.begin())/44100 << "\n";
-            extremum = new_extremum;
+             extremum = new_extremum;
             ExtremumSample extremum_sample = { new_extremum, new_extremum_pos};
             outSamples[nOutSamples++] = extremum_sample;
            
@@ -96,14 +95,14 @@ bool Filter::derivative(int pos, Samples &samples, int nSamples, double & d)
     if (pos < nSamples - 1) {
         Sample d0 = samples[pos];
         Sample d1 = samples[pos+ 1];
-        if (d0 < mSaturationLevelLow)
-            d0 = mSaturationLevelLow;
-        if (d0 > mSaturationLevelHigh)
-            d0 = mSaturationLevelHigh;
-        if (d1 < mSaturationLevelLow)
-            d1 = mSaturationLevelLow;
-        if (d1 > mSaturationLevelHigh)
-            d1 = mSaturationLevelHigh;
+        if (d0 < saturationLevelLow)
+            d0 = saturationLevelLow;
+        if (d0 > saturationLevelHigh)
+            d0 = saturationLevelHigh;
+        if (d1 < saturationLevelLow)
+            d1 = saturationLevelLow;
+        if (d1 > saturationLevelHigh)
+            d1 = saturationLevelHigh;
         d = d1 - d0;
         //cout << "Derivative = " << d << " (" << slope(d) << ") at value " << (int)*pos << " and position " << (int)(pos - samples.begin()) << "...\n";
     }
@@ -226,9 +225,9 @@ bool Filter::find_extreme(int &pos, Samples& samples, Extremum prevExtremum, Ext
 
 int Filter::slope(double i)
 {
-    if (i >= -mDerivativeThreshold && i <= mDerivativeThreshold)
+    if (i >= -derivativeThreshold && i <= derivativeThreshold)
         return 0;
-    else if (i > mDerivativeThreshold)
+    else if (i > derivativeThreshold)
         return +1;
     else
         return -1;
@@ -241,7 +240,7 @@ void Filter::plotDebug(int debugLevel, ExtremumSample& sample, ExtremumSample& p
 
 void Filter::plotDebug(int debugLevel, string text, ExtremumSample& sample, int extremumIndex, ExtremumSamples& samples)
 {
-    string t = encodeTime((double)sample.pos / 44100) + " (" + to_string(sample.pos) + ")";
+    string t = encodeTime((double)sample.pos) + " (" + to_string(sample.pos) + ")";
     string e = _EXTREMUM(sample.extremum);
     string p = to_string(extremumIndex);
  
@@ -254,8 +253,8 @@ void Filter::plotDebug(int debugLevel, string text, ExtremumSample& sample, int 
 void Filter::plotDebug(int debugLevel, string text, ExtremumSample &sample, ExtremumSample & prevSample, int extremumIndex, ExtremumSamples& samples)
 
 {
-    string t = encodeTime((double) sample.pos / 44100) + " (" + to_string(sample.pos) + ")";
-    string pt = encodeTime((double)prevSample.pos / 44100) + " (" + to_string(prevSample.pos) + ")";
+    string t = encodeTime((double) sample.pos / mFS) + " (" + to_string(sample.pos) + ")";
+    string pt = encodeTime((double)prevSample.pos / mFS) + " (" + to_string(prevSample.pos) + ")";
     string e = _EXTREMUM(sample.extremum);
     string pe = _EXTREMUM(prevSample.extremum);
     string p = to_string(extremumIndex);
@@ -283,13 +282,6 @@ bool Filter::plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Sampl
         ExtremumSample extremum_sample = extremums[extremum_index];
         mExtremumSample = extremum_sample;
         int n_samples_between_extremums = extremum_sample.pos - prev_extremum_sample.pos;
-
-        if (extremum_index % (nExtremums / 100) == 0) {
-            string s = encodeTime((double) (extremum_sample.pos) / 44100) + " (" + to_string(extremum_sample.pos) + ")";
-            DBG_PRINT(DBG, "Sample %s - %d/%d\n", s.c_str(), extremum_index, nExtremums);
-        }
-
-        //plotDebug(DBG, "Sample", extremum_sample, extremum_index, extremums);
 
         switch (extremum_sample.extremum) {
         case LOCAL_MIN:
@@ -483,28 +475,16 @@ bool Filter::plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Sampl
     // Add dummy samples from the last extremum until end of samples
     int pos = prev_extremum_sample.pos;
 
-    DBG_PRINT(DBG, "Extremums iterated; now add dummy samples from pos %d to %d\n", pos, nSamples);
 
     while (pos < nSamples)
         newShapes[pos++] = 0;
 
-    DBG_PRINT(DBG, "Plot completed!%s\n", "");
 
     return true;
 }
 
 bool Filter::plotSinus(double a1, double a2, int nSamples, Samples &samples, int& sampleIndex)
-{
-    /*
-    string pt = encodeTime((double)mPrevExtremumSample.pos / 44100) + " (" + to_string(mPrevExtremumSample.pos) + ")";
-    string pe = _EXTREMUM(mPrevExtremumSample.extremum);
-    string t = encodeTime((double)mExtremumSample.pos / 44100) + " (" + to_string(mExtremumSample.pos) + ")";
-    string e = _EXTREMUM(mExtremumSample.extremum);
-    DBG_PRINT(DBG, "*** PLOT %d samples from %lf to %lf degrees for sample %s at %s (previous: %s at %s)\n",
-        nSamples, a1, a2, e.c_str(), t.c_str(), pe.c_str(), pt.c_str()
-    );
-    */
-    
+{    
     const double PI = 3.14159265358979323846;
     double f = PI * (a2 - a1) / (180 * nSamples);
     double o = a1 * PI / 180;
@@ -512,8 +492,6 @@ bool Filter::plotSinus(double a1, double a2, int nSamples, Samples &samples, int
         Sample y = (Sample) round(sin(o + s*f) * mMaxSampleAmplitude);
         samples[sampleIndex++] = y;
     }
-
-    //DBG_PRINT(DBG, "Done plotting...");
 
     return true;
 }

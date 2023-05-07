@@ -37,12 +37,14 @@ private:
 
 	int mPhase = 180;
 
+	bool mVerbose = false;
+
 public:
 
 
-	WavEncoder(int sampleFreq);
+	WavEncoder(int sampleFreq, bool verbose);
 
-	WavEncoder(TAPFile& tapFile, bool useOriginalTiming, int sampleFreq);
+	WavEncoder(TAPFile& tapFile, bool useOriginalTiming, int sampleFreq, bool verbose);
 
 	bool setTapeTiming(TapeProperties tapeTiming);
 
@@ -75,6 +77,7 @@ public:
 
 private:
 
+	bool init();
 	
 };
 

@@ -15,9 +15,9 @@ public:
 	 * file structure. If the file is not complete,
 	 * then 'complete' shall be set to false.
 	 */
-	DataCodec(TAPFile& tapFile);
+	DataCodec(TAPFile& tapFile, bool verbose);
 
-	DataCodec();
+	DataCodec(bool verbose);
 
 	/*
 	 * Encode TAP File structure as DATA file
@@ -45,6 +45,7 @@ public:
 private:
 
 	TAPFile mTapFile;
+	bool mVerbose = false;
 };
 
 #endif

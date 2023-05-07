@@ -17,12 +17,12 @@ namespace fs = std::filesystem;
  * file structure. If the file is not complete,
  * then 'complete' shall be set to false.
  */
-DataCodec::DataCodec(TAPFile& tapFile): mTapFile(tapFile)
+DataCodec::DataCodec(TAPFile& tapFile, bool verbose): mTapFile(tapFile), mVerbose(verbose)
 {
 
 }
 
-DataCodec::DataCodec()
+DataCodec::DataCodec(bool verbose) : mVerbose(verbose)
 {
 
 }
@@ -40,7 +40,7 @@ bool DataCodec::encode(string& filePath)
 
     ofstream fout(filePath);
     if (!fout) {
-        DBG_PRINT(DBG, "Can't write to DATA file '%s'!\n", filePath.c_str());
+        printf("Can't write to DATA file '%s'!\n", filePath.c_str());
         return false;
     }
 
@@ -103,9 +103,6 @@ bool DataCodec::encode(string& filePath)
     }
 
     fout.close();
-
-    DBG_PRINT(DBG, "DATA file '%s' created from %lu blocks...\n", filePath.c_str(), mTapFile.blocks.size());
-
 
     return true;
 }
@@ -175,7 +172,7 @@ bool DataCodec::decode(string& dataFileName)
     int load_address;
 
     if (!decode2Bytes(dataFileName, load_address, data)) {
-        DBG_PRINT(DBG, "Failed to decode bytes for file '%s'\n", dataFileName.c_str());
+        printf("Failed to decode bytes for file '%s'\n", dataFileName.c_str());
         return false;
     }
  

@@ -15,10 +15,12 @@ private:
 
 	LevelDecoder& mLevelDecoder;
 
-	LevelDecoder::Level mLevel = LevelDecoder::Level::NoCarrier;
+	Level mLevel = Level::NoCarrierLevel;
 
 	// Collect as many samples as possible of the same level (High or Low)
 	bool getSameLevelCycles(int& nSamples);
+
+	bool mVerbose = false;
 
 public:
 

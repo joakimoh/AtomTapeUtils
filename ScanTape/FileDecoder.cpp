@@ -85,11 +85,11 @@ bool FileDecoder::readFile(ofstream &logFile)
         string fn;
         
         // Read tape block as ATM block
-        double block_start_time = mBlockDecoder.getTimeNum();
+        double block_start_time = mBlockDecoder.getTime();
         mBlockDecoder.checkpoint();
         bool lead_tone_detected;
         bool success = mBlockDecoder.readBlock(
-            min_lead_tone_duration, mArgParser.tapeTiming.minBlockTiming.trailerToneDuration, read_block, block_type, block_no,
+            min_lead_tone_duration, read_block, block_type, block_no,
             lead_tone_detected);
 
 
@@ -105,13 +105,13 @@ bool FileDecoder::readFile(ofstream &logFile)
         );
         if (!complete_header) {
             if (mTracing)
-                DBG_PRINT(ERR, "Incomplete Atom Tape Block '%s' - failed to extract all block parameters\n", fn.c_str());
+                printf("Incomplete Atom Tape Block '%s' - failed to extract all block parameters\n", fn.c_str());
         }
 
         // End if the read block is part of another Atom Tape File
         if (fn != "???" && !first_block && fn != file_name) {
             if (mTracing)
-                DBG_PRINT(ERR, "Block from another file '%s' encountered while reading file '%s'!\n", fn.c_str(), file_name.c_str());
+                printf("Block from another file '%s' encountered while reading file '%s'!\n", fn.c_str(), file_name.c_str());
             mBlockDecoder.rollback();
             break;
         }
@@ -137,9 +137,7 @@ bool FileDecoder::readFile(ofstream &logFile)
                     string block_no_s = "#" + to_string(block_no);
                     string block_type_s = _BLOCK_ORDER(block_type);
 
-                    DBG_PRINT(
-                        ERR,
-                        "Only correctly read %d bytes of file '%s': block %s (%s)!\n",
+                    printf("Only correctly read %d bytes of file '%s': block %s (%s)!\n",
                         mBlockDecoder.nReadBytes, fn.c_str(), block_no_s.c_str(), block_type_s.c_str()
                     );
                 }
@@ -159,7 +157,7 @@ bool FileDecoder::readFile(ofstream &logFile)
             last_valid_block_type = block_type;
             last_valid_block_start_time = block_start_time; 
 
-            double block_end_time = mBlockDecoder.getTimeNum();
+            double block_end_time = mBlockDecoder.getTime();
             last_valid_block_end_time = block_end_time;
 
 
@@ -190,7 +188,7 @@ bool FileDecoder::readFile(ofstream &logFile)
                     first_block_found = true;
                     corrupted_block = false;
                     if (block_no != 0 && mTracing)
-                        DBG_PRINT(ERR, "First block of %s with non-zero block no %d and start address %.4x!\n", read_block.hdr.name, block_no, load_adr);
+                        printf("First block of %s with non-zero block no %d and start address %.4x!\n", read_block.hdr.name, block_no, load_adr);
                 }
                 first_block = false;
                 load_adr_start = load_adr;
@@ -200,8 +198,7 @@ bool FileDecoder::readFile(ofstream &logFile)
             }
             else {
                 if (load_adr != next_load_adr && mTracing) {
-                    DBG_PRINT(
-                        ERR, "Load address of block #%d (0x%.4x) not a continuation of previous block (0x%.4x) as expected!\n",
+                    printf("Load address of block #%d (0x%.4x) not a continuation of previous block (0x%.4x) as expected!\n",
                         block_no, load_adr, next_load_adr
                     );
                  }               
@@ -223,7 +220,7 @@ bool FileDecoder::readFile(ofstream &logFile)
                 timeToStr(last_valid_block_start_time).c_str(), timeToStr(last_valid_block_end_time).c_str()
             );
             logFile <<  s;
-            if (mTracing)
+            if (mArgParser.verbose)
                 cout << s;
             
         }
@@ -256,7 +253,7 @@ bool FileDecoder::readFile(ofstream &logFile)
 
         if (!first_block_found || !last_block_found || missing_block || corrupted_block) {
             mTapFile.complete = false;
-            DBG_PRINT(ERR, "At least one block missing or corrupted for file '%s'\n", mTapFile.validFileName.c_str());
+            printf("At least one block missing or corrupted for file '%s'\n", mTapFile.validFileName.c_str());
             logFile << "*** ERR *** At least one block missing or corrupted for file '" << mTapFile.validFileName << "'\n";
         }
         else
@@ -274,7 +271,8 @@ bool FileDecoder::readFile(ofstream &logFile)
             timeToStr(tape_start_time).c_str(), timeToStr(tape_end_time).c_str()
         );
         logFile << s;
-        cout << s;
+        if (mArgParser.verbose)
+            cout << s;
 
 
         return true;

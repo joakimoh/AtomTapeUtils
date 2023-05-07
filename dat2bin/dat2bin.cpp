@@ -31,22 +31,22 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    cout << "Output file name = " << arg_parser.mDstFileName << "\n";
+    cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
-    DataCodec DATA_codec = DataCodec();
+    DataCodec DATA_codec = DataCodec(arg_parser.verbose);
     int load_address;
     Bytes data;
-    if (!DATA_codec.decode2Bytes(arg_parser.mSrcFileName, load_address, data)) {
-        DBG_PRINT(ERR, "Failed to decode program file '%s'\n", arg_parser.mSrcFileName.c_str());
+    if (!DATA_codec.decode2Bytes(arg_parser.srcFileName, load_address, data)) {
+        printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
         return false;
     }
 
     BytesIter data_iter = data.begin();
 
     // Create the output file
-    ofstream fout(arg_parser.mDstFileName, ios::out | ios::binary | ios::ate);
+    ofstream fout(arg_parser.dstFileName, ios::out | ios::binary | ios::ate);
     if (!fout) {
-        cout << "can't write to file " << arg_parser.mDstFileName << "\n";
+        cout << "can't write to file " << arg_parser.dstFileName << "\n";
         return false;
     }
 

@@ -1,4 +1,5 @@
 #include "BlockDecoder.h"
+#include "../shared/WaveSampleTypes.h"
 #include <iostream>
 #include "../shared/Debug.h"
 #include "../shared/Utility.h"
@@ -38,7 +39,8 @@ bool BlockDecoder::rollback()
 	return true;
 }
 
-BlockDecoder::BlockDecoder(CycleDecoder& cycleDecoder, ArgParser &argParser) : mCycleDecoder(cycleDecoder), mArgParser(argParser)
+BlockDecoder::BlockDecoder(
+	CycleDecoder& cycleDecoder, ArgParser &argParser, bool verbose) : mCycleDecoder(cycleDecoder), mArgParser(argParser), mVerbose(verbose)
 {
 
 	mTracing = argParser.tracing;
@@ -71,12 +73,15 @@ BlockDecoder::BlockDecoder(CycleDecoder& cycleDecoder, ArgParser &argParser) : m
  * 
  */
 bool BlockDecoder::readBlock(
-	double leadToneDuration, double trailerToneDuration, ATMBlock &readBlock,
+	double leadToneDuration, ATMBlock &readBlock,
 	BlockType &block_type, int& blockNo, bool &leadToneDetected
 )
 {
 	Byte CRC;
 	nReadBytes = 0;
+
+	if (mVerbose)
+		cout << "\n\nReading a new block...\n";
 
 	// Invalidate output variables in case readBlock returns prematurely
 	block_type = BlockType::Unknown;
@@ -95,15 +100,17 @@ bool BlockDecoder::readBlock(
 	// Wait for lead tone
 	double duration, dummy;
 	if (!mCycleDecoder.waitForTone(leadToneDuration, duration, dummy, readBlock.leadToneCycles)) {
-		// This is not necessariyl an error - it could be because the end of the tape as been reached...
+		// This is not necessarily an error - it could be because the end of the tape as been reached...
 		return false;
 	}
 	leadToneDetected = true;
+	if (mVerbose)
+		cout << duration << " lead tone detected at " << encodeTime(getTime()) << "\n";
 
 	// Read block header's preamble (i.e., synhronisation bytes)
 	if (!checkBytes(0x2a, 4)) {
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read header preamble (0x2a bytes)%s\n", "");
+			DEBUG_PRINT(getTime(), ERR, "Failed to read header preamble (0x2a bytes)%s\n", "");
 		return false;
 	}
 
@@ -118,7 +125,7 @@ bool BlockDecoder::readBlock(
 	int name_len;
 	if (!getFileName(readBlock.hdr.name, CRC, name_len)) {
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read header block name%s\n", "");
+			DEBUG_PRINT(getTime(), ERR, "Failed to read header block name%s\n", "");
 		return false;
 	}
 
@@ -128,11 +135,14 @@ bool BlockDecoder::readBlock(
 	for (int i = 0; i < sizeof(mAtomTapeBlockHdr); i++) {
 		if (!getByte(hdr, collected_stop_bit_cycles)) {
 			if (mTracing)
-				DEBUG_PRINT(getTimeNum(), ERR, "Failed to read header %s\n", atomTapeBlockHdrFieldName(i).c_str());
+				DEBUG_PRINT(getTime(), ERR, "Failed to read header %s\n", atomTapeBlockHdrFieldName(i).c_str());
 			return false;
 		}
 		CRC += *hdr++;
 	}
+
+	if (mVerbose)
+		cout << "Header read at " << encodeTime(getTime()) << "\n";
 
 	// Extract address information and update ATM block with it
 	readBlock.hdr.execAdrHigh = mAtomTapeBlockHdr.execAdrHigh;
@@ -149,23 +159,29 @@ bool BlockDecoder::readBlock(
 	block_type = parseBlockFlag(mAtomTapeBlockHdr, len);
 	readBlock.hdr.lenHigh = len / 256;
 	readBlock.hdr.lenLow = len % 256;
+
+
 	
 	// Detect micro lead tone between header and data block
 	if (collected_stop_bit_cycles == mStopBitCycles) {
 		if (!mCycleDecoder.waitForTone(mArgParser.tapeTiming.minBlockTiming.microLeadToneDuration, duration, dummy, readBlock.microToneCycles)) {
 			if (mTracing)
-				DEBUG_PRINT(getTimeNum(), ERR, "Failed to detect a start of data tone for file '%s'\n", readBlock.hdr.name);
-		} 
+				DEBUG_PRINT(getTime(), ERR, "Failed to detect a start of data tone for file '%s'\n", readBlock.hdr.name);
+		}
+		if (mVerbose)
+			cout << duration << " s micro tone detected at " << encodeTime(getTime()) << "\n";
 	}
 	else {
-		DEBUG_PRINT(getTimeNum(), ERR, "Header for file '%s' ended with a short stop bit (%d cycles) and no lead tone\n", readBlock.hdr.name, collected_stop_bit_cycles);
+		DEBUG_PRINT(getTime(), ERR, "Header for file '%s' ended with a short stop bit (%d cycles) and no lead tone\n", readBlock.hdr.name, collected_stop_bit_cycles);
 	}
+
+	
 
 	// Get data bytes
 	if (len > 0) {
 		if (!getBytes(readBlock.data, len, CRC)) {
 			if (mTracing)
-				DEBUG_PRINT(getTimeNum(), ERR, "Failed to read data!%s\n", "");
+				DEBUG_PRINT(getTime(), ERR, "Failed to read data!%s\n", "");
 			return false;
 		}
 	}
@@ -174,26 +190,20 @@ bool BlockDecoder::readBlock(
 	uint8_t received_CRC = 0;
 	if (!getByte(&received_CRC, collected_stop_bit_cycles)) {
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read CRC for file '%s'\n", readBlock.hdr.name);
+			DEBUG_PRINT(getTime(), ERR, "Failed to read CRC for file '%s'\n", readBlock.hdr.name);
 		return false;
 	}
 
 	// Check CRC
 	if (received_CRC != CRC) {
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "Calculated CRC 0x%x differs from received CRC 0x%x for file '%s'\n", CRC, received_CRC, readBlock.hdr.name);
+			DEBUG_PRINT(getTime(), ERR, "Calculated CRC 0x%x differs from received CRC 0x%x for file '%s'\n", CRC, received_CRC, readBlock.hdr.name);
 		return false;
 	}
 
-	// Detect trailer tone (if specified to have a non-zero duration)
-	readBlock.trailerToneCycles = 0; // clear in case to trailer tone is present
-	if (collected_stop_bit_cycles == mStopBitCycles) {
-		if (trailerToneDuration > 0 && !mCycleDecoder.waitForTone(trailerToneDuration, duration, dummy, readBlock.trailerToneCycles)) {
-			if (mTracing)
-				DEBUG_PRINT(getTimeNum(), ERR, "Failed to detect a trailer tone for file '%s'\n", readBlock.hdr.name);
-			return false;
-		}
-	}
+	if (mVerbose)
+		cout << len << " bytes data block + CRC read at " << encodeTime(getTime()) << "\n";
+
 
 	// Detect gap to next block by waiting for the next block's lead tone
 	// After detection, there will be a roll back to the end of the block
@@ -206,6 +216,9 @@ bool BlockDecoder::readBlock(
 		readBlock.blockGap = 2.0;
 	}
 	rollback();
+
+	if (mVerbose)
+		cout << readBlock.blockGap << " s gap after block, starting at " << encodeTime(getTime()) << "\n";
 
 	return true;
 }
@@ -226,7 +239,7 @@ bool BlockDecoder::checkBytes(Byte refVal, int n) {
 		Byte val = 0;
 		if (!checkByte(refVal, val)) {
 			if (mTracing)
-				DEBUG_PRINT(getTimeNum(), ERR, "Byte #%d (%.2x) out of %d bytes differs from reference value 0x%.2x or couldn't be read!\n", i, val, n, refVal);
+				DEBUG_PRINT(getTime(), ERR, "Byte #%d (%.2x) out of %d bytes differs from reference value 0x%.2x or couldn't be read!\n", i, val, n, refVal);
 			failed = true;
 		}
 	}
@@ -239,8 +252,9 @@ bool BlockDecoder::getFileName(char name[13], Byte &CRC, int &len) {
 	bool failed = false;
 	len = 0;
 	do {
-		if (!getByte(&byte))
+		if (!getByte(&byte)) {
 			return false;
+		}
 		else if (byte != 0xd)
 			name[i] = (char)byte;
 		else
@@ -264,7 +278,7 @@ bool BlockDecoder::getBytes(Bytes &bytes, int n, Byte &CRC) {
 		Byte byte;
 		if (!getByte(&byte)) {
 			if (mTracing)
-				DEBUG_PRINT(getTimeNum(), ERR, "Failed to read byte #%d out of %d bytes\n", i, n);
+				DEBUG_PRINT(getTime(), ERR, "Failed to read byte #%d out of %d bytes\n", i, n);
 			failed = true;
 		}
 		CRC += byte;
@@ -282,9 +296,9 @@ bool BlockDecoder::getStartBit()
 	CycleDecoder::CycleSample first_cycle_sample = mCycleDecoder.getCycle();
 
 	// One cycle of the start bit has already been sampled when reading the stop bit or a lead tone - check that it was an F1 cycle
-	if (mCycleDecoder.getCycle().freq != CycleDecoder::Frequency::F1) {
+	if (mCycleDecoder.getCycle().freq != Frequency::F1) {
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "start bit cycle already sampled was not an F1 (but an %s)\n", _FREQUENCY(mCycleDecoder.getCycle().freq));
+			DEBUG_PRINT(getTime(), ERR, "start bit cycle already sampled was not an F1 (but an %s)\n", _FREQUENCY(mCycleDecoder.getCycle().freq));
 		return false;
 	}
 
@@ -292,26 +306,17 @@ bool BlockDecoder::getStartBit()
 
 	// Collect the remaining cycles and check that they also where of type F1
 	int n_collected_cycles;
-	if (!mCycleDecoder.collectCycles(CycleDecoder::Frequency::F1, mStartBitCycles - 1, last_cycle_sample, n_collected_cycles)) {
+	if (!mCycleDecoder.collectCycles(Frequency::F1, mStartBitCycles - 1, last_cycle_sample, n_collected_cycles)) {
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "Failed when collecting F1 cycles - last sampled cycle was %s\n", _FREQUENCY(last_cycle_sample.freq));
+			DEBUG_PRINT(getTime(), ERR, "Failed when collecting F1 cycles - last sampled cycle was %s\n", _FREQUENCY(last_cycle_sample.freq));
 		return false;
 	}
 
 	return true;
 }
 
-string BlockDecoder::getTime() {
-	double t = mCycleDecoder.getTime();
-	char t_str[64];
-	int t_h = (int) trunc(t / 3600);
-	int t_m = (int) trunc((t - t_h * 3600) / 60);
-	double t_s = t - t_h * 3600 - t_m * 60;
-	sprintf(t_str, "%dh:%dm:%.6fs (%fs)", t_h, t_m, t_s, t);
-	return string(t_str);
-}
 
-double BlockDecoder::getTimeNum() {
+double BlockDecoder::getTime() {
 	return mCycleDecoder.getTime();
 }
 
@@ -321,35 +326,35 @@ bool BlockDecoder::getDataBit(Bit& bit)
 	CycleDecoder::CycleSample first_cycle_sample, last_cycle_sample;
 
 	// Get one cycle of either F1 or F2 type to determine how many more cycles to read
-	if (!mCycleDecoder.getNextCycle(first_cycle_sample) || !(first_cycle_sample.freq == CycleDecoder::Frequency::F1 || first_cycle_sample.freq == CycleDecoder::Frequency::F2))
+	if (!mCycleDecoder.getNextCycle(first_cycle_sample) || !(first_cycle_sample.freq == Frequency::F1 || first_cycle_sample.freq == Frequency::F2))
 	{
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "First cycle of data bit was an illegal %s cycle\n", _FREQUENCY(first_cycle_sample.freq));
+			DEBUG_PRINT(getTime(), ERR, "First cycle of data bit was an illegal %s cycle\n", _FREQUENCY(first_cycle_sample.freq));
 		return false;
 	}
 	
-	if (first_cycle_sample.freq == CycleDecoder::Frequency::F1) {
+	if (first_cycle_sample.freq == Frequency::F1) {
 		int n_collected_cycles;
-		if (!mCycleDecoder.collectCycles(CycleDecoder::Frequency::F1, mLowDataBitCycles - 1, last_cycle_sample, n_collected_cycles)) {
+		if (!mCycleDecoder.collectCycles(Frequency::F1, mLowDataBitCycles - 1, last_cycle_sample, n_collected_cycles)) {
 			if (mTracing)
-				DEBUG_PRINT(getTimeNum(), ERR, "No of F1 Cycles for databit was %d when expecting %d\n", n_collected_cycles + 1, mLowDataBitCycles);
+				DEBUG_PRINT(getTime(), ERR, "No of F1 Cycles for databit was %d when expecting %d\n", n_collected_cycles + 1, mLowDataBitCycles);
 			return false;
 		}
 		// A "0" bit
-		bit = Low;
+		bit = LowBit;
 	}
-	else if (first_cycle_sample.freq == CycleDecoder::Frequency::F2) {
+	else if (first_cycle_sample.freq == Frequency::F2) {
 		int n_collected_cycles;
-		if (!mCycleDecoder.collectCycles(CycleDecoder::Frequency::F2, mHighDataBitCycles - 1, last_cycle_sample, n_collected_cycles)) {
+		if (!mCycleDecoder.collectCycles(Frequency::F2, mHighDataBitCycles - 1, last_cycle_sample, n_collected_cycles)) {
 			// If error correction is enabled, then accept 1 lost F2 cycle
 			if (!mErrorCorrection || n_collected_cycles < mHighDataBitCycles - 1) {
 				if (mTracing)
-					DEBUG_PRINT(getTimeNum(), ERR, "No of F2 Cycles for databit was %d when expecting %d\n", n_collected_cycles + 1, mHighDataBitCycles);
+					DEBUG_PRINT(getTime(), ERR, "No of F2 Cycles for databit was %d when expecting %d\n", n_collected_cycles + 1, mHighDataBitCycles);
 				return false;
 			}
 		}
 		// An "1" bit
-		bit = High;
+		bit = HighBit;
 	}
 	else {
 		// Not a valid data bit
@@ -372,19 +377,21 @@ bool BlockDecoder::getStopBit(int &nCollectedCycles)
 
 	// Get one F2 cycle
 	// If error correction is enabled, accept the first cycle to be of the wrong type (F2)
-	if (!mCycleDecoder.getNextCycle(first_cycle_sample) || (!mErrorCorrection && first_cycle_sample.freq != CycleDecoder::Frequency::F2))
+	if (!mCycleDecoder.getNextCycle(first_cycle_sample) || (!mErrorCorrection && first_cycle_sample.freq != Frequency::F2))
 		return false;
 
 	// Normally we shall see mStopBitCycles-1 F2 cycles here (from byte to byte)
-	// But if it is the last byte before a trailer tone or to allow even loss of carrier at end of last byte,
+	// But if it is the last byte is ssems often to be once cycle less and to allow even loss of carrier at end of last byte,
 	// we allow any number of cycles (even zero).
-	if (!mCycleDecoder.collectCycles(CycleDecoder::Frequency::F2, cycle_sample, mStopBitCycles-1, nCollectedCycles)) {
+	if (!mCycleDecoder.collectCycles(Frequency::F2, cycle_sample, mStopBitCycles-1, nCollectedCycles)) {
 		return false;
 	}
 	nCollectedCycles += 1; // Add the first cycle already sampled
+
+	// Check that the stop bit has the correct no of F2 cycles
 	if (nCollectedCycles != mStopBitCycles)
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "%d cycles were collected (with a detected next cycle of %s) for the stop bit when expecting %d cycles\n",
+			DEBUG_PRINT(getTime(), ERR, "%d cycles were collected (with a detected next cycle of %s) for the stop bit when expecting %d cycles\n",
 				nCollectedCycles, _FREQUENCY(mCycleDecoder.getCycle().freq), mStopBitCycles
 			);
 
@@ -398,7 +405,7 @@ bool BlockDecoder::getByte(Byte  *byte, int &nCollectedCycles)
 {
 	if (!getStartBit()) {
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read start bit%s\n", "");
+			DEBUG_PRINT(getTime(), ERR, "Failed to read start bit%s\n", "");
 		return false;
 	}
 	*byte = 0;
@@ -407,7 +414,7 @@ bool BlockDecoder::getByte(Byte  *byte, int &nCollectedCycles)
 		Bit bit;
 		if (!getDataBit(bit)) {
 			if (mTracing)
-				DEBUG_PRINT(getTimeNum(), ERR, "Failed to read data bit b%d\n", i);
+				DEBUG_PRINT(getTime(), ERR, "Failed to read data bit b%d\n", i);
 			return false;
 		}
 		*byte = *byte  + bit * f;
@@ -416,7 +423,7 @@ bool BlockDecoder::getByte(Byte  *byte, int &nCollectedCycles)
 
 	if (!getStopBit(nCollectedCycles)) {
 		if (mTracing)
-			DEBUG_PRINT(getTimeNum(), ERR, "Failed to read stop bit%s\n", "")
+			DEBUG_PRINT(getTime(), ERR, "Failed to read stop bit%s\n", "")
 		return false;
 	}
 

@@ -9,11 +9,11 @@
 using namespace std;
 
 
-AtomBasicCodec::AtomBasicCodec(TAPFile& tapFile) : mTapFile(tapFile)
+AtomBasicCodec::AtomBasicCodec(TAPFile& tapFile, bool verbose) : mTapFile(tapFile), mVerbose(verbose)
 {
 }
 
-AtomBasicCodec::AtomBasicCodec()
+AtomBasicCodec::AtomBasicCodec(bool verbose) :mVerbose(verbose)
 {
 }
 
@@ -22,26 +22,24 @@ AtomBasicCodec::AtomBasicCodec()
 bool AtomBasicCodec::encode(string & filePath)
 {
 
-    if (mTapFile.blocks.empty()) {
-        DBG_PRINT(DBG, "TAP File '%s' is empty => no Program file created!\n", filePath.c_str());
+    if (mVerbose && mTapFile.blocks.empty()) {
+        printf("TAP File '%s' is empty => no Program file created!\n", filePath.c_str());
         return false;
     }
 
     ATMBlockIter ATM_block_iter = mTapFile.blocks.begin();
 
-    if (!(mTapFile.isAbcProgram)) {
-        DBG_PRINT(ERR, "File '%s' likely doesn\'t contain an Acorn Atom Basic Program => ABC file generated could be unreadable...\n", ATM_block_iter->hdr.name);
+    if (mVerbose && !(mTapFile.isAbcProgram)) {
+        printf("File '%s' likely doesn\'t contain an Acorn Atom Basic Program => ABC file generated could be unreadable...\n", ATM_block_iter->hdr.name);
     }
 
 
 
     ofstream fout(filePath);
     if (!fout) {
-        DBG_PRINT(ERR, "Can't write to program file '%s'!\n", filePath.c_str());
+        printf("Can't write to program file '%s'!\n", filePath.c_str());
         return false;
     }
-
-    DBG_PRINT(DBG, "Writing to program file '%s'!\n", filePath.c_str());
 
     int line_pos = -1;
     int line_no_high = 0;
@@ -66,8 +64,8 @@ bool AtomBasicCodec::encode(string & filePath)
                     bi++;
                     end_of_program = true;
                     int n_non_ABC_bytes = ATM_block_iter->data.end() - bi;
-                    if (ATM_block_iter->data.end() - bi > 0) {
-                        DBG_PRINT(ERR, "Program file '%s' contains %d extra bytes after end of program - skipping this data for ABC file generation!\n", name.c_str(), n_non_ABC_bytes);
+                    if (mVerbose && ATM_block_iter->data.end() - bi > 0) {
+                        printf("Program file '%s' contains %d extra bytes after end of program - skipping this data for ABC file generation!\n", name.c_str(), n_non_ABC_bytes);
                     }
                 }
                 else {
@@ -97,15 +95,15 @@ bool AtomBasicCodec::encode(string & filePath)
 
         }
 
-        DBG_PRINT(DBG, "%s %.4x %.4x %.3x\n", name.c_str(), load_adr, exec_adr, data_len);
+        if (mVerbose)
+            printf("%s %.4x %.4x %.3x\n", name.c_str(), load_adr, exec_adr, data_len);
 
         ATM_block_iter++;
     }
 
-    if (!end_of_program)
-        DBG_PRINT(DBG, "Program '%s' didn't terminate with 0xff!\n", mTapFile.blocks.front().hdr.name);
+    if (mVerbose && !end_of_program)
+        printf("Program '%s' didn't terminate with 0xff!\n", mTapFile.blocks.front().hdr.name);
  
-    DBG_PRINT(DBG, "Program file '%s' created from %lu blocks!\n", filePath.c_str(), mTapFile.blocks.size());
 
     fout.close();
 
@@ -118,7 +116,7 @@ bool AtomBasicCodec::decode(string &programFileName)
     ifstream fin(programFileName);
 
     if (!fin) {
-        DBG_PRINT(ERR, "Failed to open file '%s'!\n", programFileName.c_str());
+        printf("Failed to open file '%s'!\n", programFileName.c_str());
         return false;
     }
     filesystem::path fin_p = programFileName;
@@ -162,8 +160,7 @@ bool AtomBasicCodec::decode(string &programFileName)
     fin.close();
 
     BytesIter data_iterator = data.begin();
-    DBG_PRINT(DBG, "ABC Program byte vector for file '%s':\n", programFileName.c_str());
-    logData(0x2900, data_iterator, data.size());
+     logData(0x2900, data_iterator, data.size());
 
 
     // Create ATM block
@@ -210,7 +207,6 @@ bool AtomBasicCodec::decode(string &programFileName)
                 new_block = true;
                 load_address += count;
                 BytesIter block_iterator = block.data.begin();
-                DBG_PRINT(DBG, "ABC Program block #%d:\n", block_no++);
                 logData(load_address, block_iterator, block.data.size());
         }
 
@@ -223,8 +219,7 @@ bool AtomBasicCodec::decode(string &programFileName)
     block.hdr.lenLow = count % 256;
     mTapFile.blocks.push_back(block);
     BytesIter block_iterator = block.data.begin();
-    DBG_PRINT(DBG, "ABC Program block #%d:\n", block_no++);
-    logData(load_address, block_iterator, block.data.size());
+     logData(load_address, block_iterator, block.data.size());
 
 
 

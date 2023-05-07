@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string.h>
-#include "../shared//Utility.h"
+#include "../shared/Utility.h"
 
 using namespace std;
 
@@ -14,10 +14,13 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Usage:\t" << name << " <DATA file> [-o <output file>] [-v]\n";
-	cout << "<DATA file>:\n\tatoMMC file to decode\n\n";
+	cout << "Usage:\t" << name << " <CSW file> [-o <output file] [-v]\n";
+	cout << "\n";
+	cout << "<CSW file>:\n\tCSW file to decode\n";
+	cout << "\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
-	cout << "input file name (excluding extension) suffixed with '.abc'.\n\n";
+	cout << "input file name (excluding extension) suffixed with '.wav'.\n";
+	cout << "\n";
 	cout << "-v:\n\tVerbose output\n\n";
 	cout << "\n";
 }
@@ -25,20 +28,14 @@ void ArgParser::printUsage(const char* name)
 ArgParser::ArgParser(int argc, const char* argv[])
 {
 
-
-
 	if (argc <= 1) {
 		printUsage(argv[0]);
 		return;
 	}
 
-	filesystem::path fin_path = argv[1];
-	if (!filesystem::exists(fin_path)) {
-		cout << "MMC file '" << argv[1] << "' cannot be opened!\n";
-		return;
-	}
 	srcFileName = argv[1];
-	dstFileName = crDefaultOutFileName(srcFileName, "abc");
+
+	dstFileName = crDefaultOutFileName(srcFileName, "wav");
 
 	int ac = 2;
 

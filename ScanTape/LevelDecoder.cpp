@@ -31,8 +31,8 @@ LevelDecoder::LevelDecoder(
 ): mSamples(samples), mArgParser(argParser) { // A reference can only be initialised this way!
 
 	mTracing = argParser.tracing;
-	mHighThreshold = (int) round(mArgParser.mLevelThreshold * SAMPLE_HIGH_MAX);
-	mLowThreshold = (int) round(mArgParser.mLevelThreshold * SAMPLE_LOW_MIN);
+	mHighThreshold = (int) round(mArgParser.levelThreshold * SAMPLE_HIGH_MAX);
+	mLowThreshold = (int) round(mArgParser.levelThreshold * SAMPLE_LOW_MIN);
 	
 	mSamples = samples;
 	mSamplesIndex = 0;
@@ -41,7 +41,7 @@ LevelDecoder::LevelDecoder(
 	mTS = 1 / mFS;
 
 	// A phase should never be longer than the max value of half an F1 cycle
-	mNLevelSamplesMax = (int) round((1 + mArgParser.mFreqThreshold) * mFS / (F1_FREQ * 2)); 
+	mNLevelSamplesMax = (int) round((1 + mArgParser.freqThreshold) * mFS / (F1_FREQ * 2)); 
 
 	// Advance to time startTime before searching for data
 	if (startTime > 0)
@@ -59,22 +59,22 @@ bool LevelDecoder::getNextSample(Level& level, int& sampleNo) {
 	sampleNo = mSamplesIndex;
 	Sample sample = mSamples[mSamplesIndex++];
 
-	if ((mState == NoCarrier || mState == Low) && sample > mHighThreshold) {
-		mState = High;
+	if ((mState == NoCarrierLevel || mState == LowLevel) && sample > mHighThreshold) {
+		mState = HighLevel;
 		mNSamplesLowLevel = 0;
 	}
-	else if ((mState == NoCarrier || mState == High) && sample < mLowThreshold) {
-		mState = Low;
+	else if ((mState == NoCarrierLevel || mState == HighLevel) && sample < mLowThreshold) {
+		mState = LowLevel;
 		mNSamplesHighLevel = 0;
 	}
 	else if (
-			(mState == Low && mNSamplesLowLevel > mNLevelSamplesMax) ||
-			(mState == High && mNSamplesHighLevel > mNLevelSamplesMax)
+			(mState == LowLevel && mNSamplesLowLevel > mNLevelSamplesMax) ||
+			(mState == HighLevel && mNSamplesHighLevel > mNLevelSamplesMax)
 		) {
-		mState = NoCarrier;
+		mState = NoCarrierLevel;
 		mNSamplesLowLevel = 0;
 		mNSamplesHighLevel = 0;
-	} else if (mState == Low) { // Unchanged level => measure time staying at same level
+	} else if (mState == LowLevel) { // Unchanged level => measure time staying at same level
 		mNSamplesLowLevel++;
 	}
 	else { // mState == High
@@ -93,7 +93,7 @@ bool LevelDecoder::endOfSamples() { return (mSamplesIndex == mSamples.size()); }
 
 int LevelDecoder::getSampleNo() { return mSamplesIndex;}
 
-LevelDecoder::Level LevelDecoder::getLevel() {
+Level LevelDecoder::getLevel() {
 	return mState;
 }
 

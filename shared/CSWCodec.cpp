@@ -18,12 +18,12 @@
 using namespace std;
 
 
-CSWCodec::CSWCodec()
+CSWCodec::CSWCodec(bool verbose) : mVerbose(verbose)
 {
 
 }
 
-CSWCodec::CSWCodec(TAPFile& tapFile, bool useOriginalTiming): mTapFile(tapFile)
+CSWCodec::CSWCodec(TAPFile& tapFile, bool useOriginalTiming, bool verbose): mTapFile(tapFile), mVerbose(verbose)
 {
     mUseOriginalTiming = useOriginalTiming;
 }
@@ -53,6 +53,9 @@ bool CSWCodec::setTAPFile(TAPFile& tapFile)
 bool CSWCodec::encode(string &filePath, int sampleFreq)
 {
 
+    if (mVerbose)
+        cout << "\nEncode CSW file\n\n";
+
     mFS = sampleFreq;
     if (mTapeTiming.baudRate == 300) {
         mStartBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
@@ -75,8 +78,10 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
     double lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;
     double other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;
     double data_block_micro_lead_tone_duration = mTapeTiming.nomBlockTiming.microLeadToneDuration;
-    double block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
+    double first_block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
+    double block_gap = mTapeTiming.nomBlockTiming.blockGap;
     double last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
+    
 
     float high_tone_freq = mTapeTiming.baseFreq * 2;
 
@@ -87,7 +92,6 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
 
     ATMBlockIter ATM_block_iter = mTapFile.blocks.begin();
 
-    DBG_PRINT(DBG, "#blocks = %d\n", (int)mTapFile.blocks.size());
 
 
 
@@ -95,9 +99,13 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
     int n_blocks = (int)mTapFile.blocks.size();
 
     // Encode initial gap before first block
-    if (!writeGap(block_gap)) {
-        DBG_PRINT(ERR, "Failed to encode a gap of %f s\n", block_gap);
+    if (!writeGap(first_block_gap)) {
+        printf("Failed to encode a gap of %f s\n", block_gap);
     }
+
+    if (mVerbose)
+        cout << first_block_gap << " s GAP\n";
+
 
     while (ATM_block_iter < mTapFile.blocks.end()) {
 
@@ -107,9 +115,11 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
             mPhase = ATM_block_iter->phaseShift;
         }
         if (!writeTone(lead_tone_duration)) {
-            DBG_PRINT(ERR, "Failed to write lead tone of duration %f s\n", lead_tone_duration);
+            printf("Failed to write lead tone of duration %f s\n", lead_tone_duration);
         }
-        DBG_PRINT(DBG, "Lead tone written%s\n", "");
+ 
+        if (mVerbose)
+            cout << "BLOCK " << block_no << ": LEAD TONE " << lead_tone_duration << " s : ";
 
         // Change lead tone duration for remaining blocks
         lead_tone_duration = other_block_lead_tone_duration;
@@ -167,22 +177,23 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
         while (hdr_iter < header_data.end())
             writeByte(*hdr_iter++);
 
-        DBG_PRINT(DBG, "Block header written%s\n", "");
-
+        if (mVerbose)
+            cout << "HDR : ";
 
         // --------------------------------------------------------------------------
         //
         // ---------------- End of block header chunk -------------------------------
 
 
-        // Add micro lead/trailer tone between header and data
+        // Add micro tone between header and data
         if (mUseOriginalTiming)
             data_block_micro_lead_tone_duration = (ATM_block_iter->microToneCycles) / high_tone_freq;
         if (!writeTone(data_block_micro_lead_tone_duration)) {
-            DBG_PRINT(ERR, "Failed to write micro lead tone of duration %f s\n", data_block_micro_lead_tone_duration)
+            printf("Failed to write micro lead tone of duration %f s\n", data_block_micro_lead_tone_duration);
         }
 
-        DBG_PRINT(DBG, "Micro lead tone written%s\n", "");
+        if (mVerbose)
+            cout << data_block_micro_lead_tone_duration << " s micro tone : ";
 
 
         // --------------------- start of block data + CRC chunk ------------------------
@@ -202,10 +213,6 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
         while (data_iter < block_data.end())
             writeByte(*data_iter++);
 
-        DBG_PRINT(DBG, "Block data written%s\n", "");
-
-
-
         //
         // Write CRC
         //
@@ -213,22 +220,17 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
         // Encode CRC byte
 
         if (!writeByte(mCRC)) {
-            DBG_PRINT(ERR, "Failed to encode CRC!%s\n", "");
+            printf("Failed to encode CRC!%s\n", "");
             return false;
         }
 
-        DBG_PRINT(DBG, "CRC written%s\n", "");
 
-        ATM_block_iter++;
+        if (mVerbose)
+            cout << "Data+CRC : ";
 
         // --------------------------------------------------------------------------
         //
         // ---------------- End of block data chunk -------------------------------
-
-        //
-        // No trailer tone added as that hasn't been observed to exist!
-        //
-
 
 
 
@@ -238,19 +240,22 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
         else if (block_no == n_blocks - 1)
             block_gap = last_block_gap;
 
+        
+
         if (!writeGap(block_gap)) {
-            DBG_PRINT(ERR, "Failed to encode a gap of %f s\n", block_gap);
+            printf("Failed to encode a gap of %f s\n", block_gap);
         }
 
-        DBG_PRINT(DBG, "Block gap written%s\n", "");
+        if (mVerbose)
+            cout << block_gap << " s GAP\n";
 
-
-        DBG_PRINT(DBG, "Block #%d written\n", block_no);
-
+        ATM_block_iter++;
 
         block_no++;
 
+
     }
+
 
 
     // Write samples to CSW file
@@ -259,7 +264,7 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
 
     // Write CSW header
     hdr.csw2.compType = 0x02; // (Z - RLE) - ZLIB compression of data stream
-    hdr.csw2.flags = 0;
+    hdr.csw2.flags = 0; // Initial polarity (specified by bit b0) is LOW
     hdr.csw2.hdrExtLen = 0;
     hdr.csw2.sampleRate[0] = mFS & 0xff;
     hdr.csw2.sampleRate[1] = (mFS >> 8) & 0xff;
@@ -272,11 +277,19 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
     hdr.csw2.totNoPulses[3] = (n_pulses >> 24) & 0xff;
     fout.write((char*)&hdr, sizeof(hdr));
 
+
     // Write compressed samples
-    writeCompressedPulses(filePath, fout, (streamsize) mPulses.size(), mPulses);
+    if (!encodeBytes(mPulses, fout)) {
+        cout << "Failed to compress CSW pulses and write them to file '" << filePath << "'!\n";
+        fout.close();
+        return false;
+    }
+    // Add one dummy byte to the end as e.g. CSW viewer seems to read one byte extra (which it shouldn't!)
+    char dummy_bytes[] = "0";
+    fout.write((char*)&dummy_bytes[0], sizeof(dummy_bytes));
 
-    DBG_PRINT(DBG, "CSW file completed!%s\n", "");
-
+    fout.close();
+ 
     // Clear samples to secure that future encodings start without any initial samples
     mPulses.clear();
 
@@ -284,15 +297,15 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
 
 }
 
-bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, CycleDecoder::Phase& firstPhase)
+bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, Phase& firstPhase)
 { 
-
     ifstream fin(CSWFileName, ios::in | ios::binary | ios::ate);
 
     if (!fin) {
         cout << "Failed to open file '" << CSWFileName << "'\n";
         return false;
     }
+
 
     // Get file size
     fin.seekg(0, ios::end);
@@ -332,7 +345,7 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, Cycle
         compressed = (csw2_hdr.compType == 0x02);
         sampleFreq = csw2_hdr.sampleRate[0] + (csw2_hdr.sampleRate[1] << 8) + (csw2_hdr.sampleRate[2] << 16) + (csw2_hdr.sampleRate[3] << 24);
         n_pulses = csw2_hdr.totNoPulses[0] + (csw2_hdr.totNoPulses[1] << 8) + (csw2_hdr.totNoPulses[2] << 16) + (csw2_hdr.totNoPulses[3] << 24);
-        firstPhase = ((csw2_hdr.flags & 0x01) == 0x01 ? CycleDecoder::High : CycleDecoder::Low);
+        firstPhase = ((csw2_hdr.flags & 0x01) == 0x01 ? HighPhase : LowPhase);
         char s[16];
         strncpy(s, csw2_hdr.encodingApp, 16);
         encoding_app = s;
@@ -341,8 +354,7 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, Cycle
         if (csw2_hdr.hdrExtLen > 0)
             fin.ignore(csw2_hdr.hdrExtLen);
 
-
-    }
+     }
     else {
         CSW1MainHdr csw1_hdr;
         if (!fin.read((char*)&csw1_hdr, sizeof(csw1_hdr))) {
@@ -352,7 +364,7 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, Cycle
         compressed = false;
         sampleFreq = csw1_hdr.sampleRate[0] + (csw1_hdr.sampleRate[1] << 8);
         n_pulses = -1; // unspecified and therefore undefined for CSW format 1.1
-        firstPhase = ((csw1_hdr.flags & 0x01) == 0x01 ? CycleDecoder::High : CycleDecoder::Low);
+        firstPhase = ((csw1_hdr.flags & 0x01) == 0x01 ? HighPhase : LowPhase);
     }
 
 
@@ -364,14 +376,15 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, Cycle
     // Get size of pulse data
     streamsize data_sz = file_size - fin.tellg();
 
-    cout << "CSW v" << (int)common_hdr.majorVersion << "." << (int)common_hdr.minorVersion << " format with settings:\n";
-    cout << "compressed: " << (compressed ? "Z-RLE" : "RLE") << "\n";
-    cout << "sample frequency: " << (int)sampleFreq << "\n";
-    cout << "no of pulses: " << (int)n_pulses << "\n";
-    cout << "initial polarity: " << (firstPhase == CycleDecoder::High ? "High" : "Low") << "\n";
-    cout << "encoding app: " << encoding_app << "\n";
-    cout << "data size of pulses: " << data_sz << "\n";
-
+    if (mVerbose) {
+        cout << "CSW v" << (int)common_hdr.majorVersion << "." << (int)common_hdr.minorVersion << " format with settings:\n";
+        cout << "compressed: " << (compressed ? "Z-RLE" : "RLE") << "\n";
+        cout << "sample frequency: " << (int)sampleFreq << "\n";
+        cout << "no of pulses: " << (int)n_pulses << "\n";
+        cout << "initial polarity: " << _PHASE(firstPhase) << "\n";
+        cout << "encoding app: " << encoding_app << "\n";
+    }
+ 
 
     //
     // Now read data (i.e. the pulses)
@@ -379,10 +392,13 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, Cycle
 
 
     if (compressed) { // Data is  compressed with ZLIB - need to uncompress it first
-        if (!readCompressedPulses(CSWFileName, fin, n_pulses, pulses)) {
+        pulses.resize((int)n_pulses);
+        if (!decodeBytes(fin, pulses)) {
+            cout << "Failed to uncompress CSW data stored in file '" << CSWFileName << "'!\n";
             fin.close();
             return false;
         }
+        fin.close();
     } else { // Data is not compressed with ZLIB - just read it
 
         // Collect all pulses into a vector 'pulses'
@@ -391,8 +407,8 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, Cycle
         fin.close();
     }
 
-    DBG_PRINT(DBG, "CSW File '%s' data decoded into %d pulses of sample frequency %d!\n", CSWFileName.c_str(), sampleFreq);
-    cout << "CSW File '" << CSWFileName << " - no of resulting pulses after decompression = " << pulses.size() << "\n";
+    if (mVerbose)
+        cout << "CSW File '" << CSWFileName << " - no of resulting pulses after decompression = " << pulses.size() << "\n";
 
     return true;
 }
@@ -435,9 +451,8 @@ bool CSWCodec::writeByte(Byte byte)
 
     Byte b = byte;
     for (int i = 0; i < 8; i++) {
-        DBG_PRINT(DBG, "Write bit %d = '%d' for byte %.2x\n", i, b & 0x1, byte);
         if (!writeDataBit(b & 0x1)) {
-            DBG_PRINT(ERR, "Failed to encode '%d' data bit #%d\n", b & 0x1, i);
+            printf("Failed to encode '%d' data bit #%d\n", b & 0x1, i);
             return false;
         }
         b = b >> 1;
@@ -468,7 +483,7 @@ bool CSWCodec::writeDataBit(int bit)
 
 
     if (!writeCycle(high_frequency, n_cycles)) {
-        DBG_PRINT(ERR, "Failed to encode '%d' data bit #%d\n", high_frequency, bit);
+        printf("Failed to encode '%d' data bit #%d\n", high_frequency, bit);
         return false;
     }
 
@@ -481,7 +496,7 @@ bool CSWCodec::writeStartBit()
     int n_cycles = mStartBitCycles;
 
     if (!writeCycle(false, n_cycles)) {
-        DBG_PRINT(ERR, "Failed to encode start bit%s\n", "");
+        printf("Failed to encode start bit%s\n", "");
         return false;
     }
 
@@ -493,7 +508,7 @@ bool CSWCodec::writeStopBit()
     int n_cycles = mStopBitCycles;
 
     if (!writeCycle(true, n_cycles)) {
-        DBG_PRINT(ERR, "Failed to encode stop bit%s\n", "");
+        printf("Failed to encode stop bit%s\n", "");
         return false;
     }
 
@@ -503,27 +518,27 @@ bool CSWCodec::writeStopBit()
 
 bool CSWCodec::writeTone(double duration)
 {
+    
     int n_cycles = (int)round((double)duration * F2_FREQ);
 
     if (!writeCycle(true, n_cycles)) {
-        DBG_PRINT(ERR, "Failed to encode %lf duration (%d cycles) tone.\n", duration, n_cycles);
+        printf("Failed to encode %lf duration (%d cycles) tone.\n", duration, n_cycles);
         return false;
     }
 
-    DBG_PRINT(DBG, "%lf s (%d cycles) tone written!\n", duration, n_cycles);
 
     return true;
 }
 
 // Gap is coded as a long low pulse
 //
-
 bool CSWCodec::writeGap(double duration)
 {
+
     int n_samples = (int)round(duration * mFS);
 
     // Insert one very short high pulse if not already an high pulse
-    if (mPulseLevel == CycleDecoder::Phase::Low)
+    if (mPulseLevel == Phase::LowPhase)
         mPulses.push_back(1);
 
     // Insert the long low pulse
@@ -540,166 +555,42 @@ bool CSWCodec::writeGap(double duration)
         mPulses.push_back((n_samples >> 24) % 256);
     }
 
-    mPulseLevel = CycleDecoder::Phase::Low;
+    mPulseLevel = Phase::LowPhase;
 
     return true;
 }
 
 bool CSWCodec::writeCycle(bool highFreq, int n)
 {
-    const double PI = 3.14159265358979323846;
-    int n_samples;
+    double n_samples_per_phase;
     if (highFreq) {
-        n_samples = (int)round(mHighSamples * n);
-        DBG_PRINT(DBG, "%d cycles of F2\n", n);
+        n_samples_per_phase = mHighSamples / 2;
     }
     else {
-        DBG_PRINT(DBG, "%d cycles of F1\n", n);
-        n_samples = (int)round(mLowSamples * n);
+        n_samples_per_phase = mLowSamples / 2;       
     }
 
-    double phase = ((mPhase + 180) % 360) * PI / 180;
+    double sample_no = 0;
+    double prev_sample_no = - n_samples_per_phase;
+    for (int c = 0; c < n; c++) {
 
-    double f = 2 * n * PI / n_samples;
-    int s = 0;
-    int ps = s;
-    while (s < n_samples) {
-        if (sin(s * f + phase) < 0 && mPulseLevel == CycleDecoder::Phase::High && s - ps > 0) {
-            mPulses.push_back(s - ps);
-            ps = s;
-            mPulseLevel = CycleDecoder::Phase::Low;
-        } else if (sin(s* f + phase) > 0 && mPulseLevel == CycleDecoder::Phase::Low && s - ps > 0) {
-            mPulses.push_back(s - ps);
-            ps = s;
-            mPulseLevel = CycleDecoder::Phase::High;
-        }
-        s++;
+        //  first half cycle
+        int n_samples = (int) round(sample_no)  - (int) round(prev_sample_no);
+         mPulses.push_back(n_samples);
+ 
+        // Advance sample index to next half cycle
+        prev_sample_no = sample_no;
+        sample_no += n_samples_per_phase;
+ 
+        // Write second half cycle
+        n_samples = (int)round(sample_no) - (int)round(prev_sample_no);
+        mPulses.push_back(n_samples);
+     
+        // Advance sample index to next cycle
+        prev_sample_no = sample_no;
+        sample_no += n_samples_per_phase;
+
     }
-    return true;
-}
-
-
-// Read compressed pulses
-bool CSWCodec::readCompressedPulses(string fin_name, ifstream& fin, int n_pulses, Bytes& pulses)
-{
-
-    // Create temp file name
-    string src_tmp_file_name, dst_tmp_file_name;
-    crTmpFile(fin_name, src_tmp_file_name, dst_tmp_file_name);
-
-    // Create and open the src temp file
-    ofstream f_src = ofstream(src_tmp_file_name, ios::out | ios::binary | ios::ate);
-
-    if (!f_src) {
-        cout << "Failed to create temp src file\n";
-        return false;
-    }
-
-    // Copy pulse data to the src temp file
-    int buf_sz = 1 << 20;
-    char* buf = new char[buf_sz];
-    streamsize n_written_bytes = 0;
-    while (fin)
-    {
-        fin.read(buf, buf_sz);
-        size_t n = fin.gcount();
-        if (!n)
-            break;
-        n_written_bytes += n;
-        f_src.write(buf, buf_sz);
-    }
-    delete[] buf; // free buffer used when reading temp file
-    
-    fin.close();
-    f_src.close();
-    cout << "Wrote " << n_written_bytes << " bytes to file\n";
-
-    // Decompress the pulse data stored in the src_tmp_file_name into dst_tmp_file_name
-    if (!inflate(src_tmp_file_name, dst_tmp_file_name)) {
-        cout << "Failed to decompress pulse data\n";
-        return false;
-    }
-
-    // Open the dst temp file with the uncompressed pulses
-    ifstream f_dst(dst_tmp_file_name.c_str(), ios::in | ios::binary | ios::ate);
-
-    if (!f_dst) {
-        DBG_PRINT(ERR, "Failed to open file '%s'\n", dst_tmp_file_name.c_str());
-        return false;
-    }
-
-    // Collect all pulses into a vector 'pulses' 
-    pulses.resize(n_pulses);
-    char* pulses_p = (char*)&pulses.front();
-    f_dst.seekg(0);
-    if (!f_dst.read(pulses_p, (streamsize) n_pulses)) {
-        cout << "Less pulses (" << f_dst.gcount() << ") then expected (" << n_pulses << ") after decompression!\n";
-    }
-
-    f_dst.close();
-    if (remove(src_tmp_file_name.c_str()) != 0) {
-         cout << "Failed to remove temp file " << src_tmp_file_name << "\n";
-    }
-
-    if (remove(dst_tmp_file_name.c_str()) != 0) {
-        cout << "Failed to remove temp file " << dst_tmp_file_name << "\n";
-    }
-
-    return true;
-}
-
-// Write compressed pulses
-bool CSWCodec::writeCompressedPulses(string fout_name, ofstream& fout, streamsize data_sz, Bytes& pulses)
-{
-    // Create temp file name
-    string src_tmp_file_name, dst_tmp_file_name;
-    crTmpFile(fout_name, src_tmp_file_name, dst_tmp_file_name);
-
-    // Write the uncompressed pulses to the src temp file
-    ofstream f_src(src_tmp_file_name, ios::out | ios::binary | ios::ate);
-    if (!f_src.write((char*)&pulses.front(), data_sz)) {
-        cout << "Failed to write uncompressed pulses to temp file!\n";
-        return false;
-    }
-    f_src.close();
-
-    // Store compressed pulses in dst temp file
-    if (!deflate(src_tmp_file_name, dst_tmp_file_name)) {
-        cout << "Failed to compress the pulses!\n";
-        return false;
-    }
-
-    // Open the dst file with the compressed pulses and transfer the compressed data to the CSW file
-    ifstream f_dst(dst_tmp_file_name, ios::in | ios::binary | ios::ate);
-    f_dst.seekg(0);
-    int buf_sz = 1 << 20;
-    char* buf = new char[buf_sz];
-    while (f_dst)
-    {
-        f_dst.read(buf, buf_sz);
-        size_t n = f_dst.gcount();
-        if (!n)
-            break;
-        fout.write(buf, buf_sz);
-    }
-    delete[] buf; // free buffer used when reading temp file
-    //remove(tmp_file_name.c_str()); // remove temp file
-    f_dst.close();
-    fout.close();
-
-    return true;
-}
-
-bool CSWCodec::crTmpFile(string file_name, string &src_tmp_file_name, string &dst_tmp_file_name)
-{
-    filesystem::path fin_p = file_name;
-    string fin_base_name = fin_p.stem().string();
-    src_tmp_file_name = fin_base_name + "_src.tmp";
-    dst_tmp_file_name = fin_base_name + "_dst.tmp";
-
-    cout << "Source Temp file is '" << src_tmp_file_name << "'\n";
-    cout << "Destination Temp file is '" << dst_tmp_file_name << "'\n";
-
-
+ 
     return true;
 }

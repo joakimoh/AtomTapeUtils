@@ -8,7 +8,7 @@
 #include <gzstream.h>
 #include "TAPCodec.h"
 #include "../shared/TapeProperties.h"
-#include "../ScanTape/CycleDecoder.h"
+#include "../shared/WaveSampleTypes.h"
 
 
 using namespace std;
@@ -97,15 +97,15 @@ private:
 
 	bool mUseOriginalTiming = false;
 
-
+	bool mVerbose = false;
 
 public:
 
 	// Default constructor
-	CSWCodec();
+	CSWCodec(bool verbose);
 
 	// Constructor allowing the codec to be initialised with a TAP file and a Tape timing
-	CSWCodec(TAPFile& tapFile, bool useOriginalTiming);
+	CSWCodec(TAPFile& tapFile, bool useOriginalTiming, bool verbose);
 
 	// Reinitialise codec with a new tape timing
 	bool setTapeTiming(TapeProperties tapeTiming);
@@ -120,7 +120,7 @@ public:
 	bool encode(string& filePath, int sampleFreq);
 
 	 // Decode a CSW file as a vector of pulses
-	bool decode(string &CSWFileName, Bytes &pulses, int &sampleFreq, CycleDecoder::Phase &firstPhase);
+	bool decode(string &CSWFileName, Bytes &pulses, int &sampleFreq, Phase &firstPhase);
 
 	// Tell whether a file is a CSW file
 	static bool isCSWFile(string& CSWFileName);
@@ -130,7 +130,7 @@ private:
 
 	// Pulse data
 	int mPulseIndex;
-	CycleDecoder::Phase mPulseLevel;
+	Phase mPulseLevel;
 	int mSampleIndex;
 	int mPulseLength;
 
@@ -156,15 +156,6 @@ private:
 	bool writeCycle(bool high, int n);
 	bool writeTone(double duration);
 	bool writeGap(double duration);
-
-	// Read compressed pulses
-	bool readCompressedPulses(string fin_name, ifstream& fin, int n_pulses, Bytes& pulses);
-
-	// Write compressed pulses
-	bool writeCompressedPulses(string fout_name, ofstream& fout, streamsize data_sz, Bytes& pulses);
-
-	// Create temp files for compressed pulse data
-	bool CSWCodec::crTmpFile(string file_name, string& src_tmp_file_name, string& dst_tmp_file_name);
 
 };
 

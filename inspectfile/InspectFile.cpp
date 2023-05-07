@@ -21,21 +21,21 @@ int main(int argc, const char* argv[])
         
     ofstream fout;
     bool write_to_file = false;
-    if (arg_parser.mDstFileName != "") {
+    if (arg_parser.dstFileName != "") {
         write_to_file = true;
-        cout << "Output file name = " << arg_parser.mDstFileName << "\n";
-        fout = ofstream(arg_parser.mDstFileName);
+        cout << "Output file name = " << arg_parser.dstFileName << "\n";
+        fout = ofstream(arg_parser.dstFileName);
         if (!fout) {
-            cout << "can't write to file " << arg_parser.mDstFileName << "\n";
+            cout << "can't write to file " << arg_parser.dstFileName << "\n";
             return (-1);
         }
     }
 
 
-    ifstream fin(arg_parser.mSrcFileName, ios::in | ios::binary | ios::ate);
+    ifstream fin(arg_parser.srcFileName, ios::in | ios::binary | ios::ate);
 
     if (!fin) {
-        cout << "couldn't open file " << arg_parser.mSrcFileName << "\n";
+        cout << "couldn't open file " << arg_parser.srcFileName << "\n";
         return (-1);
     }
 

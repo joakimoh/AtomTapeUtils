@@ -13,16 +13,18 @@ class ArgParser
 public:
 
 
-	string mDstFileName;
-	string mSrcFileName;
+	string dstFileName;
+	string srcFileName;
 	TapeProperties tapeTiming;
-
+	bool verbose = false;
 
 private:
 
 	void printUsage(const char*);
 
 	bool mParseSuccess = false;
+
+	
 
 public:
 

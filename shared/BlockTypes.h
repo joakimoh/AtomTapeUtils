@@ -71,7 +71,6 @@ typedef struct ATMBlock_struct {
 	int phaseShift = 180; // phase [degrees] when shifting from high to low frequency - normally 180 degrees
 	int leadToneCycles; // no of high frequency cycles for lead tone - normally 4.2 * 2400 = 10 080
 	int microToneCycles; // no of high frequency cycles between block header and data part - normally 0.5 * 2400 = 12 000
-	int trailerToneCycles; // no of high frequency cycles for trailer tone - normally 0 (no trailer tone at all)
 	double blockGap = 2.0; // gap after block (before the next block commence) - normally 2 s
 
 

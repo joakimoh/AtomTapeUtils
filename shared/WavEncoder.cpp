@@ -11,29 +11,7 @@
 
 using namespace std;
 
-
-WavEncoder::WavEncoder(TAPFile& tapFile, bool useOriginalTiming, int sampleFreq): mTapFile(tapFile), mUseOriginalTiming(useOriginalTiming), mFS(sampleFreq)
-{
-    if (mTapeTiming.baudRate == 300) {
-        mStartBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
-        mLowDataBitCycles = 4; // Data bit length in cycles of F1 frequency carrier
-        mHighDataBitCycles = 8; // Data bit length in cycles of F2 frequency carrier
-        mStopBitCycles = 9; // Stop bit length in cycles of F2 frequency carrier
-    }
-    else if (mTapeTiming.baudRate == 1200) {
-        mStartBitCycles = 1; // Start bit length in cycles of F1 frequency carrier
-        mLowDataBitCycles = 1; // Data bit length in cycles of F1 frequency carrier
-        mHighDataBitCycles = 2; // Data bit length in cycles of F2 frequency carrier
-        mStopBitCycles = 3; // Stop bit length in cycles of F2 frequency carrier
-    }
-    else {
-        throw invalid_argument("Unsupported baud rate " + mTapeTiming.baudRate);
-    }
-    mHighSamples = (double) mFS / F2_FREQ;
-    mLowSamples = (double) mFS / F1_FREQ;
-}
-
-WavEncoder::WavEncoder(int sampleFreq) : mFS(sampleFreq)
+bool WavEncoder::init()
 {
     if (mTapeTiming.baudRate == 300) {
         mStartBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
@@ -54,6 +32,22 @@ WavEncoder::WavEncoder(int sampleFreq) : mFS(sampleFreq)
     mLowSamples = (double)mFS / F1_FREQ;
 }
 
+WavEncoder::WavEncoder(
+    TAPFile& tapFile, bool useOriginalTiming, int sampleFreq, bool verbose
+): mTapFile(tapFile), mUseOriginalTiming(useOriginalTiming), mFS(sampleFreq), mVerbose(verbose)
+{
+    if (!init()) {
+        cout << "Failed to initialise the WavEncoder\n";
+    }
+}
+
+WavEncoder::WavEncoder(int sampleFreq, bool verbose) : mFS(sampleFreq), mVerbose(verbose)
+{
+    if (!init()) {
+        cout << "Failed to initialise the WavEncoder\n";
+    }
+}
+
 bool WavEncoder::setTapeTiming(TapeProperties tapeTiming)
 {
     mTapeTiming = tapeTiming;
@@ -68,7 +62,8 @@ bool WavEncoder::encode(string& filePath)
     double lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;
     double other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;
     double data_block_micro_lead_tone_duration = mTapeTiming.nomBlockTiming.microLeadToneDuration;
-    double block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
+    double first_block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
+    double block_gap = mTapeTiming.nomBlockTiming.blockGap;
     double last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
 
     float high_tone_freq = mTapeTiming.baseFreq * 2;
@@ -81,17 +76,20 @@ bool WavEncoder::encode(string& filePath)
 
     ATMBlockIter ATM_block_iter = mTapFile.blocks.begin();
 
-    DBG_PRINT(DBG, "#blocks = %d\n", (int)mTapFile.blocks.size());
-
+    if (mVerbose)
+        cout << "Encoding " << (int)mTapFile.blocks.size() << " blocks:\n\n";
     
 
     int block_no = 0;
     int n_blocks = (int)mTapFile.blocks.size();
 
     // Encode initial gap before first block
-    if (!writeGap(block_gap)) {
-        DBG_PRINT(ERR, "Failed to encode a gap of %f s\n", block_gap);
+    if (!writeGap(first_block_gap)) {
+        printf("Failed to encode a gap of %f s\n", block_gap);
     }
+
+    if (mVerbose)
+        cout << first_block_gap << " s GAP\n";
 
     while (ATM_block_iter < mTapFile.blocks.end()) {
 
@@ -101,9 +99,11 @@ bool WavEncoder::encode(string& filePath)
             mPhase = ATM_block_iter->phaseShift;
         }
         if (!writeTone(lead_tone_duration)) {
-            DBG_PRINT(ERR, "Failed to write lead tone of duration %f s\n", lead_tone_duration);
+            printf("Failed to write lead tone of duration %f s\n", lead_tone_duration);
         }
-        DBG_PRINT(DBG, "Lead tone written%s\n", "");
+
+        if (mVerbose)
+            cout << "BLOCK " << block_no << ": LEAD TONE " << lead_tone_duration << " s : ";
 
         // Change lead tone duration for remaining blocks
         lead_tone_duration = other_block_lead_tone_duration;
@@ -161,7 +161,9 @@ bool WavEncoder::encode(string& filePath)
         while (hdr_iter < header_data.end())
             writeByte(*hdr_iter++);
 
-        DBG_PRINT(DBG, "Block header written%s\n", "");
+
+        if (mVerbose)
+            cout << "HDR : ";
      
 
         // --------------------------------------------------------------------------
@@ -169,14 +171,16 @@ bool WavEncoder::encode(string& filePath)
         // ---------------- End of block header chunk -------------------------------
 
 
-        // Add micro lead/trailer tone between header and data
+        // Add micro tone between header and data
         if (mUseOriginalTiming)
             data_block_micro_lead_tone_duration = (ATM_block_iter->microToneCycles) / high_tone_freq;
         if (!writeTone(data_block_micro_lead_tone_duration)) {
-            DBG_PRINT(ERR, "Failed to write micro lead tone of duration %f s\n", data_block_micro_lead_tone_duration)
+            printf("Failed to write micro lead tone of duration %f s\n", data_block_micro_lead_tone_duration);
         }
 
-        DBG_PRINT(DBG, "Micro lead tone written%s\n", "");
+
+        if (mVerbose)
+            cout << data_block_micro_lead_tone_duration << " s micro tone : ";
 
 
         // --------------------- start of block data + CRC chunk ------------------------
@@ -196,7 +200,9 @@ bool WavEncoder::encode(string& filePath)
         while (data_iter < block_data.end())
             writeByte(*data_iter++);
 
-        DBG_PRINT(DBG, "Block data written%s\n", "");
+
+
+
         
 
 
@@ -207,24 +213,20 @@ bool WavEncoder::encode(string& filePath)
         // Encode CRC byte
 
         if (!writeByte(mCRC)) {
-            DBG_PRINT(ERR, "Failed to encode CRC!%s\n", "");
+            printf("Failed to encode CRC!%s\n", "");
             return false;
         }
 
-        DBG_PRINT(DBG, "CRC written%s\n", "");
+        if (mVerbose)
+            cout << "Data+CRC : ";
 
-        ATM_block_iter++;
+        
 
         // --------------------------------------------------------------------------
         //
         // ---------------- End of block data chunk -------------------------------
 
-        //
-        // No trailer tone added as that hasn't been observed to exist!
-        //
-
-
-
+ 
 
         // Write a gap at the end of the block
         if (mUseOriginalTiming)
@@ -233,13 +235,15 @@ bool WavEncoder::encode(string& filePath)
             block_gap = last_block_gap;
 
         if (!writeGap(block_gap)) {
-            DBG_PRINT(ERR, "Failed to encode a gap of %f s\n", block_gap);
+            printf("Failed to encode a gap of %f s\n", block_gap);
         }
 
-        DBG_PRINT(DBG, "Block gap written%s\n", "");
+
+        if (mVerbose)
+            cout << block_gap << " s GAP\n";
 
 
-        DBG_PRINT(DBG, "Block #%d written\n", block_no);
+        ATM_block_iter++;
 
 
         block_no++;
@@ -250,13 +254,11 @@ bool WavEncoder::encode(string& filePath)
 
     // Write samples to WAV file
     Samples samples_v[] = { mSamples };
-    if (!writeSamples(filePath, samples_v, 1)) {
-        DBG_PRINT(ERR, "Failed to write samples!%s\n", "");
+    if (!writeSamples(filePath, samples_v, 1, mFS)) {
+        printf("Failed to write samples!%s\n", "");
         return false;
     }
 
-
-    DBG_PRINT(DBG, "WAV file completed!%s\n", "");
 
     // Clear samples to secure that future encodings start without any initial samples
     mSamples.clear();
@@ -292,9 +294,8 @@ bool WavEncoder::writeByte(Byte byte)
 
     Byte b = byte;
     for (int i = 0; i < 8; i++) {
-        DBG_PRINT(DBG, "Write bit %d = '%d' for byte %.2x\n", i, b & 0x1, byte);
         if (!writeDataBit(b & 0x1)) {
-            DBG_PRINT(ERR, "Failed to encode '%d' data bit #%d\n", b & 0x1, i);
+            printf("Failed to encode '%d' data bit #%d\n", b & 0x1, i);
             return false;
         }
         b = b >> 1;
@@ -324,7 +325,7 @@ bool WavEncoder::writeDataBit(int bit)
 
     
     if (!writeCycle(high_frequency, n_cycles)) {
-        DBG_PRINT(ERR, "Failed to encode '%d' data bit #%d\n", high_frequency, bit);
+        printf("Failed to encode '%d' data bit #%d\n", high_frequency, bit);
         return false;
     }
 
@@ -337,7 +338,7 @@ bool WavEncoder::writeStartBit()
     int n_cycles = mStartBitCycles;
 
     if (!writeCycle(false, n_cycles)) {
-        DBG_PRINT(ERR, "Failed to encode start bit%s\n", "");
+        printf("Failed to encode start bit%s\n", "");
         return false;
     }
 
@@ -349,7 +350,7 @@ bool WavEncoder::writeStopBit()
     int n_cycles = mStopBitCycles;
 
     if (!writeCycle(true, n_cycles)) {
-        DBG_PRINT(ERR, "Failed to encode stop bit%s\n", "");
+        printf("Failed to encode stop bit%s\n", "");
         return false;
     }
 
@@ -362,11 +363,12 @@ bool WavEncoder::writeTone(double duration)
     int n_cycles = (int) round((double) duration * F2_FREQ);
 
     if (!writeCycle(true, n_cycles)) {
-        DBG_PRINT(ERR, "Failed to encode %lf duration (%d cycles) tone.\n", duration, n_cycles);
+        printf("Failed to encode %lf duration (%d cycles) tone.\n", duration, n_cycles);
         return false;
     }
 
-    DBG_PRINT(DBG, "%lf s (%d cycles) tone written!\n", duration, n_cycles);
+    if (mVerbose)
+        printf("%lf s (%d cycles) tone written!\n", duration, n_cycles);
 
     return true;
 }
@@ -387,10 +389,12 @@ bool WavEncoder::writeCycle(bool highFreq, int n)
     int n_samples;
     if (highFreq) {
         n_samples = (int) round(mHighSamples * n);
-        DBG_PRINT(DBG, "%d cycles of F2\n", n);
+        if (mVerbose)
+            printf("%d cycles of F2\n", n);
     } 
     else {
-        DBG_PRINT(DBG, "%d cycles of F1\n", n);
+        if (mVerbose)
+            printf("%d cycles of F1\n", n);
         n_samples = (int) round(mLowSamples * n);
     }
 

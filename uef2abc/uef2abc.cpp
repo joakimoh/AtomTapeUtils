@@ -33,21 +33,21 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    UEFCodec UEF_codec = UEFCodec();
+    UEFCodec UEF_codec = UEFCodec(arg_parser.verbose);
 
-    if (!UEF_codec.decode(arg_parser.mSrcFileName)) {
-        cout << "Failed to decode UEF file '" << arg_parser.mSrcFileName << "'\n";
+    if (!UEF_codec.decode(arg_parser.srcFileName)) {
+        cout << "Failed to decode UEF file '" << arg_parser.srcFileName << "'\n";
     }
 
     TAPFile TAP_file;
 
     UEF_codec.getTAPFile(TAP_file);
 
-    AtomBasicCodec ABC_codec = AtomBasicCodec(TAP_file);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(TAP_file, arg_parser.verbose);
 
-    if (!ABC_codec.encode(arg_parser.mDstFileName)) {
+    if (!ABC_codec.encode(arg_parser.dstFileName)) {
         
-        cout << "Failed to encode UEF file '" << arg_parser.mSrcFileName << "' as ABC file '" << arg_parser.mDstFileName << "'\n";
+        cout << "Failed to encode UEF file '" << arg_parser.srcFileName << "' as ABC file '" << arg_parser.dstFileName << "'\n";
     }
 
 

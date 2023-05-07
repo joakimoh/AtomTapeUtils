@@ -16,7 +16,7 @@ void ArgParser::printUsage(const char *name)
 {
 	cout << "Usage:\t" << name << " <WAV file> [-g <generate dir path] [-d <debug start time> <debug stop time>] [-b <b>]\n";
 	cout << "\t[-f <freq tolerance>] [-l <level tolerance>] [-s <start time> ] [-e] [-t] [-pot]\n";
-	cout << " \t[-lt <duration>] [-slt <duration>] [-tt <duration>] [-ml <duration>]\n";
+	cout << " \t[-lt <duration>] [-slt <duration>] [-ml <duration>] [-v]\n";
 	cout << "\n";
 	cout << "<WAVE file>:\n\t16-bit PCM WAV file to analyse\n\n";
 	cout << "\n";
@@ -29,19 +29,19 @@ void ArgParser::printUsage(const char *name)
 	cout << "-s <start time>:\n\tThe time to start detecting files from\n\t- default is 0\n\n";
 	cout << "-lt <d>:\n\tThe duration of the first block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockLeadToneDuration << " s\n\n";
 	cout << "-slt <d>:\n\tThe duration of the subsequent block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.otherBlockLeadToneDuration << " s\n\n";
-	cout << "-tt <d>:\n\tThe duration of a trailer tone\n\t- default is " << tapeTiming.nomBlockTiming.trailerToneDuration << " s\n\n";
 	cout << "-ml <d>:\n\tThe duration of a micro lead tone preceeding a data block\n\t- default is " << tapeTiming.nomBlockTiming.microLeadToneDuration << " s\n\n";
 	cout << "-b baudrate:\n\tBaudrate (300 or 1200)\n\t- default is " << tapeTiming.baudRate << "\n\n";
 	cout << "-e:\n\tApply error correction\n\n";
 	cout << "-t:\n\tTurn on tracing showing detected faults.\n\n";
 	cout << "-pot:\n\tPreserve original tape timing when generating UEF & CSW files - default is " << tapeTiming.preserve << "\n\n";
+	cout << "-v:\n\tVerbose mode\n\n";
 	cout << "\n";
 }
 
 ArgParser::ArgParser(int argc, const char* argv[])
 {
 
-	mGenDir = filesystem::current_path().string();
+	genDir = filesystem::current_path().string();
 
 	if (argc <= 1) {
 		printUsage(argv[0]);
@@ -53,7 +53,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		cout << "WAV file '" << argv[1] << "' cannot be opened!\n";
 		return;
 	}
-	mWavFile = argv[1];
+	wavFile = argv[1];
 
 	int ac = 2;
 
@@ -62,11 +62,14 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			filesystem::path dir_path=  argv[ac + 1];
 			if (!filesystem::is_directory(dir_path))
 				cout << "-g without a valid directory\n";
-			mGenDir = argv[ac+1];
+			genDir = argv[ac+1];
 			ac++;
 		}
 		else if (strcmp(argv[ac], "-pot") == 0) {
 			tapeTiming.preserve = true;
+		}
+		else if (strcmp(argv[ac], "-v") == 0) {
+			verbose = true;
 		}
 		else if (strcmp(argv[ac], "-d") == 0 && ac + 2 < argc) {
 			double t1 = decodeTime(argv[ac + 1]);
@@ -76,8 +79,8 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			if (t1 <= 0 || t2 <= 0 || t2 <= t1)
 				cout << "-d without valid non-zero start and stop times\n";
 			else {
-				mDbgStart = t1;
-				mDbgEnd = t2;
+				dbgStart = t1;
+				dbgEnd = t2;
 				ac += 2;
 			}
 		}
@@ -86,7 +89,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			if (freq_threshold <= 0 || freq_threshold >= 0.9)
 				cout << "-f without a valid non-zero frequency threshold\n";
 			else {
-				mFreqThreshold = freq_threshold;
+				freqThreshold = freq_threshold;
 				ac++;
 			}
 		}
@@ -95,7 +98,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			if (level_threshold < 0 || level_threshold >= 0.9)
 				cout << "-l without a valid level threshold\n";
 			else {
-				mLevelThreshold = strtod(argv[ac + 1], NULL);
+				levelThreshold = strtod(argv[ac + 1], NULL);
 				ac++;
 			}
 		}
@@ -114,7 +117,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			if (val < 0)
 				cout << "-s without a valid start time\n";
 			else {
-				mStartTime = val;
+				startTime = val;
 				ac++;
 			}
 		}
@@ -136,15 +139,6 @@ ArgParser::ArgParser(int argc, const char* argv[])
 				ac++;
 			}
 		}	
-		else if (strcmp(argv[ac], "-tt") == 0 && ac + 1 < argc) {
-			double val = strtod(argv[ac + 1], NULL);
-			if (val < 0)
-				cout << "-s without a valid tone duration\n";
-			else {
-				tapeTiming.minBlockTiming.trailerToneDuration = val;
-				ac++;
-			}
-		}
 		else if (strcmp(argv[ac], "-ml") == 0 && ac + 1 < argc) {
 			double start_time = strtod(argv[ac + 1], NULL);
 			if (start_time < 0)

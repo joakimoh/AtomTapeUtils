@@ -30,7 +30,7 @@ The program name will be used as the file name. Any detected non-alphanumeric ch
 
 ### You have written a program on your desktop (myprog.abc) and want to encode it as something that can be run on an emulator or loaded into an Acorn Atom
 
-Convert to EUF format (for loading into emulator)
+Convert to UEF format (for loading into emulator)
 
 > abc2uef myprog.abc -o myprog.uef
 

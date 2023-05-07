@@ -28,18 +28,18 @@ int main(int argc, const char* argv[])
         return 0;
     
 
-    cout << "Input file = '" << arg_parser.mWavFile << "'\n";
-    cout << "Output file = '" << arg_parser.mOutputFileName << "'\n";
-    cout << "Baud rate = " << arg_parser.mBaudRate << "\n";
-    cout << "Derivative threshold = " << arg_parser.mDerivativeThreshold << "\n";
-    if (arg_parser.mNAveragingSamples > 0)
-        cout << "No of averaging samples = " << arg_parser.mNAveragingSamples * 2 + 1 << "\n";
+    cout << "Input file = '" << arg_parser.wavFile << "'\n";
+    cout << "Output file = '" << arg_parser.outputFileName << "'\n";
+    cout << "Baud rate = " << arg_parser.baudRate << "\n";
+    cout << "Derivative threshold = " << arg_parser.derivativeThreshold << "\n";
+    if (arg_parser.nAveragingSamples > 0)
+        cout << "No of averaging samples = " << arg_parser.nAveragingSamples * 2 + 1 << "\n";
     else
         cout << "No averaging of samples\n";
-    cout << "Output multiple channels = " << (arg_parser.mOutputMultipleChannels==true?"Yes":"No") << "\n";
-    cout << "High saturation level = " << round(100 *arg_parser.mSaturationLevelHigh) << " %\n";
-    cout << "Low saturation level = " << round(100 * arg_parser.mSaturationLevelHigh) << " %\n";
-    cout << "Min separation between peaks = " << round(100 * arg_parser.mMinPeakDistance) << " % of 2400 Hz cycle\n";
+    cout << "Output multiple channels = " << (arg_parser.outputMultipleChannels==true?"Yes":"No") << "\n";
+    cout << "High saturation level = " << round(100 *arg_parser.saturationLevelHigh) << " %\n";
+    cout << "Low saturation level = " << round(100 * arg_parser.saturationLevelHigh) << " %\n";
+    cout << "Min separation between peaks = " << round(100 * arg_parser.minPeakDistance) << " % of 2400 Hz cycle\n";
 
     std::chrono::time_point<std::chrono::system_clock> t_start, t_end;
     chrono::duration<double> dt;
@@ -49,8 +49,9 @@ int main(int argc, const char* argv[])
 
     t_start = chrono::system_clock::now();
     Samples samples;
-    if (!readSamples(arg_parser.mWavFile, samples)) {
-        cout << "Couldn't open PCM Wave file '" << arg_parser.mWavFile << "'\n";
+    int sample_freq = 44100;
+    if (!readSamples(arg_parser.wavFile, samples, sample_freq)) {
+        cout << "Couldn't open PCM Wave file '" << arg_parser.wavFile << "'\n";
         return -1;
     }
     cout << "Samples read...\n";
@@ -58,7 +59,7 @@ int main(int argc, const char* argv[])
     dt = t_end - t_start;
     cout << "Elapsed time: " << dt.count() << " seconds...\n";
 
-    int sample_freq = 44100;
+    
 
     // Initialise sample filter
     Filter filter(sample_freq, arg_parser);
@@ -69,7 +70,7 @@ int main(int argc, const char* argv[])
     // Average the samples
     t_start = chrono::system_clock::now();
     Samples averaged_samples(samples.size());
-    if (arg_parser.mNAveragingSamples > 0) { 
+    if (arg_parser.nAveragingSamples > 0) { 
         //averaged_samples.reserve(samples.size());
         if (!filter.averageFilter(samples, averaged_samples)) {
             cout << "Failed to filter samples!\n";
@@ -111,24 +112,24 @@ int main(int argc, const char* argv[])
     // Write reconstructed samples to WAV file
     t_start = chrono::system_clock::now();
     bool success;
-    if (arg_parser.mOutputMultipleChannels) {
+    if (arg_parser.outputMultipleChannels) {
         // Write original samples and the filtered samples into a multiple-channel 16-bit PCM output WAV file
-        if (arg_parser.mNAveragingSamples > 0) {
+        if (arg_parser.nAveragingSamples > 0) {
             Samples samples_v[] = { samples , samples_to_filter, new_shapes };
-            success = writeSamples(arg_parser.mOutputFileName, samples_v, end(samples_v) - begin(samples_v));
+            success = writeSamples(arg_parser.outputFileName, samples_v, end(samples_v) - begin(samples_v), sample_freq);
         }
         else {
             Samples samples_v[] = { samples , new_shapes };
-            success = writeSamples(arg_parser.mOutputFileName, samples_v, end(samples_v) - begin(samples_v));
+            success = writeSamples(arg_parser.outputFileName, samples_v, end(samples_v) - begin(samples_v), sample_freq);
         }
     }
     else {
         // Write the filtered samples into a one-channel 16-bit PCM output WAV file
         Samples samples_v[] = { new_shapes };
-        success = writeSamples(arg_parser.mOutputFileName, samples_v, end(samples_v) - begin(samples_v));
+        success = writeSamples(arg_parser.outputFileName, samples_v, end(samples_v) - begin(samples_v), sample_freq);
     }
     if (!success) {
-        cout << "Couldn't write samples to Wave file '" << arg_parser.mOutputFileName << "'\n";
+        cout << "Couldn't write samples to Wave file '" << arg_parser.outputFileName << "'\n";
         return -1;
     }
     cout << "Resulting samples written to file...\n";

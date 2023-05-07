@@ -22,6 +22,8 @@ class CSWCycleDecoder : public CycleDecoder
 
 private:
 
+	bool mVerbose = false;
+
 	Bytes &mPulses;
 	PulseCheckPoints mPulsesCheckpoints;
 
@@ -37,7 +39,7 @@ private:
 
 public:
 
-	CSWCycleDecoder(int sampleFreq, CycleDecoder::Phase firstPhase, Bytes &Pulses, ArgParser & argParser);
+	CSWCycleDecoder(int sampleFreq, Phase firstPhase, Bytes &Pulses, ArgParser & argParser, bool verbose);
 
 	// Get the next cycle (which is ether a low - F1 - or high - F2 - tone cycle)
 	bool getNextCycle(CycleSample& cycleSample);
