@@ -41,6 +41,9 @@ bool AtomBasicCodec::encode(string & filePath)
         return false;
     }
 
+    if (mVerbose)
+        cout << "\nEncoding ABC file '" << filePath << "'...\n\n";
+
     int line_pos = -1;
     int line_no_high = 0;
     bool first_line = true;
@@ -104,6 +107,8 @@ bool AtomBasicCodec::encode(string & filePath)
     if (mVerbose && !end_of_program)
         printf("Program '%s' didn't terminate with 0xff!\n", mTapFile.blocks.front().hdr.name);
  
+    if (mVerbose)
+        cout << "\nDone encoding ABC file\n\n";
 
     fout.close();
 
@@ -186,7 +191,7 @@ bool AtomBasicCodec::decode(string &programFileName)
             block.hdr.execAdrLow = 0xb2;
             block.hdr.loadAdrHigh = load_address / 256;
             block.hdr.loadAdrLow = load_address % 256;
-            for (int i = 0; i < 13; i++) {
+            for (int i = 0; i < sizeof(block.hdr.name); i++) {
                 if (i < block_name.length())
                     block.hdr.name[i] = block_name[i];
                 else

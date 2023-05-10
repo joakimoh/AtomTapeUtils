@@ -56,7 +56,7 @@ bool MMCCodec::encode(string& filePath)
     for (l = 0; l < sizeof(ATM_block_iter->hdr.name) && ATM_block_iter->hdr.name[l] != 0; l++)
         fout.write((char*)&(ATM_block_iter->hdr.name[l]), 1);
     char c = 0x0;
-    for (int k = 0; k < 16 - l; k++)
+    for (int k = 0; k < ATM_MMC_HDR_NAM_SZ - l; k++)
         fout.write((char*)&c, 1);
 
     // Load address
@@ -147,7 +147,7 @@ bool MMCCodec::decode(string& mmcFileName)
 
     // Get Atom file name
     string atom_filename = "";
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < ATM_MMC_HDR_NAM_SZ; i++) {
         char c;
         fin.read((char*)&c, 1);
         if (c != 0x0)
@@ -166,7 +166,6 @@ bool MMCCodec::decode(string& mmcFileName)
     int file_exec_addr = byte_H * 256 + byte_L;
 
     // Get Length
-    // Get execution address
     fin.read((char*)&byte_L, 1);
     fin.read((char*)&byte_H, 1);
     int atom_file_len = byte_H * 256 + byte_L;
@@ -217,7 +216,7 @@ bool MMCCodec::decode(string& mmcFileName)
             block.hdr.execAdrLow = file_exec_addr % 256;
             block.hdr.loadAdrHigh = load_address / 256;
             block.hdr.loadAdrLow = load_address % 256;
-            for (int i = 0; i < 13; i++) {
+            for (int i = 0; i < sizeof(block.hdr.name); i++) {
                 if (i < atom_filename.size())
                     block.hdr.name[i] = atom_filename[i];
                 else

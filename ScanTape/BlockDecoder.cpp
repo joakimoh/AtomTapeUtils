@@ -254,7 +254,7 @@ bool BlockDecoder::checkBytes(Byte refVal, int n) {
 	return !failed;
 }
 
-bool BlockDecoder::getFileName(char name[13], Byte &CRC, int &len) {
+bool BlockDecoder::getFileName(char name[ATM_MMC_HDR_NAM_SZ], Byte &CRC, int &len) {
 	int i = 0;
 	Byte byte;
 	bool failed = false;
@@ -269,10 +269,10 @@ bool BlockDecoder::getFileName(char name[13], Byte &CRC, int &len) {
 			len = i;
 		i++;
 		CRC += byte;
-	} while (!failed && byte != 0xd && i < 14);
+	} while (!failed && byte != 0xd && i <= MAX_TAPE_NAME_LEN);
 
 	// Add zero-padding
-	for (int j = len; j < 13; j++)
+	for (int j = len; j < ATM_MMC_HDR_NAM_SZ; j++)
 		name[j] = '\0';
 
 	return true;

@@ -85,16 +85,6 @@ string encodeTime(double t) {
     return string(t_str);
 }
 
-string parseFileName(char *blockFileName)
-{
-    string s = "";
-
-    for (int i = 0; i < 14 && blockFileName[i] != 0xd; i++)
-        s += blockFileName[i];
-
-    return s;
-}
-
 char digitToHex(int d)
 {
     if (d >= 0 && d <= 9)
@@ -122,7 +112,7 @@ string blockNameFromFilename(string fn)
     int len = (int)fn.length();
     int p = 0;
     int atom_file_pos = 0;
-    while (p < len && atom_file_pos < 13) {
+    while (p < len && atom_file_pos < MAX_TAPE_NAME_LEN) {
         char c = fn[p];
         // Look for escape sequences __ and _hh 
         if (fn[p] == '_') {
@@ -292,7 +282,7 @@ bool extractBlockPars(
     if (nReadChars > 4) { // name comes after 4-bytes preamble
         fileName = "";
         int sz = 0;
-        for (sz = 0; sz < 13 && block.hdr.name[sz] != 0x0; sz++) {
+        for (sz = 0; sz < sizeof(block.hdr.name) && block.hdr.name[sz] != 0x0; sz++) {
             if (block.hdr.name[sz] < 0x20 || block.hdr.name[sz] > 0x7f) {
                 fileName += "?";
                 break;

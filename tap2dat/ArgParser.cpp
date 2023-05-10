@@ -14,8 +14,8 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Usage:\t" << name << " <MMC file> [-o <output file>] [-v]\n";
-	cout << "<MMC file>:\n\tatoMMC file to decode\n\n";
+	cout << "Usage:\t" << name << " <TAP file> [-o <output file>] [-v]\n";
+	cout << "<TAP file>:\n\tTAP file to decode\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.dat'.\n\n";
 	cout << "-v:\n\tVerbose output\n\n";

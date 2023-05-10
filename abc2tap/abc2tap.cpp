@@ -12,7 +12,7 @@
 #include "ArgParser.h"
 #include "../shared/UEFCodec.h"
 #include "../shared/AtomBasicCodec.h"
-#include "../shared/MMCCodec.h"
+#include "../shared/TAPCodec.h"
 #include "../shared/Compress.h"
 #include "../shared/Debug.h"
 
@@ -23,9 +23,9 @@ using namespace std::filesystem;
 
 /*
  *
- * Create Atom MMC file from Acorn Atom BASIC (ABC) program
+ * Create Atom TAP/MMC file from Acorn Atom BASIC (ABC) program
  * 
- * The Atom MMC file format is used by Atomulator as well as the
+ * The Atom TAP/MMC file format is used by Atomulator as well as the
  * AtoMMC2 & AtoMMC v4 SD/MMC card interface for storing native
  * Acorn Atom files onto an SC/MMC card.
  * 
@@ -60,12 +60,8 @@ int main(int argc, const char* argv[])
 
     TAPCodec TAP_codec(TAP_file, arg_parser.verbose);
 
-    ABC_codec.getTAPFile(TAP_file);
-
-    MMCCodec MMC_codec(TAP_file, arg_parser.verbose);
-
-    if (!MMC_codec.encode(arg_parser.dstFileName)) {
-        printf("Failed to encode DATA file '%s' as MMC file '%s'\n",
+    if (!TAP_codec.encode(arg_parser.dstFileName)) {
+        printf("Failed to encode ABC file '%s' as TAP/MMC file '%s'\n",
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );
     }

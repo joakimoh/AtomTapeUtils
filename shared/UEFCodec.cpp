@@ -885,16 +885,16 @@ bool UEFCodec::check_bytes(BytesIter& data_iter, Bytes& data, int n, Byte & CRC,
     return true;
 }
 
-bool UEFCodec::read_block_name(BytesIter &data_iter, Bytes &data, Byte& CRC, char name[13])
+bool UEFCodec::read_block_name(BytesIter &data_iter, Bytes &data, Byte& CRC, char name[ATM_MMC_HDR_NAM_SZ])
 {
     int i = 0;
 
-    for (i = 0; i < 13 && *data_iter != 0xd && data_iter < data.end(); data_iter++) {
+    for (i = 0; i < ATM_MMC_HDR_NAM_SZ && *data_iter != 0xd && data_iter < data.end(); data_iter++) {
         name[i] = *data_iter;
         CRC += *data_iter;
         i++;
     }
-    for (int j = i; j < 13; name[j++] = '\0');
+    for (int j = i; j < ATM_MMC_HDR_NAM_SZ; name[j++] = '\0');
 
     if (*data_iter != 0xd)
         return false;

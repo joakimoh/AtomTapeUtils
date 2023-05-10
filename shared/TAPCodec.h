@@ -38,6 +38,10 @@ public:
 	 */
 	bool decode(string &dataFileName);
 
+	bool decodeSingleFile(ifstream& fin, unsigned file_size, TAPFile& tapFile);
+
+	bool decodeMultipleFiles(string& tapFileName, vector<TAPFile> &atomFiles);
+
 	/*
 	 * Get the codec's TAP file 
 	 */

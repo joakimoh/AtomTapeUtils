@@ -182,7 +182,7 @@ private:
 
 	static bool check_bytes(BytesIter& data_iter, Bytes& data, int n, Byte& CRC, Byte refVal);
 
-	static bool read_block_name(BytesIter& data_iter, Bytes& data, Byte& CRC, char name[13]);
+	static bool read_block_name(BytesIter& data_iter, Bytes& data, Byte& CRC, char name[ATM_MMC_HDR_NAM_SZ]);
 
 };
 

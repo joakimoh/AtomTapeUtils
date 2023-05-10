@@ -10,8 +10,8 @@
 
 #include "../shared/CommonTypes.h"
 #include "ArgParser.h"
-#include "../shared/MMCCodec.h"
-#include "../shared/DataCodec.h"
+#include "../shared/TAPCodec.h"
+#include "../shared/AtomBasicCodec.h"
 #include "../shared/Debug.h"
 
 using namespace std;
@@ -21,7 +21,7 @@ using namespace std::filesystem;
 
 /*
  *
- * Create DATA file from atoMMC file
+ * Create DATA file from TAP file
  * *
  */
 int main(int argc, const char* argv[])
@@ -35,20 +35,20 @@ int main(int argc, const char* argv[])
 
     cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
-    MMCCodec MMC_codec = MMCCodec(arg_parser.verbose);
+    TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
 
-    if (!MMC_codec.decode(arg_parser.srcFileName)) {
-        printf("Failed to decode MMC file '%s'\n", arg_parser.srcFileName.c_str());
+    if (!TAP_codec.decode(arg_parser.srcFileName)) {
+        printf("Failed to decode TAP file '%s'\n", arg_parser.srcFileName.c_str());
     }
 
     TAPFile TAP_file;
 
-    MMC_codec.getTAPFile(TAP_file);
+    TAP_codec.getTAPFile(TAP_file);
 
-    DataCodec DATA_codec = DataCodec(TAP_file, arg_parser.verbose);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(TAP_file, arg_parser.verbose);
 
-    if (!DATA_codec.encode(arg_parser.dstFileName)) {
-        printf("Failed to encode MMC file '%s' as DATA file '%s'\n",
+    if (!ABC_codec.encode(arg_parser.dstFileName)) {
+        printf("Failed to encode TAP file '%s' as ABC file '%s'\n",
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );
     }

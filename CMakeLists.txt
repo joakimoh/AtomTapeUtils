@@ -30,6 +30,18 @@ include_directories(
 )
 
 add_executable ( 
+	tap2dat  "tap2dat/tap2dat.cpp"
+	"tap2dat/ArgParser.h"  "tap2dat/ArgParser.cpp"
+)
+target_link_libraries(tap2dat PUBLIC shared )
+
+add_executable ( 
+	tap2abc  "tap2abc/tap2abc.cpp"
+	"tap2abc/ArgParser.h"  "tap2abc/ArgParser.cpp"
+)
+target_link_libraries(tap2abc PUBLIC shared )
+
+add_executable ( 
 	inspectfile "inspectfile/InspectFile.cpp"
 	"inspectfile/ArgParser.h" "inspectfile/ArgParser.cpp"
 )
@@ -41,28 +53,16 @@ add_executable (
 target_link_libraries(dat2bin PUBLIC shared )
 
 add_executable ( 
-	mmc2abc  "mmc2abc/mmc2abc.cpp"
-	"mmc2abc/ArgParser.h"  "mmc2abc/ArgParser.cpp"
+	dat2tap  "dat2tap/dat2tap.cpp"
+	"dat2tap/ArgParser.h"  "dat2tap/ArgParser.cpp"
 )
-target_link_libraries(mmc2abc PUBLIC shared)
+target_link_libraries(dat2tap PUBLIC shared)
 
 add_executable ( 
-	mmc2dat  "mmc2dat/mmc2dat.cpp"
-	"mmc2dat/ArgParser.h"  "mmc2dat/ArgParser.cpp"
+	abc2tap  "abc2tap/abc2tap.cpp"
+	"abc2tap/ArgParser.h"  "abc2tap/ArgParser.cpp"
 )
-target_link_libraries(mmc2dat PUBLIC shared)
-
-add_executable ( 
-	dat2mmc  "dat2mmc/dat2mmc.cpp"
-	"dat2mmc/ArgParser.h"  "dat2mmc/ArgParser.cpp"
-)
-target_link_libraries(dat2mmc PUBLIC shared)
-
-add_executable ( 
-	abc2mmc  "abc2mmc/abc2mmc.cpp"
-	"abc2mmc/ArgParser.h"  "abc2mmc/ArgParser.cpp"
-)
-target_link_libraries(abc2mmc PUBLIC shared )
+target_link_libraries(abc2tap PUBLIC shared )
 
 add_executable ( 
 	dat2uef  "dat2uef/dat2uef.cpp"
@@ -145,6 +145,12 @@ add_executable(
 	"ScanTape/FileDecoder.h" "ScanTape/FileDecoder.cpp"
 )
 target_link_libraries(ScanTape PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
+
+add_executable(
+	ScanTAP "ScanTAP/ScanTAP.cpp"
+	"ScanTAP/ArgParser.h" "ScanTAP/ArgParser.cpp"
+)
+target_link_libraries(ScanTAP PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
 
 add_executable(
 	abc2all "abc2all/abc2all.cpp"

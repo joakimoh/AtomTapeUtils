@@ -22,6 +22,7 @@
 	 * eadr = execution address (big endian)
 	 * ladr = load address (big endian)
 	 */
+#define MAX_TAPE_NAME_LEN 13
 typedef struct {
 	// uint8_t preamble[4]; // synchronisation bytes: 4 x 0x2a
 	// char name[14]; // file name - up to 13 characters terminated with 0xd - not included as of varying size
@@ -47,14 +48,15 @@ typedef enum { First = 0x1, Last = 0x2, Other = 0x4, Single = 0x3, Unknown = 0x4
 //	 Conforms to the ATM header format specified by Wouter Ras.
 //
 //
+#define ATM_MMC_HDR_NAM_SZ 16
 typedef struct {
-	char name[13]; // zero-padded with '\0' at the end
-	Byte loadAdrHigh; // Load address (normally 0x2900 for BASIC programs)
+	char name[ATM_MMC_HDR_NAM_SZ]; // zero-padded with '\0' at the end
 	Byte loadAdrLow; //
-	Byte execAdrHigh; // Execution address (normally 0xb2c2 for BASIC programs)
+	Byte loadAdrHigh; // Load address (normally 0x2900 for BASIC programs)
 	Byte execAdrLow; //
-	Byte lenHigh; // Length in bytes of the data section (normally data is as BASIC program)
+	Byte execAdrHigh; // Execution address (normally 0xb2c2 for BASIC programs)
 	Byte lenLow;
+	Byte lenHigh; // Length in bytes of the data section (normally data is as BASIC program)
 } ATMHdr;
 
 typedef struct ATMBlock_struct {
@@ -64,13 +66,13 @@ typedef struct ATMBlock_struct {
 
 
 	// Overall block timing when parsing WAV file
-	double tapeStartTime; // start of block
-	double tapeEndTime; // end of block
+	double tapeStartTime = 0; // start of block
+	double tapeEndTime = 0; // end of block
 
 	// Detailed block timing - used for UEF/CSW file generation later on
 	int phaseShift = 180; // phase [degrees] when shifting from high to low frequency - normally 180 degrees
-	int leadToneCycles; // no of high frequency cycles for lead tone - normally 4.2 * 2400 = 10 080
-	int microToneCycles; // no of high frequency cycles between block header and data part - normally 0.5 * 2400 = 12 000
+	int leadToneCycles = 9600; // no of high frequency cycles for lead tone - normally 4 * 2400 = 10 080
+	int microToneCycles = 1200; // no of high frequency cycles between block header and data part - normally 0.5 * 2400 = 1200
 	double blockGap = 2.0; // gap after block (before the next block commence) - normally 2 s
 
 

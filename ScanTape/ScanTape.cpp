@@ -20,7 +20,6 @@
 #include "../shared/DataCodec.h"
 #include "../shared/PcmFile.h"
 #include "../shared/Utility.h"
-#include "../shared/MMCCodec.h"
 #include "../shared/CSWCodec.h"
 
 using namespace std;
@@ -171,14 +170,6 @@ int main(int argc, const char* argv[])
                     if (!UEF_codec.encode(UEF_file_name)) {
                         cout << "Failed to write the UEF file!\n";
                         //return -1;
-                    }
-
-                    MMCCodec MMC_codec(tapFile, arg_parser.verbose);
-                    string MMC_file_name = crEncodedFileNamefromDir(arg_parser.genDir, tapFile, "");
-
-                    if (!MMC_codec.encode(MMC_file_name)) {
-                        cout << "Failed to write the MMC file!\n";
-                        // return -1;
                     }
                 }
 

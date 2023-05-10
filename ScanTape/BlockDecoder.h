@@ -80,7 +80,7 @@ private:
 
 	bool checkBytes(Byte refVal, int n);
 
-	bool getFileName(char name[13], Byte &CRC, int &len);
+	bool getFileName(char name[16], Byte &CRC, int &len);
 
 	// Get bytes
 	bool getBytes(Bytes& block, int n, Byte &CRC);

@@ -211,7 +211,7 @@ bool DataCodec::decode(string& dataFileName)
             block.hdr.execAdrLow = 0xb2;
             block.hdr.loadAdrHigh = load_address / 256;
             block.hdr.loadAdrLow = load_address % 256;
-            for (int i = 0; i < 13; i++) {
+            for (int i = 0; i < sizeof(block.hdr.name); i++) {
                 if (i < block_name.length())
                     block.hdr.name[i] = block_name[i];
                 else

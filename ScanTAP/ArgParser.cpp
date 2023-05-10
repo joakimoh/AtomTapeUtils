@@ -14,10 +14,11 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Usage:\t" << name << " <MMC file> [-o <output file>] [-v]\n";
-	cout << "<MMC file>:\n\tatoMMC file to decode\n\n";
+	cout << "Usage:\t" << name << " <TAP file> [-g <dir>] [-v]\n";
+	cout << "<TAP file>:\n\tTAP file to decode\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
-	cout << "input file name (excluding extension) suffixed with '.abc'.\n\n";
+	cout << "input file name (excluding extension) suffixed with '.dat'.\n\n";
+	cout << "-g dir:\n\tProvide path to directory where generated files shall be put\n\t- default is work directory\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
 	cout << "\n";
 }
@@ -38,15 +39,19 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		return;
 	}
 	srcFileName = argv[1];
-	dstFileName = crDefaultOutFileName(srcFileName, "abc");
+	dstDir = filesystem::current_path().string();
 
 	int ac = 2;
 
 	while (ac < argc) {
-		if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
-			dstFileName = argv[ac + 1];
+		if (strcmp(argv[ac], "-g") == 0 && ac + 1 < argc) {
+			filesystem::path dir_path = argv[ac + 1];
+			if (!filesystem::is_directory(dir_path))
+				cout << "-g without a valid directory\n";
+			dstDir = argv[ac + 1];
 			ac++;
 		}
+
 		else if (strcmp(argv[ac], "-v") == 0) {
 			verbose = true;
 		}
