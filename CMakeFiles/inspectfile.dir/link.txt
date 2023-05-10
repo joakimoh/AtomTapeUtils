@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/inspectfile.dir/inspectfile/InspectFile.cpp.o CMakeFiles/inspectfile.dir/inspectfile/ArgParser.cpp.o -o bin/inspectfile 

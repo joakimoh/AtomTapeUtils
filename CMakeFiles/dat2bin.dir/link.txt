@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/dat2bin.dir/dat2bin/dat2bin.cpp.o CMakeFiles/dat2bin.dir/dat2bin/ArgParser.cpp.o -o bin/dat2bin  shared/libshared.a 

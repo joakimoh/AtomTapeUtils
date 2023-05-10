@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/dat2wav.dir/dat2wav/dat2wav.cpp.o CMakeFiles/dat2wav.dir/dat2wav/ArgParser.cpp.o -o bin/dat2wav  shared/libshared.a 
