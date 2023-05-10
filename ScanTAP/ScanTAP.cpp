@@ -78,7 +78,7 @@ int main(int argc, const char* argv[])
                 // Only generate TAP & UEF files if the Tape file was completed (without missing blocks)
 
                 TAPCodec TAP_codec = TAPCodec(tapFile, arg_parser.verbose);
-                string TAP_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "tap");
+                string TAP_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "");
                 if (!TAP_codec.encode(TAP_file_name)) {
                     cout << "Failed to write the TAP file!\n";
                     //return -1;
@@ -91,13 +91,6 @@ int main(int argc, const char* argv[])
                     //return -1;
                 }
 
-                MMCCodec MMC_codec(tapFile, arg_parser.verbose);
-                string MMC_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "");
-
-                if (!MMC_codec.encode(MMC_file_name)) {
-                    cout << "Failed to write the MMC file!\n";
-                    // return -1;
-                }
             }
 
         }
