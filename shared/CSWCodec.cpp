@@ -535,7 +535,10 @@ bool CSWCodec::writeTone(double duration)
 bool CSWCodec::writeGap(double duration)
 {
 
-    int n_samples = (int)round(duration * mFS);
+    unsigned n_samples = (unsigned) round(duration * mFS);
+
+    if (n_samples == 0)
+        return true;
 
     // Insert one very short high pulse if not already an high pulse
     if (mPulseLevel == Phase::LowPhase)
@@ -560,8 +563,11 @@ bool CSWCodec::writeGap(double duration)
     return true;
 }
 
-bool CSWCodec::writeCycle(bool highFreq, int n)
+bool CSWCodec::writeCycle(bool highFreq, unsigned n)
 {
+    if (n == 0)
+        return true;
+
     double n_samples_per_phase;
     if (highFreq) {
         n_samples_per_phase = mHighSamples / 2;

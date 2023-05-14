@@ -153,7 +153,7 @@ private:
 	bool writeDataBit(int bit);
 	bool writeStartBit();
 	bool writeStopBit();
-	bool writeCycle(bool high, int n);
+	bool writeCycle(bool high, unsigned n);
 	bool writeTone(double duration);
 	bool writeGap(double duration);
 

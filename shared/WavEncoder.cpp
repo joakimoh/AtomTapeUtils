@@ -77,7 +77,7 @@ bool WavEncoder::encode(string& filePath)
     ATMBlockIter ATM_block_iter = mTapFile.blocks.begin();
 
     if (mVerbose)
-        cout << "Encoding " << (int)mTapFile.blocks.size() << " blocks:\n\n";
+        cout << "\nEncoding " << (int)mTapFile.blocks.size() << " WAV blocks:\n\n";
     
 
     int block_no = 0;
@@ -178,9 +178,10 @@ bool WavEncoder::encode(string& filePath)
             printf("Failed to write micro lead tone of duration %f s\n", data_block_micro_lead_tone_duration);
         }
 
-
+        
         if (mVerbose)
             cout << data_block_micro_lead_tone_duration << " s micro tone : ";
+         
 
 
         // --------------------- start of block data + CRC chunk ------------------------
@@ -217,9 +218,10 @@ bool WavEncoder::encode(string& filePath)
             return false;
         }
 
+        
         if (mVerbose)
             cout << "Data+CRC : ";
-
+         
         
 
         // --------------------------------------------------------------------------
@@ -238,10 +240,10 @@ bool WavEncoder::encode(string& filePath)
             printf("Failed to encode a gap of %f s\n", block_gap);
         }
 
-
+        
         if (mVerbose)
             cout << block_gap << " s GAP\n";
-
+         
 
         ATM_block_iter++;
 
@@ -367,15 +369,21 @@ bool WavEncoder::writeTone(double duration)
         return false;
     }
 
+    /*
     if (mVerbose)
         printf("%lf s (%d cycles) tone written!\n", duration, n_cycles);
+    */
 
     return true;
 }
 
 bool WavEncoder::writeGap(double duration)
 {
-    int n_samples = (int) round(duration * mFS);
+    unsigned n_samples = (int) round(duration * mFS);
+
+    if (n_samples == 0)
+        return true;
+
     for (int s = 0; s < n_samples; s++) {
         mSamples.push_back(0);
     }
@@ -383,18 +391,25 @@ bool WavEncoder::writeGap(double duration)
     return true;
 }
 
-bool WavEncoder::writeCycle(bool highFreq, int n)
+bool WavEncoder::writeCycle(bool highFreq, unsigned n)
 {
+    if (n == 0)
+        return true;
+
     const double PI = 3.14159265358979323846;
     int n_samples;
     if (highFreq) {
         n_samples = (int) round(mHighSamples * n);
+        /*
         if (mVerbose)
             printf("%d cycles of F2\n", n);
+         */
     } 
     else {
+        /*
         if (mVerbose)
             printf("%d cycles of F1\n", n);
+        */
         n_samples = (int) round(mLowSamples * n);
     }
 

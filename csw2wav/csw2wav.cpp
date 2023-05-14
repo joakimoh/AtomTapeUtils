@@ -28,7 +28,7 @@ bool writePulse(Samples& samples, int& pos, Phase& phase, int pulseLen)
 
     // Write pulse samples
     if (samples.size() < pos + pulseLen) {
-        cout << "RESIZE WHEN #SAMPLES ARE " << pos << ", SAMPLES SIZE " << samples.size() << " AND PULSE LENGTH IS " << pulseLen << "\n";
+        //cout << "RESIZE WHEN #SAMPLES ARE " << pos << ", SAMPLES SIZE " << samples.size() << " AND PULSE LENGTH IS " << pulseLen << "\n";
         samples.resize(pos + pulseLen);
     }
     for (int s = 0; s < pulseLen; s++) {

@@ -83,23 +83,9 @@ bool UEFCodec::setTapeTiming(TapeProperties tapeTiming)
     return true;
 }
 
-typedef struct BLOCK_INFO_struct {
-    int lead_tone_cycles;
-    int micro_tone_cycles;
-    double block_gap;
-    int phase = 180;
-    double start;
-    double end;
-} BLOCK_INFO;
 
-typedef enum { WAIT_LEAD_TONE, WAIT_HDR, READING_HDR, WAIT_MICRO_TONE, WAIT_DATA, READING_DATA, WAIT_GAP, UNDEFINED_BLOCK_STATE
-} BLOCK_STATE;
 
-#define _BLOCK_STATE(x) \
-    (x==WAIT_LEAD_TONE?"WAIT_LEAD_TONE":\
-    (x==WAIT_HDR?"WAIT_HDR":(x==WAIT_MICRO_TONE?"WAIT_MICRO_TONE":\
-    (x==WAIT_DATA?"WAIT_DATA":(x==WAIT_GAP?"WAIT_GAP":(x==READING_HDR?"READING_HDR":\
-    (x==READING_DATA?"READING_DATA":"???")))))))
+
 bool UEFCodec::encode(string &filePath)
 {
     if (mTapFile.blocks.empty()) 
@@ -130,8 +116,9 @@ bool UEFCodec::encode(string &filePath)
     if (mUseOriginalTiming && mTapFile.validTiming)
         baudrate = mTapFile.baudRate;
 
-    float base_freq = mTapeTiming.baseFreq;
-    float high_tone_freq = 2 * base_freq;
+    // Intialise base frequency and phase with values from Tape Timing
+    mBaseFrequency = mTapeTiming.baseFreq;
+    mPhase = mTapeTiming.phase;
 
 
     // Default values for block timing (if mUseOriginalTiming is true the recored block timing will instead by used later on)
@@ -141,7 +128,7 @@ bool UEFCodec::encode(string &filePath)
     float first_block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
     float block_gap = mTapeTiming.nomBlockTiming.blockGap;
     float last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;  
-    float phase = mTapeTiming.phase;
+
     float lead_tone_duration = first_block_lead_tone_duration; // let first block have a longer lead tone
 
 
@@ -161,19 +148,27 @@ bool UEFCodec::encode(string &filePath)
         printf("Failed to write origin chunk with string %s\n", origin.c_str());
     }
 
+    // Write target
+    if (!writeTargetChunk(fout)) {
+        printf("Failed to write target chunk with target %s\n", _TARGET_MACHINE(mTarget));
+    }
+
  
     // Baudrate
-    if (!writeBaudrateChunk(fout, baudrate)) {
+    if (!writeBaudrateChunk(fout)) {
         printf("Failed to write buadrate chunk with baudrate %d.\n", baudrate);
     }
 
 
     // Phase 0
-    if (!writePhaseChunk(fout, phase)) {
-        printf("Failed to write phase chunk with phase %d degrees\n", phase);
+    if (!writePhaseChunk(fout)) {
+        printf("Failed to write phase chunk with phase %d degrees\n", mPhase);
     }
 
-
+    // Write base frequency
+    if (!writeBaseFrequencyChunk(fout)) {
+        printf("Failed to encode base frequency %f as float\n", mBaseFrequency);
+    }
 
 
     // Write an intial gap before the file starts
@@ -182,28 +177,25 @@ bool UEFCodec::encode(string &filePath)
     }
 
 
-
     //
     // Write data-dependent part of UEF file
     //
 
 
-    
-
     while (ATM_block_iter < mTapFile.blocks.end()) {
 
-
-
         // Write base frequency
-        if (!writeBaseFrequencyChunk(fout, base_freq)) {
-            printf("Failed to encode base frequency %f as float\n", base_freq);
+        /*
+        if (!writeBaseFrequencyChunk(fout)) {
+            printf("Failed to encode base frequency %f as float\n", mBaseFrequency);
         }
+        */
 
         // Write a lead tone for the block
         if (mUseOriginalTiming && mTapFile.validTiming)
-            lead_tone_duration = (ATM_block_iter->leadToneCycles) / high_tone_freq;
-        if (!writeHighToneChunk(fout, lead_tone_duration, baudrate)) {
-            printf("Failed to write %f Hz lead tone of duration %f s\n", base_freq, lead_tone_duration);
+            lead_tone_duration = (ATM_block_iter->leadToneCycles) / (2 * mBaseFrequency);
+        if (!writeHighToneChunk(fout, lead_tone_duration)) {
+            printf("Failed to write %f Hz lead tone of duration %f s\n", mBaseFrequency, lead_tone_duration);
         }
 ;
 
@@ -219,9 +211,11 @@ bool UEFCodec::encode(string &filePath)
         */
  
         // Write (again the) base frequency 
-        if (!writeBaseFrequencyChunk(fout, base_freq)) {
-            printf("Failed to encode base frequency %f as float\n", base_freq);
+        /*
+        if (!writeBaseFrequencyChunk(fout)) {
+            printf("Failed to encode base frequency %f as float\n", mBaseFrequency);
         }
+        */
 
         // Initialise CRC
 
@@ -267,13 +261,9 @@ bool UEFCodec::encode(string &filePath)
         header_data.push_back(ATM_block_iter->hdr.loadAdrLow);
 
 
-        if (!writeData104Chunk(fout, 8, 'N', -1, header_data, CRC)) {
+        if (!writeComplexDataChunk(fout, 8, 'N', -1, header_data, CRC)) {
             printf("Failed to write block header data chunk%s\n", "");
         }
-
-
-
-
         
 
         // --------------------------------------------------------------------------
@@ -283,16 +273,18 @@ bool UEFCodec::encode(string &filePath)
 
         // Add micro tone between header and data
         if (mUseOriginalTiming && mTapFile.validTiming)
-            data_block_micro_lead_tone_duration = ATM_block_iter-> microToneCycles / high_tone_freq;
-        if (!writeHighToneChunk(fout, data_block_micro_lead_tone_duration, baudrate)) {
-            printf("Failed to write %f Hz micro lead tone of duration %f s\n", base_freq, data_block_micro_lead_tone_duration);
+            data_block_micro_lead_tone_duration = ATM_block_iter-> microToneCycles / (2* mBaseFrequency);
+        if (!writeHighToneChunk(fout, data_block_micro_lead_tone_duration)) {
+            printf("Failed to write %f Hz micro lead tone of duration %f s\n", mBaseFrequency, data_block_micro_lead_tone_duration);
         }
 
 
         // Write (again the) base frequency 
-        if (!writeBaseFrequencyChunk(fout, base_freq)) {
+        /*
+        if (!writeBaseFrequencyChunk(fout)) {
             printf("Failed to encode base frequency %f as float\n", base_freq);
         }
+        */
 
 
         // --------------------- start of block data + CRC chunk ------------------------
@@ -306,15 +298,17 @@ bool UEFCodec::encode(string &filePath)
         Bytes block_data;
         while (bi < ATM_block_iter->data.end())
             block_data.push_back(*bi++);
-        if (!writeData104Chunk(fout, 8, 'N', -1, block_data, CRC)) {
+        if (!writeComplexDataChunk(fout, 8, 'N', -1, block_data, CRC)) {
             printf("Failed to write block header data chunk%s\n", "");
         }
 
 
         // Write (again the) base frequency 
-        if (!writeBaseFrequencyChunk(fout, base_freq)) {
+        /*
+        if (!writeBaseFrequencyChunk(fout)) {
             printf("Failed to encode base frequency %f as float\n", base_freq);
         }
+        */
 
 
         //
@@ -325,7 +319,7 @@ bool UEFCodec::encode(string &filePath)
         Bytes CRC_data;
         Byte dummy = 0;
         CRC_data.push_back(CRC);
-        if (!writeData100Chunk(fout, CRC_data, dummy)) {
+        if (!writeSimpleDataChunk(fout, CRC_data, dummy)) {
             printf("Failed to write CRC data chunk%s\n", "");
         }
 
@@ -378,6 +372,7 @@ bool UEFCodec::decode(string &uefFileName)
     igzstream fin(uefFileName.c_str());
 
     if (!fin.good()) {
+
         printf("Failed to open file '%s'\n", uefFileName.c_str());
         return false;
     }
@@ -393,16 +388,8 @@ bool UEFCodec::decode(string &uefFileName)
     mTapFile.validFileName = blockNameFromFilename(file_name);
     mTapFile.isAbcProgram = true;
 
-
-
-    BLOCK_STATE block_state = WAIT_GAP;
-    BLOCK_STATE prev_block_state = UNDEFINED_BLOCK_STATE;
-    vector<BLOCK_INFO> block_info;
-    BLOCK_INFO current_block_info;
-    bool start = true;
-
     if (mVerbose)
-        cout << "Initial block reading state is " << _BLOCK_STATE(block_state) << "...\n";
+        cout << "Initial block reading state is " << _BLOCK_STATE(mBlockState) << "...\n";
  
     Bytes data;
 
@@ -419,24 +406,41 @@ bool UEFCodec::decode(string &uefFileName)
         cout << "UEF Header with major version " << (int) hdr.uefVer[1] << " and minor version " << (int)  hdr.uefVer[0] << " read.\n";
 
     ChunkHdr chunk_hdr;
-    int baud_rate = 300;
-    int base_freq = 1200;
-    double current_time = 0;
 
     while (fin.read((char *) &chunk_hdr, sizeof(chunk_hdr))) {
 
         int chunk_id = chunk_hdr.chunkId[0] + chunk_hdr.chunkId[1] * 256;
         long chunk_sz = chunk_hdr.chunkSz[0] + (chunk_hdr.chunkSz[1] << 8) + (chunk_hdr.chunkSz[2] << 16) + (chunk_hdr.chunkSz[3] << 24);
 
+        if (mVerbose)
+            cout << "\nChunk " << _CHUNK_ID(chunk_id) << " of size " << dec << chunk_sz << " read...\n";
+
         switch (chunk_id) {
 
-            case 0x0116: // Floating-point gap
+            case TARGET_CHUNK: // Target machine
+            {
+                if (chunk_sz != 1) {
+                    printf("Size of target machine chunk 0005 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 1);
+                    return false;
+                }
+                TargetMachineChunk chunk;
+                fin.read((char*)&chunk.targetMachine, sizeof(chunk.targetMachine));
+                if (_TARGET_MACHINE(chunk.targetMachine) == "???") {
+                    cout << "Invalid target machine " << (int)chunk.targetMachine << "\n";
+                }
+                mTarget = (TargetMachine) chunk.targetMachine;
+                if (mVerbose)
+                    cout << "Target machnine chunk 0005 of size " << chunk_sz << " and specifying target " << _TARGET_MACHINE(mTarget) << ".\n";
+                break;
+            }
+
+            case FLOAT_GAP_CHUNK: // Floating-point gap
             {
                 if (chunk_sz != 4) {
                     printf("Size of Format change chunk 0116 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 4);
                     return false;
                 }
-                FPGap0116 gap_chunk;
+                FPGapChunk gap_chunk;
                 fin.read((char*)gap_chunk.gap, sizeof(gap_chunk.gap));
                 float gap;
 
@@ -445,143 +449,103 @@ bool UEFCodec::decode(string &uefFileName)
                 }
                 if (mVerbose)
                     cout << "Format change chunk 0116 of size " << chunk_sz << " and specifying a gap of " << gap << " s.\n";
-                if (block_state == BLOCK_STATE::WAIT_GAP || block_state == BLOCK_STATE::READING_DATA) {
-                    if (!start) {
-                        current_block_info.block_gap = gap;
-                        block_info.push_back(current_block_info);
-                    }
-                    else
-                        start = false;
-                    block_state = BLOCK_STATE::WAIT_LEAD_TONE;
-                    if (mVerbose && block_state != prev_block_state)
-                        cout << "Block reading state changed to " << _BLOCK_STATE(block_state) << "...\n";
-                }
-                else {
-                    printf("Block gap when block state was %s!\n", _BLOCK_STATE(block_state));
+                if (!updateBlockState(CHUNK_TYPE::GAP_CHUNK, gap)) {
+                    cout << "Unexpected Format change chunk 0116!\n";
                     return false;
                 }
-                current_block_info.end = current_time;
-                current_time += gap;
                 break;
             }
 
-            case 0x0113: // Base frequency
+            case BASE_FREQ_CHUNK: // Base frequency
             {              
                 if (chunk_sz != 4) {
                     printf("Size of Format change chunk 0113 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 4);
                     return false;
                 }
-                BaseFreqChangeChunk0113 chunk;
+                BaseFreqChunk chunk;
                 fin.read((char*)chunk.frequency, sizeof(chunk.frequency));
-                float f;
-                if (!decodeFloat(chunk.frequency, f)) {
-                    printf("Failed to decode IEEE 754 gap%s\n", "");
+                if (!decodeFloat(chunk.frequency, mBaseFrequency)) {
+                    printf("Failed to decode IEEE 754 gap%s\n");
                 }
                 if (mVerbose)
-                    cout << "Format change chunk 0113 of size " << chunk_sz << " and specifying a frequency of " << f << ".Hz\n";
-                base_freq = f;
+                    cout << "Format change chunk 0113 of size " << chunk_sz << " and specifying a frequency of " << mBaseFrequency << ".Hz\n";
                 break;
             }
 
 
-            case 0x117: // Format Change Chunk 0117: baudrate = value
+            case BAUD_RATE_CHUNK: // Format Change Chunk 0117: baudrate = value
             {          
                 if (chunk_sz != 2) {
                     printf("Size of Format change chunk 0117 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 2);
                     return false;
                 }
-                DataFormatChange0117 baudrate_chunk;
+                BaudRateChunk baudrate_chunk;
                 fin.read((char*)baudrate_chunk.baudRate, sizeof(baudrate_chunk.baudRate));
-                int baudrate = (baudrate_chunk.baudRate[0] + (baudrate_chunk.baudRate[1] << 8));
+                mBaudRate = (baudrate_chunk.baudRate[0] + (baudrate_chunk.baudRate[1] << 8));
                 if (mVerbose)
-                    cout << "Format change chunk 0117 of size " << chunk_sz << " and baudrate of " << baudrate << ".\n";
+                    cout << "Format change chunk 0117 of size " << chunk_sz << " and baudrate of " << mBaudRate << ".\n";
 
                 break;
             }
-            case 0x0115: // Phase Change Chunk 0115: phase = value
+            case PHASE_CHUNK: // Phase Change Chunk 0115: phase = value
             {
                 if (chunk_sz != 2) {
                     printf("Size of Phase change chunk 0115 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 2);
                     return false;
                 }
-                PhaseChangeChunk0115 phase_chunk;
+                PhaseChunk phase_chunk;
                 phase_chunk.chunkHdr = chunk_hdr;
                 fin.read((char*)phase_chunk.phase, sizeof(phase_chunk.phase));
-                int phase = (phase_chunk.phase[0] + (phase_chunk.phase[1] << 8));
+                mPhase = (phase_chunk.phase[0] + (phase_chunk.phase[1] << 8));
                 if (mVerbose)
-                    cout << "Phase change chunk 0115 of size " << chunk_sz << " and specifiying a phase of " << phase << " degrees.\n";
+                    cout << "Phase change chunk 0115 of size " << chunk_sz << " and specifiying a phase of " << mPhase << " degrees.\n";
 
-                current_block_info.phase = phase;
+                mCurrentBlockInfo.phase = mPhase;
                 break;
             }
 
-            case 0x0112: // Baudwise Gap Chunk 0112: gap = value / (baud_rate  * 2)
+            case BAUDWISE_GAP_CHUNK: // Baudwise Gap Chunk 0112: gap = value / (baud_rate  * 2)
             {
                 if (chunk_sz != 2) {
                     printf("Size of Baudwise gap chunk 0112 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 2);
                     return false;
                 }
-                BaudwiseGapChunk0112 gap_chunk;
+                BaudwiseGapChunk gap_chunk;
                 gap_chunk.chunkHdr = chunk_hdr;
                 fin.read((char*)gap_chunk.gap, sizeof(gap_chunk.gap));
-                double gap_duration = double (gap_chunk.gap[0] + (gap_chunk.gap[1] << 8)) / (baud_rate * 2);
+                double gap_duration = double (gap_chunk.gap[0] + (gap_chunk.gap[1] << 8)) / (mBaudRate * 2);
                 if (mVerbose)
                     cout << "Baudwise gap chunk 0112 of size " << chunk_sz << " and specifiying a duration of " << gap_duration << " s.\n";
-                if (block_state == BLOCK_STATE::WAIT_GAP|| block_state == BLOCK_STATE::READING_DATA) {
-                    if (!start) {
-                        current_block_info.block_gap = gap_duration;
-                        block_info.push_back(current_block_info);
-                    }
-                    else
-                        start = false;
-                    block_state = BLOCK_STATE::WAIT_LEAD_TONE;
-                    if (mVerbose && block_state != prev_block_state)
-                        cout << "Block reading state changed to " << _BLOCK_STATE(block_state) << "...\n";
-                }
-                else {
-                    printf("Block gap when block state was %s!\n", _BLOCK_STATE(block_state));
+                if (!updateBlockState(CHUNK_TYPE::GAP_CHUNK, gap_duration)) {
+                    cout << "Unexpected Format change chunk 0116!\n";
                     return false;
                 }
-                current_block_info.end = current_time;
-                current_time += gap_duration;
                 break;
             }
 
-            case 0x0110: // High Tone Chunk 0110: duration = value / (baud_rate * 2)
+            case HIGH_TONE_CHUNK: // High Tone Chunk 0110: duration = value / (mBaseFrequency * 2)
             {
                 if (chunk_sz != 2) {
                     printf("Size of High tone chunk 0110 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 2);
                     return false;
                 }
-                HighToneChunk0110 tone_chunk;
+                HighToneChunk tone_chunk;
                 tone_chunk.chunkHdr = chunk_hdr;
                 fin.read((char*)tone_chunk.duration, sizeof(tone_chunk.duration));
-                double tone_duration = double (tone_chunk.duration[0] + (tone_chunk.duration[1] << 8)) / (baud_rate * 2);
+                double tone_duration = double (tone_chunk.duration[0] + (tone_chunk.duration[1] << 8)) / (mBaseFrequency * 2);
                 if (mVerbose)
                     cout << "High tone chunk 0110 of size " << chunk_sz << " and specifiying a duration of " << tone_duration << " s.\n";
-                if (block_state == BLOCK_STATE::WAIT_LEAD_TONE) {
-                    current_block_info.lead_tone_cycles = tone_duration * base_freq *2;
-                    block_state = BLOCK_STATE::WAIT_HDR;
-                    current_block_info.start = current_time;
-                }
-                else if (block_state == BLOCK_STATE::WAIT_MICRO_TONE|| block_state == BLOCK_STATE::READING_HDR) {
-                    current_block_info.micro_tone_cycles = tone_duration * base_freq * 2;
-                    block_state = BLOCK_STATE::WAIT_DATA;
-                }
-                else {
-                    printf("High tone when block state was %s!\n", _BLOCK_STATE(block_state));
+                if (!updateBlockState(CHUNK_TYPE::TONE_CHUNK, tone_duration)) {
+                    cout << "Unexpected high tone chunk!\n";
                     return false;
                 }
-                if (mVerbose && block_state != prev_block_state)
-                    cout << "Block reading state changed to " << _BLOCK_STATE(block_state) << "...\n";
-                current_time += tone_duration;
                 break;
             }
 
 
-            case 0x0114: // Security cycles
+            case SECURITY_CHUNK: // Security cycles
             {
-                SecurityCycles0114Hdr hdr;
+                SecurityCyclesChunkHdr hdr;
                 hdr.chunkHdr = chunk_hdr;
 
                 // Get #cycles
@@ -615,7 +579,7 @@ bool UEFCodec::decode(string &uefFileName)
                 break;
             }
 
-            case 0x0000: // Origin Chunk 0000
+            case ORIGIN_CHUNK: // Origin Chunk 0000
             {
                 string origin = "";
                 for (int pos = 0; pos < chunk_sz; pos++) {
@@ -624,11 +588,11 @@ bool UEFCodec::decode(string &uefFileName)
                     origin += c;
                 }
                 if (mVerbose)
-                    cout << "Origin chunk 000 of size " << chunk_sz << "  and text '" << origin << "'.\n";
+                    cout << "Origin chunk 000 of size " << chunk_sz << " and text '" << origin << "'.\n";
                 break;
             }
 
-            case 0x0100: // Data Block Chunk 0100
+            case SIMPLE_DATA_CHUNK: // Data Block Chunk 0100
             {
                 if (mVerbose)
                     cout << "Data block chunk 0100 of size " << chunk_sz << ".\n";
@@ -637,25 +601,16 @@ bool UEFCodec::decode(string &uefFileName)
                     fin.read((char*)&byte, 1);
                     data.push_back(byte);
                 }
-                if (block_state == BLOCK_STATE::WAIT_HDR || block_state == BLOCK_STATE::READING_HDR) {
-                    block_state = BLOCK_STATE::READING_HDR;
-                }
-                else if (block_state == BLOCK_STATE::WAIT_DATA || block_state == BLOCK_STATE::READING_DATA) {
-                    block_state = BLOCK_STATE::READING_DATA;
-                }
-                else {
-                    printf("Bytes when block state was %s!\n", _BLOCK_STATE(block_state));
+                if (!updateBlockState(CHUNK_TYPE::DATA_CHUNK, chunk_sz * 10 * 4 / mBaseFrequency)) {
+                    cout << "Unepxected Data block chunk 0100\n";
                     return false;
                 }
-                if (mVerbose && block_state != prev_block_state)
-                    cout << "Block reading state changed to " << _BLOCK_STATE(block_state) << "...\n";
-                current_time += chunk_sz * 10 * 4 / base_freq;
                 break;
             }
              
-             case 0x0104: // Data Block Chunk 0104
+             case COMPLEX_DATA_CHUNK: // Data Block Chunk 0104
             {
-                DataBlockChunk0104Hdr hdr;
+                ComplexDataBlockChunkHdr hdr;
                 hdr.chunkHdr = chunk_hdr;
                 fin.read((char*) &hdr.bitsPerPacket, sizeof(hdr.bitsPerPacket));
                 fin.read((char*) &hdr.parity, sizeof(hdr.parity));
@@ -671,24 +626,12 @@ bool UEFCodec::decode(string &uefFileName)
                     fin.read((char*)&byte, 1);
                     data.push_back(byte);
                 }
-                if (block_state == BLOCK_STATE::WAIT_HDR || block_state == BLOCK_STATE::READING_HDR) {
-                    block_state = BLOCK_STATE::READING_HDR;
-                }
-                else if (block_state == BLOCK_STATE::WAIT_DATA || block_state == BLOCK_STATE::READING_DATA) {
-                    block_state = BLOCK_STATE::READING_DATA;
-                }
-                else {
-                    printf("Bytes when block state was %s!\n", _BLOCK_STATE(block_state));
+                if (!updateBlockState(CHUNK_TYPE::DATA_CHUNK, chunk_sz * 10 * 4 / mBaseFrequency)) {
+                    cout << "Unepxected Data block chunk 0100\n";
                     return false;
                 }
-                if (mVerbose && block_state != prev_block_state)
-                    cout << "Block reading state changed to " << _BLOCK_STATE(block_state) << "...\n";
-                current_time += chunk_sz * 10 * 4 / base_freq;
                 break;
             }
-
- 
-            case 0x0002:
             
             default: // Unknown chunk
             {
@@ -699,7 +642,14 @@ bool UEFCodec::decode(string &uefFileName)
 
         }
 
-        prev_block_state = block_state;
+    }
+
+    // If the final block is not followed by a gap, then
+    // it was not added to the block list. Then add it now
+    // and record a zero-length block gap.
+    if (mBlockState != BLOCK_STATE::READING_GAP) {
+        mCurrentBlockInfo.block_gap = 0;
+        mBlockInfo.push_back(mCurrentBlockInfo);
     }
 
     fin.close();
@@ -720,7 +670,7 @@ bool UEFCodec::decode(string &uefFileName)
     
     int block_no = 0;
     BytesIter data_iter = data.begin();
-    BlockType block_type;
+    BlockType block_type = BlockType::Unknown;
     string tape_file_name;
 
     while (data_iter < data.end()) {
@@ -733,12 +683,12 @@ bool UEFCodec::decode(string &uefFileName)
         Byte CRC = 0;
         BytesIter hdr_start = data_iter;
 
-        block.blockGap = block_info[block_no].block_gap;
-        block.leadToneCycles = block_info[block_no].lead_tone_cycles;
-        block.microToneCycles = block_info[block_no].micro_tone_cycles;
-        block.phaseShift = block_info[block_no].phase;
-        block.tapeStartTime = block_info[block_no].start;
-        block.tapeEndTime = block_info[block_no].end;
+        block.blockGap = mBlockInfo[block_no].block_gap;
+        block.leadToneCycles = mBlockInfo[block_no].lead_tone_cycles;
+        block.microToneCycles = mBlockInfo[block_no].micro_tone_cycles;
+        block.phaseShift = mBlockInfo[block_no].phase;
+        block.tapeStartTime = mBlockInfo[block_no].start;
+        block.tapeEndTime = mBlockInfo[block_no].end;
      
         // Read preamble (4 x 0x2a)
         if (!check_bytes(data_iter, data, 4, CRC, 0x2a)) {
@@ -761,8 +711,6 @@ bool UEFCodec::decode(string &uefFileName)
             return false;
         }
 
-
-       
 
         int data_len;
         block_type = parseBlockFlag(hdr, data_len);
@@ -904,8 +852,6 @@ bool UEFCodec::read_block_name(BytesIter &data_iter, Bytes &data, Byte& CRC, cha
     return true;
 }
 
-
-
 bool UEFCodec::writeUEFHeader(ogzstream&fout, Byte majorVersion, Byte minorVersion)
 {
     // Header: UEF File!
@@ -915,26 +861,40 @@ bool UEFCodec::writeUEFHeader(ogzstream&fout, Byte majorVersion, Byte minorVersi
     return true;
 }
 
- bool UEFCodec::writeBaseFrequencyChunk(ogzstream&fout, float baseFrequency)
+ bool UEFCodec::writeBaseFrequencyChunk(ogzstream&fout)
 {
-     BaseFreqChangeChunk0113 chunk;
-     if (!encodeFloat(baseFrequency, chunk.frequency)) {
-         printf("Failed to encode base frequency %f as float.\n", baseFrequency);
+
+     BaseFreqChunk chunk;
+     if (!encodeFloat(mBaseFrequency, chunk.frequency)) {
+         printf("Failed to encode base frequency %f as float.\n", mBaseFrequency);
          return false;
      }
      fout.write((char*) &chunk, sizeof(chunk));
 
      if (mVerbose)
-         printf("Base frequency chunk 0113 specifying %.0f Hz written.\n", baseFrequency);
+         printf("Base frequency chunk 0113 specifying %.0f Hz written.\n", mBaseFrequency);
 
      return true;
 }
+
+ bool UEFCodec::writeTargetChunk(ogzstream& fout)
+ {
+
+     TargetMachineChunk chunk;
+     chunk.targetMachine = mTarget;
+     fout.write((char*)&chunk, sizeof(chunk));
+
+     if (mVerbose)
+         printf("Target machine chunk 0005 specifying a target %s written.\n", _TARGET_MACHINE(mTarget));
+
+     return true;
+ }
 
  // Write a float-precision gap 
 bool UEFCodec::writeFloatPrecGapChunk(ogzstream&fout, float duration)
 {
     
-    FPGap0116 chunk;
+    FPGapChunk chunk;
 
     if (!encodeFloat(duration, chunk.gap)) {
         printf("Failed to encode gap as float of duriaion %f.\n", (double) duration);
@@ -949,10 +909,10 @@ bool UEFCodec::writeFloatPrecGapChunk(ogzstream&fout, float duration)
 }
 
 // Write an integer-precision gap
-bool UEFCodec::writeIntPrecGapChunk(ogzstream& fout, float duration, int baudRate)
+bool UEFCodec::writeIntPrecGapChunk(ogzstream& fout, float duration)
 {
-    BaudwiseGapChunk0112 chunk;
-    int gap = (int) round(duration * baudRate * 2);
+    BaudwiseGapChunk chunk;
+    int gap = (int) round(duration * mBaudRate * 2);
     chunk.gap[0] = gap & 0xff;
     chunk.gap[1] = (gap >> 8) & 0xff;
     fout.write((char*) &chunk, sizeof(chunk));
@@ -966,7 +926,7 @@ bool UEFCodec::writeIntPrecGapChunk(ogzstream& fout, float duration, int baudRat
 // Write security cycles
 bool UEFCodec::writeSecurityCyclesChunk(ogzstream& fout, int nCycles, Byte firstPulse, Byte lastPulse, Bytes cycles)
 {
-    SecurityCycles0114Hdr hdr;
+    SecurityCyclesChunkHdr hdr;
 
 
     // Set up header
@@ -1007,7 +967,7 @@ bool UEFCodec::writeSecurityCyclesChunk(ogzstream& fout, int nCycles, Byte first
 // Decode cycles as string where high pulse = '1',
 // low pulse = '0', high frequency = 'H' and
 // low frequency = 'L'
-string UEFCodec::decode_security_cycles(SecurityCycles0114Hdr &hdr, Bytes cycles) {
+string UEFCodec::decode_security_cycles(SecurityCyclesChunkHdr &hdr, Bytes cycles) {
 
     string cycle_string;
     int n_cycles = hdr.nCycles[0] + ((hdr.nCycles[1] << 8) & 0xff00) + ((hdr.nCycles[2] << 16) & 0xff0000);
@@ -1038,39 +998,38 @@ string UEFCodec::decode_security_cycles(SecurityCycles0114Hdr &hdr, Bytes cycles
 }
 
 // write baudrate 
-bool UEFCodec::writeBaudrateChunk(ogzstream&fout, int baudrate)
+bool UEFCodec::writeBaudrateChunk(ogzstream&fout)
 {
-
-    DataFormatChange0117 chunk;
-    chunk.baudRate[0] = baudrate & 0xff;
-    chunk.baudRate[1] = baudrate >> 8;
+    BaudRateChunk chunk;
+    chunk.baudRate[0] = mBaudRate & 0xff;
+    chunk.baudRate[1] = mBaudRate >> 8;
     fout.write((char*)&chunk, sizeof(chunk));
 
     if (mVerbose)
-        printf("Baudrate chunk 0117 specifying a baud rate of %d written.\n", baudrate);
+        printf("Baudrate chunk 0117 specifying a baud rate of %d written.\n", mBaudRate);
 
     return true;
 }
 
 // Write phase chunk
-bool UEFCodec::writePhaseChunk(ogzstream &fout, int phase)
+bool UEFCodec::writePhaseChunk(ogzstream &fout)
 {
-
-    PhaseChangeChunk0115 chunk;
-    chunk.phase[0] = phase & 0xff;
-    chunk.phase[1] = phase >> 8;
+    
+    PhaseChunk chunk;
+    chunk.phase[0] = mPhase & 0xff;
+    chunk.phase[1] = mPhase >> 8;
     fout.write((char*)&chunk, sizeof(chunk));
 
     if (mVerbose)
-        printf("Phase chunk 0115 specifying a phase of %d degrees written.\n", phase);
+        printf("Phase chunk 0115 specifying a phase of %d degrees written.\n", mPhase);
     return true;
 }
 
-bool UEFCodec::writeHighToneChunk(ogzstream &fout, float duration, int baudRate)
+bool UEFCodec::writeHighToneChunk(ogzstream &fout, float duration)
 {
     // Write a high tone
-    HighToneChunk0110 chunk;
-    int cycles = (int) round(duration * baudRate * 2);
+    HighToneChunk chunk;
+    int cycles = (int) round(duration * mBaseFrequency * 2);
     chunk.duration[0] = cycles % 256;
     chunk.duration[1] = cycles / 256;
     fout.write((char*)&chunk, sizeof(chunk));
@@ -1081,10 +1040,10 @@ bool UEFCodec::writeHighToneChunk(ogzstream &fout, float duration, int baudRate)
     return true;
 }
 
-bool UEFCodec::writeData104Chunk(ogzstream &fout, Byte bitsPerPacket, Byte parity, Byte stopBitInfo, Bytes data, Byte & CRC)
+bool UEFCodec::writeComplexDataChunk(ogzstream &fout, Byte bitsPerPacket, Byte parity, Byte stopBitInfo, Bytes data, Byte & CRC)
 {
 
-    DataBlockChunk0104Hdr chunk;
+    ComplexDataBlockChunkHdr chunk;
     int block_size = data.size() + 3; // add 3 bytes for the #bits/packet, parity & stop bit
     chunk.chunkHdr.chunkSz[0] = block_size & 0xff;
     chunk.chunkHdr.chunkSz[1] = (block_size >> 8) & 0xff;
@@ -1107,9 +1066,9 @@ bool UEFCodec::writeData104Chunk(ogzstream &fout, Byte bitsPerPacket, Byte parit
     return true;
 }
 
-bool UEFCodec::writeData100Chunk(ogzstream &fout, Bytes data, Byte &CRC)
+bool UEFCodec::writeSimpleDataChunk(ogzstream &fout, Bytes data, Byte &CRC)
 {
-    DataBlockChunk0100Hdr chunk;
+    SimpleDataBlockChunkHdr chunk;
     int block_size = data.size();
     chunk.chunkHdr.chunkSz[0] = block_size & 0xff;
     chunk.chunkHdr.chunkSz[1] = (block_size >> 8) & 0xff;
@@ -1134,7 +1093,7 @@ bool UEFCodec::writeData100Chunk(ogzstream &fout, Bytes data, Byte &CRC)
 bool UEFCodec::writeOriginChunk(ogzstream &fout, string origin)
 {
  
-    OriginChunkHdr0000 chunk_hdr;
+    OriginChunk chunk_hdr;
     int len = origin.length();
     chunk_hdr.chunkHdr.chunkSz[0] = len & 0xff;
     chunk_hdr.chunkHdr.chunkSz[1] = (len >> 8) & 0xff;
@@ -1151,7 +1110,6 @@ bool UEFCodec::writeOriginChunk(ogzstream &fout, string origin)
 
     return true;
 }
-
 
 bool UEFCodec::addBytes2Vector(Bytes& v, Byte bytes[], int n)
 {
@@ -1172,6 +1130,87 @@ bool UEFCodec::getTAPFile(TAPFile& tapFile)
 bool UEFCodec::setTAPFile(TAPFile& tapFile)
 {
     mTapFile = tapFile;
+
+    return true;
+}
+
+bool UEFCodec::updateBlockState(CHUNK_TYPE chunkType, double duration)
+{
+    switch (chunkType) {
+        case CHUNK_TYPE::GAP_CHUNK:
+        {
+            if (
+                mBlockState == BLOCK_STATE::READING_DATA || // Normally a gap comes after reading the data
+                mBlockState == BLOCK_STATE::READING_GAP // In case the gap is split ito several gap chunks
+            ) {
+                if (!firstBlock) { // gap between blocks are saved as an attribute of the previous block
+                    mCurrentBlockInfo.block_gap = duration;
+                    mBlockInfo.push_back(mCurrentBlockInfo);
+                }
+                else
+                    firstBlock = false;
+                mBlockState = BLOCK_STATE::READING_GAP;
+            }
+            else
+                return false;
+
+            break;
+        }
+        case CHUNK_TYPE::TONE_CHUNK:
+        {
+            if ( // A lead tone?
+                mBlockState == BLOCK_STATE::READING_GAP || // Normally a lead tone comes after a gap
+                mBlockState == BLOCK_STATE::READING_DATA // Also allow lead tone without previous gap
+            ) {
+                mCurrentBlockInfo.lead_tone_cycles = duration * mBaseFrequency * 2;
+                mBlockState = BLOCK_STATE::READING_LEAD_TONE;
+                mCurrentBlockInfo.start = mCurrentTime;
+            }
+            else if ( // Must be a micro tone (separating block header and block data)
+                mBlockState == BLOCK_STATE::READING_HDR // A micro tone must come after reading the header
+                ) {
+                mCurrentBlockInfo.micro_tone_cycles = duration * mBaseFrequency * 2;
+                mBlockState = BLOCK_STATE::READING_MICRO_TONE;
+            }
+            else
+                return false;
+            break;
+        }
+        case CHUNK_TYPE::DATA_CHUNK:
+        {
+            if ( // Block header?
+                mBlockState == BLOCK_STATE::READING_LEAD_TONE || // Normally the block header comes after the lead tone
+                mBlockState == BLOCK_STATE::READING_HDR // In case the block header is being split into several data chunks
+            ) {
+                mBlockState = BLOCK_STATE::READING_HDR;
+            }
+            else if ( // Must be block data then
+                mBlockState == BLOCK_STATE::READING_MICRO_TONE || // Normally the block data comes after the micro tone
+                mBlockState == BLOCK_STATE::READING_DATA // In case the block data is split into several data chunks
+            ) {
+                mBlockState = BLOCK_STATE::READING_DATA;
+                mCurrentBlockInfo.end = mCurrentTime; // Last block data read will give the time when the block ends
+            }
+            else {
+                printf("Bytes when block state was %s!\n", _BLOCK_STATE(mBlockState));
+                return false;
+            }
+            break;
+        }
+
+        default:
+        {
+            cout << "Undefined chunk type " << (int)chunkType << "\n";
+            return false;
+        }
+    }
+
+    mCurrentTime += duration;
+
+    if (mVerbose && mBlockState != mPrevBlockState)
+        cout << "Block reading state changed to " << _BLOCK_STATE(mBlockState) << "...\n";
+
+    mPrevBlockState = mBlockState;
 
     return true;
 }
