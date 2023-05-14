@@ -6,6 +6,7 @@
 #include "TAPCodec.h"
 #include "Utility.h"
 #include "Debug.h"
+#include <string.h>
 
 using namespace std;
 
