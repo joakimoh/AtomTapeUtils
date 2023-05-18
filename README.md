@@ -13,11 +13,11 @@ The WAV file must be a 16-bit/mono PCM file (preferable 44.1 kHz but other sampl
 Filter the WAV file *my_tape.wav* to clean it up a bit before trying to decode it.
 (This filtering can be skipped if you already have an audio file of excellent quality.)
 
-> FilterTape my_tape.wav -o my_filtered_tape.wav
+`> FilterTape my_tape.wav -o my_filtered_tape.wav`
 
 Then extract programs from it
 
-> ScanTape my_filtered_tape.wav -g my_files_dir
+`> ScanTape my_filtered_tape.wav -g my_files_dir`
 
 The ScanTape utility can also take a CSW file as input should you previously have converted your WAV files into CSW files.
 The utility will automatically detect whether it is a WAV or CSW file.
@@ -36,23 +36,23 @@ The utility ScanTAP is similar to ScanTape but instead takes a TAP file as input
 
 Convert to UEF format (for loading into emulator)
 
-> abc2uef myprog.abc -o myprog.uef
+`> abc2uef myprog.abc -o myprog.uef`
 
 Convert to CSW format (for loading into emulator; you need first to generate the UEF file)
 
-> uef2csw myprog.uef -o myprog.uef
+`> uef2csw myprog.uef -o myprog.uef`
 
 Convert to TAP/MMC format (for loading into emulator or onto memory card of an AtoMMC device)
 
-> abc2tap myprog.abc -o myprog
+`> abc2tap myprog.abc -o myprog`
 
 Convert to WAV format (for loading into an Acorn Atom via audio cable connected between desktop and Acorn Atom)
 
-> abc2wav myprog.abc -o myprog.wav
+`> abc2wav myprog.abc -o myprog.wav`
 
 Optionally, you could do all this (except for the WAV & CSW files generation) with just one command:
 
-> abc2all myprog.abc -g gen_dir
+`> abc2all myprog.abc -g gen_dir`
 
 ### Other utilities
 
