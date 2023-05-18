@@ -13,7 +13,7 @@ The WAV file must be a 16-bit/mono PCM file (preferable 44.1 kHz but other sampl
 Filter the WAV file *my_tape.wav* to clean it up a bit before trying to decode it.
 (This filtering can be skipped if you already have an audio file of excellent quality.)
 
-> FilterTape my_tape.wav -o my_filtered_tape.wave
+> FilterTape my_tape.wav -o my_filtered_tape.wav
 
 Then extract programs from it
 
@@ -46,15 +46,11 @@ Convert to TAP/MMC format (for loading into emulator or onto memory card of an A
 
 > abc2tap myprog.abc -o myprog
 
-Convert to CSW format (for loading into emulator)
-
-> uef2csw myprog.uef -o myprog.csw
-
 Convert to WAV format (for loading into an Acorn Atom via audio cable connected between desktop and Acorn Atom)
 
 > abc2wav myprog.abc -o myprog.wav
 
-Optionally, you could do all this (except for the WAV file generation) with just one command:
+Optionally, you could do all this (except for the WAV & CSW files generation) with just one command:
 
 > abc2all myprog.abc -g gen_dir
 
