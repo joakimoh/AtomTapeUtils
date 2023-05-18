@@ -77,7 +77,7 @@ bool WavEncoder::encode(string& filePath)
     ATMBlockIter ATM_block_iter = mTapFile.blocks.begin();
 
     if (mVerbose)
-        cout << "\nEncoding " << (int)mTapFile.blocks.size() << " WAV blocks:\n\n";
+        cout << "\nEncoding program '" << mTapFile.blocks[0].hdr.name << "' as a WAV file...\n\n";
     
 
     int block_no = 0;
@@ -256,7 +256,7 @@ bool WavEncoder::encode(string& filePath)
 
     // Write samples to WAV file
     Samples samples_v[] = { mSamples };
-    if (!writeSamples(filePath, samples_v, 1, mFS)) {
+    if (!writeSamples(filePath, samples_v, 1, mFS, mVerbose)) {
         printf("Failed to write samples!%s\n", "");
         return false;
     }
@@ -264,6 +264,9 @@ bool WavEncoder::encode(string& filePath)
 
     // Clear samples to secure that future encodings start without any initial samples
     mSamples.clear();
+
+    if (mVerbose)
+        cout << "\nDone encoding program '" << mTapFile.blocks[0].hdr.name << "' as a WAV file...\n\n";
 
 	return true;
 }

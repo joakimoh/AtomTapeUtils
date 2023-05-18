@@ -21,7 +21,7 @@ string str4(char c[4])
     return ss.str();
 }
 
-bool readSamples(string fileName, Samples &samples, int& sampleFreq)
+bool readSamples(string fileName, Samples &samples, int& sampleFreq, bool verbose)
 {
 
     ifstream fin(fileName, ios::in | ios::binary | ios::ate);
@@ -57,14 +57,16 @@ bool readSamples(string fileName, Samples &samples, int& sampleFreq)
 
     // Check sub chunk size
     if (h_tail.subchunk2Size != h_head.ChunkSize - 36) {
-        cout << "Size of data samples (subchunk2Size = " << h_tail.subchunk2Size <<
-            ") not consistent with file size (ChunkSize + 8 = " << (h_head.ChunkSize + 8) << ")!\n";
+        if (verbose)
+            cout << "Size of data samples (subchunk2Size = " << h_tail.subchunk2Size <<
+                ") not consistent with file size (ChunkSize + 8 = " << (h_head.ChunkSize + 8) << ")!\n";
         
         // correct the chunk sizes before attempting to read the samples... 
         h_head.ChunkSize = (uint32_t) fin_sz - 8;
         h_tail.subchunk2Size = h_head.ChunkSize - 36;
 
-        cout << "Recalculating the size of the data samples to " << h_head.ChunkSize << " bytes...\n";
+        if (verbose)
+            cout << "Recalculating the size of the data samples to " << h_head.ChunkSize << " bytes...\n";
     }
 
     // Check that the there is only one channel with 16-bit samples and a sample frequency of 44.1 kHz
@@ -74,12 +76,14 @@ bool readSamples(string fileName, Samples &samples, int& sampleFreq)
 
         )
         ) {
-        cout << "Input file is not an one channel 16 - bit PCM Wave file:\n";
-        cout << "format: " << h_head.audioFormat << " (1 <=> PCM)\n";
-        cout << "#channels: " << h_head.numChannels << " (1)\n";
-        cout << "sample rate: " << h_head.sampleRate << " (44 100) \n";
-        cout << "sample size: " << h_head.bitsPerSample << " (16)\n";
 
+        if (verbose) {
+            cout << "Input file is not an one channel 16 - bit PCM Wave file:\n";
+            cout << "format: " << h_head.audioFormat << " (1 <=> PCM)\n";
+            cout << "#channels: " << h_head.numChannels << " (1)\n";
+            cout << "sample rate: " << h_head.sampleRate << " (44 100) \n";
+            cout << "sample size: " << h_head.bitsPerSample << " (16)\n";
+        }
         fin.close();
 
         return false;
@@ -96,7 +100,7 @@ bool readSamples(string fileName, Samples &samples, int& sampleFreq)
     return true;
 }
 
-bool writeSamples(string fileName, Samples samples[], const int nChannels, int sampleFreq)
+bool writeSamples(string fileName, Samples samples[], const int nChannels, int sampleFreq, bool verbose)
 {
     // Check that each channel contains the same no of samples
     int n_samples = (int) samples[0].size();

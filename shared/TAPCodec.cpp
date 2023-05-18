@@ -46,7 +46,7 @@ bool TAPCodec::encode(string& filePath)
     unsigned block_no = 0;
 
     if (mVerbose)
-        cout << "\nEncoding TAP file '" << filePath << "' consisting of " << mTapFile.blocks.size() << " blocks...\n";
+        cout << "\nEncoding program '" << mTapFile.blocks[0].hdr.name << "' as a TAP file...\n\n";
 
     // Get atom file data for header (exec adr, load adr & file sz)
     unsigned exec_adr = mTapFile.blocks[0].hdr.execAdrHigh * 256 + mTapFile.blocks[0].hdr.execAdrLow;
@@ -81,8 +81,8 @@ bool TAPCodec::encode(string& filePath)
             unsigned exec_adr_start = ATM_block_iter->hdr.execAdrHigh * 256 + ATM_block_iter->hdr.execAdrLow;
             unsigned load_adr_end = load_adr_start + data_sz - 1;
 
-            printf("\n%15s %4x %4x %4x %2d %5d\n", atom_filename.c_str(),
-                load_adr_start, load_adr_end, exec_adr_start, block_no + 1, data_sz
+            printf("%13s %4x %4x %4x %3d %5d\n", atom_filename.c_str(),
+                load_adr_start, load_adr_end, exec_adr_start, block_no, data_sz
             );
 
         }
@@ -96,12 +96,12 @@ bool TAPCodec::encode(string& filePath)
     if (mVerbose) {
 
         if (mVerbose) {
-            printf("\n%15s %4x %4x %4x %2d %5d\n", atom_filename.c_str(),
+            printf("\n%13s %4x %4x %4x %3d %5d\n", atom_filename.c_str(),
                 load_adr, load_adr + atom_file_sz - 1, exec_adr, block_no, atom_file_sz
             );
         }
 
-        cout << "Done encoding TAP file...\n\n";
+        cout << "\nDone encoding program '" << mTapFile.blocks[0].hdr.name << "' as a TAP file...\n\n";
     }
 
     return true;
@@ -130,7 +130,7 @@ bool TAPCodec::decode(string& tapFileName)
     fin.seekg(0);
 
     if (mVerbose)
-        cout << "\nDecoding TAP file '" << tapFileName << "' of size " << file_size << " bytes...\n\n";
+        cout << "\nDecoding TAP file '" << tapFileName << "'...\n\n";
 
     // Read one Atom File from the TAP file
     if (!decodeSingleFile(fin, file_size, mTapFile)) {
@@ -138,6 +138,9 @@ bool TAPCodec::decode(string& tapFileName)
     }
 
     fin.close();
+
+    if (mVerbose)
+        cout << "\nDone decoding TAP file '" << tapFileName << "'...\n\n";
 
     return true;
 }
@@ -161,7 +164,7 @@ bool TAPCodec::decodeMultipleFiles(string& tapFileName, vector<TAPFile> &atomFil
     fin.seekg(0);
 
     if (mVerbose)
-        cout << "\nDecoding TAP file '" << tapFileName << "' of size " << file_size << " bytes...\n\n";
+        cout << "\nDecoding TAP file '" << tapFileName << "'...\n\n";
 
     // Read one Atom File from the TAP file
     TAPFile TAP_file;
@@ -171,11 +174,19 @@ bool TAPCodec::decodeMultipleFiles(string& tapFileName, vector<TAPFile> &atomFil
 
     fin.close();
 
+    if (mVerbose)
+        cout << "\nDone decoding TAP file '" << tapFileName << "'...\n\n";
+
     return true;
 }
 
 bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TAPFile &tapFile)
 {
+
+    // Test for end of file
+    if (fin.tellg() == file_size)
+        return false;
+
     // Read TAP header to get name and size etc
     string atom_filename;
     unsigned atom_file_sz, exec_adr, load_adr;
@@ -210,8 +221,8 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TAPFile &tapF
         if (fin.tellg() <= file_size - expected_block_sz && read_bytes < atom_file_sz) {
 
             if (mVerbose) {
-                printf("%15s %4x %4x %4x %2d %5d\n", atom_filename.c_str(),
-                    block_load_adr, block_load_adr + expected_block_sz - 1, exec_adr, block_no + 1, expected_block_sz
+                printf("%13s %4x %4x %4x %3d %5d\n", atom_filename.c_str(),
+                    block_load_adr, block_load_adr + expected_block_sz - 1, exec_adr, block_no, expected_block_sz
                 );
             }
 
@@ -252,7 +263,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TAPFile &tapF
     }
 
     if (mVerbose) {
-        printf("\n%15s %4x %4x %4x %2d %5d\n", atom_filename.c_str(),
+        printf("\n%13s %4x %4x %4x %2d %5d\n", atom_filename.c_str(),
             load_adr, load_adr + atom_file_sz - 1, exec_adr, block_no, atom_file_sz
         );
         cout << "\nDone decoding TAP file...\n";

@@ -39,14 +39,16 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    cout << "Output dir = " << arg_parser.dstDir << "\n";
+    if (arg_parser.verbose)
+        cout << "Output dir = " << arg_parser.dstDir << "\n";
 
     TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
 
     // Scan TAP file for Atom files
     vector<TAPFile> TAP_files;
     TAP_codec.decodeMultipleFiles(arg_parser.srcFileName, TAP_files);
-    cout << "#TAP files = " << TAP_files.size() << "\n";
+    if (arg_parser.verbose)
+        cout << "#TAP files = " << TAP_files.size() << "\n";
 
     // Generate separate files for each detected Atom file
     for (int i = 0; i < TAP_files.size(); i++) {

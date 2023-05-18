@@ -121,8 +121,10 @@ bool WavCycleDecoder::getNextCycle(CycleSample& cycleSample)
 
 	// Get second phase samples
 	if (!getSameLevelCycles(n_samples_second_phase)) {
+		/*
 		if (mTracing)
 			printf("%s: Failed to read second phase of cycle%s\n", encodeTime(getTime()).c_str());
+		*/
 		return false;
 	}
 

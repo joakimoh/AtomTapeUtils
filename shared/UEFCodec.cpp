@@ -97,6 +97,9 @@ bool UEFCodec::encode(string &filePath)
         return false;
     }
 
+    if (mVerbose)
+        cout << "Encoding program '" << mTapFile.blocks[0].hdr.name << "' as an UEF file...\n\n";
+
    ATMBlockIter ATM_block_iter = mTapFile.blocks.begin();
  
 
@@ -143,7 +146,7 @@ bool UEFCodec::encode(string &filePath)
 
 
     // Add origin
-    string origin = "Joakim Ohlsson";
+    string origin = "AtomTapeUtils";
     if (!writeOriginChunk(fout, origin)) {
         printf("Failed to write origin chunk with string %s\n", origin.c_str());
     }
@@ -362,6 +365,8 @@ bool UEFCodec::encode(string &filePath)
         return false;
     }
 
+    if (mVerbose)
+        cout << "\nDone encoding program '" << mTapFile.blocks[0].hdr.name << "' as an UEF file...\n\n";
 
     return true;
 
@@ -378,7 +383,7 @@ bool UEFCodec::decode(string &uefFileName)
     }
 
     if (mVerbose)
-        cout << "\nDecode UEF file\n\n";
+        cout << "Decoding UEF file '" << uefFileName << "'...\n\n";
 
     filesystem::path fin_p = uefFileName;
     string file_name = fin_p.stem().string();
@@ -772,6 +777,9 @@ bool UEFCodec::decode(string &uefFileName)
     }
 
     fin.close();
+
+    if (mVerbose)
+        cout << "\nDone decoding UEF file '" << uefFileName << "'...\n\n";
 
     return true;
 }

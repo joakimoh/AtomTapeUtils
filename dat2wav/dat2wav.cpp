@@ -34,7 +34,8 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    cout << "Output file is: '" << arg_parser.dstFileName << "'\n";
+    if (arg_parser.verbose)
+        cout << "Output file is: '" << arg_parser.dstFileName << "'\n";
 
     DataCodec DATA_codec = DataCodec(arg_parser.verbose);
 
@@ -43,7 +44,6 @@ int main(int argc, const char* argv[])
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );
     }
-    cout << "DATA file decoded successfully...\n";
 
     TAPFile TAP_file;
 
@@ -52,12 +52,10 @@ int main(int argc, const char* argv[])
     WavEncoder WAV_encoder = WavEncoder(TAP_file, false, 44100, arg_parser.verbose);
     WAV_encoder.setTapeTiming(arg_parser.tapeTiming);
 
-    cout << "WAV encoder created...\n";
 
     if (!WAV_encoder.encode(arg_parser.dstFileName)) {
         cout << "Failed to encode DATA file '" << arg_parser.srcFileName << "' as WAV file '" << arg_parser.dstFileName << "'\n";
     }
-    cout << "WAVE file created...\n";
 
     return 0;
 }

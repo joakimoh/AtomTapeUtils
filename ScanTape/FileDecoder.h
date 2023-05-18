@@ -22,6 +22,7 @@ private:
 	ArgParser mArgParser;
 
 	bool mTracing;
+	bool mVerbose;
 
 
 public:

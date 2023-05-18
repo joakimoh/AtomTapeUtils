@@ -21,6 +21,7 @@ FileDecoder::FileDecoder(
 ): mBlockDecoder(blockDecoder), mArgParser(argParser)
 {
     mTracing = argParser.tracing;
+    mVerbose = argParser.verbose;
 }
 
 
@@ -70,11 +71,12 @@ bool FileDecoder::readFile(ofstream &logFile)
     int last_valid_block_start_time = -1;
     int last_valid_block_end_time = -1;
 
- 
+
 
     double min_lead_tone_duration = mArgParser.tapeTiming.minBlockTiming.firstBlockLeadToneDuration;
 
     // Read all blocks belonging to the same file
+    unsigned n_blocks = 0;
     while (!last_block) {
 
         ATMBlock read_block;
@@ -90,7 +92,8 @@ bool FileDecoder::readFile(ofstream &logFile)
         bool lead_tone_detected;
         bool success = mBlockDecoder.readBlock(
             min_lead_tone_duration, read_block, block_type, block_no,
-            lead_tone_detected);
+            lead_tone_detected
+        );
 
 
         // If no lead tone was detected it must be the end of the tape
@@ -104,13 +107,13 @@ bool FileDecoder::readFile(ofstream &logFile)
             load_adr, load_adr_UB, exec_adr, block_sz, isAbcProgram, fn
         );
         if (!complete_header) {
-            if (mTracing)
+            if (mVerbose)
                 printf("Incomplete Atom Tape Block '%s' - failed to extract all block parameters\n", fn.c_str());
         }
 
         // End if the read block is part of another Atom Tape File
         if (fn != "???" && !first_block && fn != file_name) {
-            if (mTracing)
+            if (mVerbose)
                 printf("Block from another file '%s' encountered while reading file '%s'!\n", fn.c_str(), file_name.c_str());
             mBlockDecoder.rollback();
             break;
@@ -119,8 +122,6 @@ bool FileDecoder::readFile(ofstream &logFile)
         if (!complete_header || mBlockDecoder.nReadBytes < block_sz) {
             corrupted_block = true;
         }
-
-
  
         // Store read block if it contains a valid header
         // Also an only partially read block will be recovered by replacing
@@ -132,7 +133,7 @@ bool FileDecoder::readFile(ofstream &logFile)
             // Recover data of any incomplete data block (by replacing it with zeros)
             if (mBlockDecoder.nReadBytes < block_sz) {
 
-                if (mTracing) {
+                if (mVerbose) {
 
                     string block_no_s = "#" + to_string(block_no);
                     string block_type_s = _BLOCK_ORDER(block_type);
@@ -175,6 +176,7 @@ bool FileDecoder::readFile(ofstream &logFile)
             mTapFile.isAbcProgram = isAbcProgram;
 
             mTapFile.blocks.push_back(read_block);
+            n_blocks++;
 
             if (block_no != expected_block_no)
                 missing_block = true;
@@ -187,7 +189,7 @@ bool FileDecoder::readFile(ofstream &logFile)
                 if (block_type & BlockType::First) {
                     first_block_found = true;
                     corrupted_block = false;
-                    if (block_no != 0 && mTracing)
+                    if (block_no != 0 && mVerbose)
                         printf("First block of %s with non-zero block no %d and start address %.4x!\n", read_block.hdr.name, block_no, load_adr);
                 }
                 first_block = false;
@@ -197,7 +199,7 @@ bool FileDecoder::readFile(ofstream &logFile)
                 tape_start_time = block_start_time;
             }
             else {
-                if (load_adr != next_load_adr && mTracing) {
+                if (load_adr != next_load_adr && mVerbose) {
                     printf("Load address of block #%d (0x%.4x) not a continuation of previous block (0x%.4x) as expected!\n",
                         block_no, load_adr, next_load_adr
                     );
@@ -213,6 +215,11 @@ bool FileDecoder::readFile(ofstream &logFile)
 
             next_load_adr = load_adr_UB;
 
+            // Predict next block no
+            expected_block_no = block_no + 1;
+
+            last_block_no = block_no;
+
             
             sprintf(
                 s, "%15s %4x %4x %4x %2d %6s %3d %32s %32s\n", file_name.c_str(),
@@ -225,22 +232,15 @@ bool FileDecoder::readFile(ofstream &logFile)
             
         }
 
-
-        if (block_no != -1) {
-            expected_block_no = block_no + 1;
-            last_block_no = block_no;
-        }
-        else {
-            // If a corrupted block without a valid header was received, then 
-            // we still guestimate the expected next block no and load address
-            if (block_no != -1)
-                expected_block_no = block_no + 1;
-            else
-                expected_block_no = 1;
-            if (next_load_adr != 0)
-                next_load_adr += 256;
-            else
-                next_load_adr = 0x2a00;
+        //
+        // Predict the next block no and load address
+        // when the header was not complete and at least one
+        // valid block for the file has previously been detected.
+        //
+        if (!complete_header && n_blocks > 0) {
+            expected_block_no = expected_block_no + 1;
+            next_load_adr += 256;
+          
         }
 
 
@@ -253,8 +253,14 @@ bool FileDecoder::readFile(ofstream &logFile)
 
         if (!first_block_found || !last_block_found || missing_block || corrupted_block) {
             mTapFile.complete = false;
-            printf("At least one block missing or corrupted for file '%s'\n", mTapFile.validFileName.c_str());
-            logFile << "*** ERR *** At least one block missing or corrupted for file '" << mTapFile.validFileName << "'\n";
+            printf(
+                "At least one block missing or corrupted for file '%s' [%s,%s]\n",
+                mTapFile.validFileName.c_str(),
+                encodeTime(mTapFile.blocks[0].tapeStartTime).c_str(),
+                encodeTime(mTapFile.blocks[n_blocks-1].tapeEndTime).c_str()
+            );
+            logFile << "*** ERR *** At least one block missing or corrupted for file '" << mTapFile.validFileName << "' [";
+            logFile << encodeTime(mTapFile.blocks[0].tapeStartTime) << "," << encodeTime(mTapFile.blocks[n_blocks - 1].tapeEndTime) << "]\n";
         }
         else
             mTapFile.complete = true;

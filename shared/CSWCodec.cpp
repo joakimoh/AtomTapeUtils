@@ -53,9 +53,6 @@ bool CSWCodec::setTAPFile(TAPFile& tapFile)
 bool CSWCodec::encode(string &filePath, int sampleFreq)
 {
 
-    if (mVerbose)
-        cout << "\nEncode CSW file\n\n";
-
     mFS = sampleFreq;
     if (mTapeTiming.baudRate == 300) {
         mStartBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
@@ -88,6 +85,10 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
  
     if (mTapFile.blocks.empty())
         return false;
+
+
+    if (mVerbose)
+        cout << "\nEncode program '" << mTapFile.blocks[0].hdr.name << "' as a CSW file...\n\n";
 
 
     ATMBlockIter ATM_block_iter = mTapFile.blocks.begin();
@@ -292,6 +293,9 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
  
     // Clear samples to secure that future encodings start without any initial samples
     mPulses.clear();
+
+    if (mVerbose)
+        cout << "\nDone encoding program '" << mTapFile.blocks[0].hdr.name << "' as a CSW file...\n\n";
 
     return true;
 

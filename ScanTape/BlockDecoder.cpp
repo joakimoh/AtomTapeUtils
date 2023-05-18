@@ -79,6 +79,7 @@ bool BlockDecoder::readBlock(
 {
 	Byte CRC;
 	nReadBytes = 0;
+	mAtomFileName = "???";
 
 	if (mVerbose)
 		cout << "\n\nReading a new block...\n";
@@ -128,6 +129,9 @@ bool BlockDecoder::readBlock(
 			DEBUG_PRINT(getTime(), ERR, "Failed to read header block name%s\n", "");
 		return false;
 	}
+
+	// Remember tape file name (for output of debug/error messages)
+	mAtomFileName = readBlock.hdr.name;
 
 	// Read Atom tape header bytes
 	Byte * hdr = (Byte*)&mAtomTapeBlockHdr;
@@ -181,7 +185,7 @@ bool BlockDecoder::readBlock(
 	if (len > 0) {
 		if (!getBytes(readBlock.data, len, CRC)) {
 			if (mTracing)
-				DEBUG_PRINT(getTime(), ERR, "Failed to read data!%s\n", "");
+				DEBUG_PRINT(getTime(), ERR, "Failed to read block data for file '%s'!\n", readBlock.hdr.name);
 			return false;
 		}
 	}

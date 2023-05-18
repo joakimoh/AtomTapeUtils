@@ -36,7 +36,8 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    cout << "Output directory = " << arg_parser.dstDir << "\n";
+    if (arg_parser.verbose)
+        cout << "Output directory = " << arg_parser.dstDir << "\n";
 
 
     // Decode ABC file
@@ -62,7 +63,7 @@ int main(int argc, const char* argv[])
 
     // Generate TAP file
     TAPCodec TAP_codec = TAPCodec(TAP_file, arg_parser.verbose);
-    string TAP_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "tap");
+    string TAP_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "");
     if (!TAP_codec.encode(TAP_file_name)) {
         cout << "Failed to write the TAP file!\n";
     }

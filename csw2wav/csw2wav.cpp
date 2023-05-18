@@ -57,7 +57,8 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    cout << "Output file is: '" << arg_parser.dstFileName << "'\n";
+    if (arg_parser.verbose)
+        cout << "Output file is: '" << arg_parser.dstFileName << "'\n";
 
     // Decode CSW file into pulse vector
     CSWCodec CSW_decoder = CSWCodec(arg_parser.verbose);
@@ -94,7 +95,7 @@ int main(int argc, const char* argv[])
 
     // Write samples to WAV file
     Samples samples_v[] = { samples };
-    if (!writeSamples(arg_parser.dstFileName, samples_v, 1, sample_freq)) {
+    if (!writeSamples(arg_parser.dstFileName, samples_v, 1, sample_freq, arg_parser.verbose)) {
         cout << "Failed to write samples to WAV file!\n";
         return -1;
     }

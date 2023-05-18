@@ -23,7 +23,7 @@ void ArgParser::printUsage(const char *name)
 	cout << "If no output directory is specifed, then all generated files will be created in the current work directory\n";
 	cout << "\n";
 	cout << "-g generate dir path :\n\tProvide path to directory where generated files shall be put\n\t- default is work directory\n\n";
-	cout << "-d <debug start time> <debug stop time>:\n\tWAV file time range (format mm:ss.ss) for which debugging shall be turned on\n\t- default is off for all times\n\n";
+	cout << "-d <debug start time> <debug stop time>:\n\tWAV file time range (format hh:mm:ss) for which debugging shall be turned on\n\t- default is off for all times\n\n";
 	cout << "-f <freq tolerance>:\n\tTolerance of the 1200/2400 frequencies [0,1[\n\t- default is 0.1\n\n";
 	cout << "-l <level tolerance>:\n\tSchmitt-trigger level tolerance [0,1[\n\t- default is 0\n\n";
 	cout << "-s <start time>:\n\tThe time to start detecting files from\n\t- default is 0\n\n";

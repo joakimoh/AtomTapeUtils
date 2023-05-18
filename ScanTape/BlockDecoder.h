@@ -39,6 +39,8 @@ private:
 
 	bool mReadingCRC = false;
 
+	string mAtomFileName = "???";
+
 
 public:
 

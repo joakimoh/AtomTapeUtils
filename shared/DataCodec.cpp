@@ -44,11 +44,15 @@ bool DataCodec::encode(string& filePath)
         return false;
     }
 
+    if (mVerbose)
+        cout << "\nEncoding program '" << mTapFile.blocks[0].hdr.name << "' as a DATA file...\n\n";
+
     ATMBlockIter ATM_block_iter = mTapFile.blocks.begin();
 
     int c = 0;
     bool new_line = true;
-
+    unsigned block_no = 0;
+    unsigned atom_file_sz = 0;
     while (ATM_block_iter < mTapFile.blocks.end()) {
 
         BytesIter bi = ATM_block_iter->data.begin();
@@ -58,6 +62,14 @@ bool DataCodec::encode(string& filePath)
         string name = ATM_block_iter->hdr.name;
         char s[64];
 
+        if (mVerbose) {
+            printf("%13s %4x %4x %4x %2d %5d\n", name.c_str(),
+                load_adr, load_adr + data_len - 1, exec_adr, block_no, data_len
+            );
+        }
+        
+        block_no++;
+        atom_file_sz += data_len;
 
 
         BytesIter li;
@@ -103,6 +115,17 @@ bool DataCodec::encode(string& filePath)
     }
 
     fout.close();
+
+    if (mVerbose) {
+        int exec_adr = mTapFile.blocks[0].hdr.execAdrHigh * 256 + mTapFile.blocks[0].hdr.execAdrLow;
+        int load_adr = mTapFile.blocks[0].hdr.loadAdrHigh * 256 + mTapFile.blocks[0].hdr.loadAdrLow;
+        int data_len = mTapFile.blocks[0].hdr.lenHigh * 256 + mTapFile.blocks[0].hdr.lenLow;
+        string name = mTapFile.blocks[0].hdr.name;
+        printf("\n%13s %4x %4x %4x %2d %5d\n", name.c_str(),
+            load_adr, load_adr + atom_file_sz - 1, exec_adr, block_no, atom_file_sz
+        );
+        cout << "\nDone encoding program '" << mTapFile.blocks[0].hdr.name << "' as a DATA file...\n\n";
+    }
 
     return true;
 }
@@ -175,6 +198,9 @@ bool DataCodec::decode(string& dataFileName)
         printf("Failed to decode bytes for file '%s'\n", dataFileName.c_str());
         return false;
     }
+
+    if (mVerbose)
+        cout << "\nDecoding DATA file '" << dataFileName << "'...\n\n";
  
     filesystem::path fin_p = dataFileName;
     string file_name = fin_p.stem().string();
@@ -189,13 +215,15 @@ bool DataCodec::decode(string& dataFileName)
     BytesIter data_iterator = data.begin();
 
 
-    // Create ATM block
+    // Create ATM blocks
     ATMBlock block;
     int block_no = 0;
     bool new_block = true;
     int count = 0;
     BytesIter data_iter = data.begin();
     int block_sz;
+    unsigned exec_adr = 0xc2b2;
+    unsigned atom_file_sz = 0;
     while (data_iter < data.end()) {
 
         if (new_block) {
@@ -204,13 +232,14 @@ bool DataCodec::decode(string& dataFileName)
                 block_sz = data.end() - data_iter;
             else
                 block_sz = 256;
+            atom_file_sz += block_sz;
             block.data.clear();
             block.tapeStartTime = -1;
             block.tapeEndTime = -1;
-            block.hdr.execAdrHigh = 0xc2;
-            block.hdr.execAdrLow = 0xb2;
-            block.hdr.loadAdrHigh = load_address / 256;
-            block.hdr.loadAdrLow = load_address % 256;
+            block.hdr.execAdrHigh = (exec_adr >> 8) & 0xff;
+            block.hdr.execAdrLow = exec_adr & 0xff;
+            block.hdr.loadAdrHigh = (load_address >> 8) & 0xff;;
+            block.hdr.loadAdrLow = load_address & 0xff;
             for (int i = 0; i < sizeof(block.hdr.name); i++) {
                 if (i < block_name.length())
                     block.hdr.name[i] = block_name[i];
@@ -219,6 +248,8 @@ bool DataCodec::decode(string& dataFileName)
             }
             new_block = false;
         }
+
+
 
 
         if (count < block_sz) {
@@ -230,23 +261,48 @@ bool DataCodec::decode(string& dataFileName)
             block.hdr.lenLow = 0;
             mTapFile.blocks.push_back(block);
             new_block = true;
+            if (mVerbose) {
+                printf("%13s %4x %4x %4x %2d %5d\n", block_name.c_str(),
+                    load_address, load_address + block_sz - 1, exec_adr, block_no, block_sz
+                );
+            }
             load_address += count;
+            block_no++;
             BytesIter block_iterator = block.data.begin();
             // logData(load_address, block_iterator, block.data.size());
         }
 
 
-
-
     }
 
+    // Catch last block
     block.hdr.lenHigh = count / 256;
     block.hdr.lenLow = count % 256;
     mTapFile.blocks.push_back(block);
-    BytesIter block_iterator = block.data.begin();
+
+    if (data.end() - data_iter < 256)
+        block_sz = data.end() - data_iter;
+    else
+        block_sz = 256;
+    atom_file_sz += block_sz;
+    if (mVerbose) {
+        printf("%13s %4x %4x %4x %2d %5d\n", block_name.c_str(),
+            load_address, load_address + block_sz - 1, exec_adr, block_no, block_sz
+        );
+    }
     //logData(load_address, block_iterator, block.data.size());
 
-
+    if (mVerbose) {
+        unsigned exec_adr = mTapFile.blocks[0].hdr.execAdrHigh * 256 + mTapFile.blocks[0].hdr.execAdrLow;
+        unsigned load_adr = mTapFile.blocks[0].hdr.loadAdrHigh * 256 + mTapFile.blocks[0].hdr.loadAdrLow;
+        string atom_filename = mTapFile.blocks[0].hdr.name;
+        if (mVerbose) {
+            printf("\n%13s %4x %4x %4x %2d %5d\n", atom_filename.c_str(),
+                load_adr, load_adr + atom_file_sz - 1, exec_adr, block_no, atom_file_sz
+            );
+        }
+        cout << "\nDone decoding DATA file '" << dataFileName << "'...\n\n";
+    }
 
     return true;
 }

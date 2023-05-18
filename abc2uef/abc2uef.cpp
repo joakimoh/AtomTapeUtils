@@ -35,7 +35,8 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    cout << "Output file name = " << arg_parser.dstFileName << "\n";
+    if (arg_parser.verbose)
+        cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
     AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose);
 

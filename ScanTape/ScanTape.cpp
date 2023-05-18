@@ -63,7 +63,7 @@ int main(int argc, const char* argv[])
     {
         if (arg_parser.verbose)
             cout << "WAV file assumed - scanning it...\n";
-        if (!readSamples(arg_parser.wavFile, samples, sample_freq)) {
+        if (!readSamples(arg_parser.wavFile, samples, sample_freq, arg_parser.verbose)) {
             cout << "Couldn't open PCM Wave file '" << arg_parser.wavFile << "'\n";
             return -1;
         }

@@ -27,19 +27,20 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return 0;
     
-
-    cout << "Input file = '" << arg_parser.wavFile << "'\n";
-    cout << "Output file = '" << arg_parser.outputFileName << "'\n";
-    cout << "Baud rate = " << arg_parser.baudRate << "\n";
-    cout << "Derivative threshold = " << arg_parser.derivativeThreshold << "\n";
-    if (arg_parser.nAveragingSamples > 0)
-        cout << "No of averaging samples = " << arg_parser.nAveragingSamples * 2 + 1 << "\n";
-    else
-        cout << "No averaging of samples\n";
-    cout << "Output multiple channels = " << (arg_parser.outputMultipleChannels==true?"Yes":"No") << "\n";
-    cout << "High saturation level = " << round(100 *arg_parser.saturationLevelHigh) << " %\n";
-    cout << "Low saturation level = " << round(100 * arg_parser.saturationLevelHigh) << " %\n";
-    cout << "Min separation between peaks = " << round(100 * arg_parser.minPeakDistance) << " % of 2400 Hz cycle\n";
+    if (arg_parser.verbose) {
+        cout << "Input file = '" << arg_parser.wavFile << "'\n";
+        cout << "Output file = '" << arg_parser.outputFileName << "'\n";
+        cout << "Baud rate = " << arg_parser.baudRate << "\n";
+        cout << "Derivative threshold = " << arg_parser.derivativeThreshold << "\n";
+        if (arg_parser.nAveragingSamples > 0)
+            cout << "No of averaging samples = " << arg_parser.nAveragingSamples * 2 + 1 << "\n";
+        else
+            cout << "No averaging of samples\n";
+        cout << "Output multiple channels = " << (arg_parser.outputMultipleChannels == true ? "Yes" : "No") << "\n";
+        cout << "High saturation level = " << round(100 * arg_parser.saturationLevelHigh) << " %\n";
+        cout << "Low saturation level = " << round(100 * arg_parser.saturationLevelHigh) << " %\n";
+        cout << "Min separation between peaks = " << round(100 * arg_parser.minPeakDistance) << " % of 2400 Hz cycle\n";
+    }
 
     std::chrono::time_point<std::chrono::system_clock> t_start, t_end;
     chrono::duration<double> dt;
@@ -50,14 +51,16 @@ int main(int argc, const char* argv[])
     t_start = chrono::system_clock::now();
     Samples samples;
     int sample_freq = 44100;
-    if (!readSamples(arg_parser.wavFile, samples, sample_freq)) {
+    if (!readSamples(arg_parser.wavFile, samples, sample_freq, arg_parser.verbose)) {
         cout << "Couldn't open PCM Wave file '" << arg_parser.wavFile << "'\n";
         return -1;
     }
-    cout << "Samples read...\n";
+    if (arg_parser.verbose)
+        cout << "Samples read...\n";
     t_end = chrono::system_clock::now();
     dt = t_end - t_start;
-    cout << "Elapsed time: " << dt.count() << " seconds...\n";
+    if (arg_parser.verbose)
+        cout << "Elapsed time: " << dt.count() << " seconds...\n";
 
     
 
@@ -76,11 +79,13 @@ int main(int argc, const char* argv[])
             cout << "Failed to filter samples!\n";
             return -1;
         }
-        cout << "Samples filtered...\n";
+        if (arg_parser.verbose)
+            cout << "Samples filtered...\n";
         samples_to_filter = averaged_samples;
         t_end = chrono::system_clock::now();
         dt = t_end - t_start;
-        cout << "Elapsed time: " << dt.count() << " seconds...\n";
+        if (arg_parser.verbose)
+            cout << "Elapsed time: " << dt.count() << " seconds...\n";
     }
     
 
@@ -92,10 +97,12 @@ int main(int argc, const char* argv[])
         cout << "Failed to find extremums for samples!\n";
         return -1;
     }
-    cout << n_extremums << " (one every " << (int) round(samples.size() / n_extremums) << " samples)" << " extremums identified...\n";
+    if (arg_parser.verbose)
+        cout << n_extremums << " (one every " << (int) round(samples.size() / n_extremums) << " samples)" << " extremums identified...\n";
     t_end = chrono::system_clock::now();
     dt = t_end - t_start;
-    cout << "Elapsed time: " << dt.count() << " seconds...\n";
+    if (arg_parser.verbose)
+        cout << "Elapsed time: " << dt.count() << " seconds...\n";
 
     // Use found extremums to reconstruct the original samples
     t_start = chrono::system_clock::now();
@@ -104,10 +111,12 @@ int main(int argc, const char* argv[])
         cout << "Failed to plot from extremums!\n";
         return -1;
     }
-    cout << "Samples reshaped based on identified extremums...\n";
+    if (arg_parser.verbose)
+        cout << "Samples reshaped based on identified extremums...\n";
     t_end = chrono::system_clock::now();
     dt = t_end - t_start;
-    cout << "Elapsed time: " << dt.count() << " seconds...\n";
+    if (arg_parser.verbose)
+        cout << "Elapsed time: " << dt.count() << " seconds...\n";
 
     // Write reconstructed samples to WAV file
     t_start = chrono::system_clock::now();
@@ -116,26 +125,28 @@ int main(int argc, const char* argv[])
         // Write original samples and the filtered samples into a multiple-channel 16-bit PCM output WAV file
         if (arg_parser.nAveragingSamples > 0) {
             Samples samples_v[] = { samples , samples_to_filter, new_shapes };
-            success = writeSamples(arg_parser.outputFileName, samples_v, end(samples_v) - begin(samples_v), sample_freq);
+            success = writeSamples(arg_parser.outputFileName, samples_v, end(samples_v) - begin(samples_v), sample_freq, arg_parser.verbose);
         }
         else {
             Samples samples_v[] = { samples , new_shapes };
-            success = writeSamples(arg_parser.outputFileName, samples_v, end(samples_v) - begin(samples_v), sample_freq);
+            success = writeSamples(arg_parser.outputFileName, samples_v, end(samples_v) - begin(samples_v), sample_freq, arg_parser.verbose);
         }
     }
     else {
         // Write the filtered samples into a one-channel 16-bit PCM output WAV file
         Samples samples_v[] = { new_shapes };
-        success = writeSamples(arg_parser.outputFileName, samples_v, end(samples_v) - begin(samples_v), sample_freq);
+        success = writeSamples(arg_parser.outputFileName, samples_v, end(samples_v) - begin(samples_v), sample_freq, arg_parser.verbose);
     }
     if (!success) {
         cout << "Couldn't write samples to Wave file '" << arg_parser.outputFileName << "'\n";
         return -1;
     }
-    cout << "Resulting samples written to file...\n";
+    if (arg_parser.verbose)
+        cout << "Resulting samples written to file...\n";
     t_end = chrono::system_clock::now();
     dt = t_end - t_start;
-    cout << "Elapsed time: " << dt.count() << " seconds...\n";
+    if (arg_parser.verbose)
+        cout << "Elapsed time: " << dt.count() << " seconds...\n";
 
 
     return 0;
