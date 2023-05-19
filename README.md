@@ -91,16 +91,19 @@ This utility scans a WAW or CSW file for Atom programs. It has many parameters b
 A hysteresis (schmittt-trigger operation) is used when detecting the transitions Low->High->Low. The flag '-l level' spefifies the percentage used here. Default is 0.1 (10%).
 If programs are oNly partially corretly detected, errors will be reported.
 
-`>scantape tape.wav -g my_dir
+```
+>scantape tape.wav -g my_dir
 
 At least one block missing or corrupted for file 'TALK' [0h:0m:0.000000s (0.000000s),0h:4m:36.441723s (276.441723s)]
-At least one block missing or corrupted for file 'CONVOY' [0h:29m:4.326054s (1744.326054s),0h:30m:39.070000s (1839.070000s)]`
+At least one block missing or corrupted for file 'CONVOY' [0h:29m:4.326054s (1744.326054s),0h:30m:39.070000s (1839.070000s)]
+```
 
 The time interval stated for each program is the tape time that you will see if you open the audio file in e.g. Audicity.
 If you would like to understand the details about the failed detection (maybe if you want to try to repair the audio), you could specify a time window in which more details will be provided.
 Then you could specify the interval stated for the failed program above when running ScanTape once again: -d 0:0:0 0:4:37. The result will be something line below:
 
-`> scantape tape.wav -g my_dir 2 -f -d 0:0:1 0:4:37 -t
+```
+> scantape tape.wav -g my_dir 2 -f -d 0:0:1 0:4:37 -t
 00:52.703900: First cycle of data bit was an illegal Undefined cycle
 00:52.703900: Failed to read data bit b2
 00:52.703900: Failed to read byte #153 out of 256 bytes
@@ -114,6 +117,7 @@ Then you could specify the interval stated for the failed program above when run
 03:33.474512: Failed to read byte #21 out of 256 bytes
 03:33.474512: Failed to read block data for file 'TALK'!
 
-At least one block missing or corrupted for file 'TALK' [0h:0m:0.000000s (0.000000s),0h:4m:36.441723s (276.441723s)]`
+At least one block missing or corrupted for file 'TALK' [0h:0m:0.000000s (0.000000s),0h:4m:36.441723s (276.441723s)]
+```
 
 The starting time must be non-zero and the trace flag '-t' must also be used to turn on this extended logging.
