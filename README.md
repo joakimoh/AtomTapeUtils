@@ -73,3 +73,15 @@ Optionally, you could do all this (except for the WAV & CSW files generation) wi
 ### Utility program flags
 There are many possibilities to tailor especially the tape filtering and tape scannning. Write *utility name* and press enter to get information about the command line flags you can provide to do this tailoring. One useful feature (enabled by flag '-m') is e.g. the ability to generate a WAV file that includes both the original audio and the filtered audio for manual inspection when you are experiencing difficulties with some tapes (i.e. they are not successfully decoded with ScanTape later on). This WAV file cannot be used by ScanTape though as ScanTape expects only one channel with audio data. You could also turn on logging of detected faults during decoding of a tape (flag '-t') that will tell you at what points in time the decoding fails (like preamble byte #2 read failure).
 To have more verbose output (each utility as default runs in silent mode with none or very little output), the flag '-v' can be used.
+
+# FilterTape
+This utility filters tape audio. The filtering is made in two steps. The picture belows shows how an original tape audio is filtered and reshaped.
+<p align="left">
+  <img src="docs/audio.png"/>
+</p>
+
+## Low-pass filtering
+Here the samples are averaged. The number of samples to average is given by the flag '-a n'. The number of samples to average is 2n+1. default is 1 => 3 samples.
+
+## Reshaping of the audio based on peak detection
+Here the extremums are detected based on the derivate of the audio signal and new sinusoidal waves are created based on these peaks. A derivate threshold (flag '-d level'; default 10) specifies the the absolute minium derivate dmin (unit: amplitude step / sample) that should be considered. A low value means that the detection will be very sensitive to noise but also that very tiny signal changes will be possibly to detect. Saturation thresholds - tsat can also be specified to cut the signal when it is larger than a certain percentage of the maximum amplitude. The parameters '-sl low_level' and '-sh high_level' (default 0.8 <=> 80%) specify these threshods. It is also possible to specify a minimum distance - tpeak - between peaks to considerer (parameter '-p dist'). Default is 0.0 (0%  of the duration of a 2400 Hz tone).
