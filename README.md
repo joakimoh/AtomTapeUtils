@@ -84,4 +84,30 @@ This utility filters tape audio. The filtering is made in two steps. The picture
 Here the samples are averaged. The number of samples to average is given by the flag '-a n'. The number of samples to average is 2n+1. default is 1 => 3 samples.
 
 ## Reshaping of the audio based on peak detection
-Here the extremums are detected based on the derivate of the audio signal and new sinusoidal waves are created based on these peaks. A derivate threshold (flag '-d level'; default 10) specifies the the absolute minium derivate dmin (unit: amplitude step / sample) that should be considered. A low value means that the detection will be very sensitive to noise but also that very tiny signal changes will be possibly to detect. Saturation thresholds - tsat can also be specified to cut the signal when it is larger than a certain percentage of the maximum amplitude. The parameters '-sl low_level' and '-sh high_level' (default 0.8 <=> 80%) specify these threshods. It is also possible to specify a minimum distance - tpeak - between peaks to considerer (parameter '-p dist'). Default is 0.0 (0%  of the duration of a 2400 Hz tone).
+Here the extremums are detected based on the derivate of the audio signal and new sinusoidal waves are created based on these peaks. A derivate threshold (flag '-d level'; default is 10) specifies the the absolute minium derivate dmin (unit: amplitude step / sample) that should be considered. A low value means that the detection will be very sensitive to noise but also that very tiny signal changes will be possibly to detect. Saturation thresholds - tsat can also be specified to clip the signal when its absolute value is larger than a certain percentage of the maximum absolute value amplitude. The parameters '-sl low_level' and '-sh high_level' (default 0.8 <=> 80%) specify these thresholds. The minimum distance - tpeak - between peaks to considerer (parameter '-p dist') can be specified to avoid noise being detected as peaks (especially if the derivative theshold is set low resulting in high sensitivity to noise). Default is 0.0 (0%  of the duration of a 2400 Hz tone).
+
+# ScanTape
+This utility scans a WAW or CSW file for Atom programs. It has many parameters but the defalt values should work well for most tapes. However, if programs are not detected properly, the flag 'f tolerance' could be used to specify a higher tolerance for frequency variations. Default is 0.1 (10%) but values up to 0.4 (40%) could be tested when programs are not detected.
+A hysteresis (schmittt-trigger operation) is used when detecting the transitions Low->High->Low. The flag '-l level' spefifies the percentage used here. Default is 0.1 (10%).
+If programs are oNly partially corretly detected, errors will be reported.
+`>scantape tape.wav -g my_dir
+At least one block missing or corrupted for file 'TALK' [0h:0m:0.000000s (0.000000s),0h:4m:36.441723s (276.441723s)]
+At least one block missing or corrupted for file 'CONVOY' [0h:29m:4.326054s (1744.326054s),0h:30m:39.070000s (1839.070000s)]
+The time interval stated for each program is the tape time that you will see if you open the audio file in e.g. Audicity.
+If you would like to understand the details about the failed detection (maybe if you want to try to repair the audio), you could specify a time window in which more details will be provided.
+Then you could specify the interval stated for the failed program above when running ScanTape once again: -d 0:0:0 0:4:37. The result will be something line below:
+`> scantape tape.wav -g my_dir 2 -f -d 0:0:1 0:4:37 -t
+00:52.703900: First cycle of data bit was an illegal Undefined cycle
+00:52.703900: Failed to read data bit b2
+00:52.703900: Failed to read byte #153 out of 256 bytes
+00:52.703900: Failed to read block data for file 'TALK'!
+01:41.170431: start bit cycle already sampled was not an F1 (but an F2)
+01:41.170431: Failed to read start bit
+01:41.170431: Byte #0 (00) out of 4 bytes differs from reference value 0x2a or couldn't be read!
+01:41.170431: Failed to read header preamble (0x2a bytes)
+03:33.474512: No of F1 Cycles for databit was 1 when expecting 4
+03:33.474512: Failed to read data bit b5
+03:33.474512: Failed to read byte #21 out of 256 bytes
+03:33.474512: Failed to read block data for file 'TALK'!
+At least one block missing or corrupted for file 'TALK' [0h:0m:0.000000s (0.000000s),0h:4m:36.441723s (276.441723s)]`
+The starting time must be non-zero and the trace flag '-t' must also be used to turn on this extended logging.
