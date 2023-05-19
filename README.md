@@ -89,7 +89,7 @@ Here the extremums are detected based on the derivate of the audio signal and ne
 # ScanTape
 This utility scans a WAW or CSW file for Atom programs. It has many parameters but the defalt values should work well for most tapes. However, if programs are not detected properly, the flag 'f tolerance' could be used to specify a higher tolerance for frequency variations. Default is 0.1 (10%) but values up to 0.4 (40%) could be tested when programs are not detected.
 A hysteresis (schmittt-trigger operation) is used when detecting the transitions Low->High->Low. The flag '-l level' spefifies the percentage used here. Default is 0.1 (10%).
-If programs are oNly partially corretly detected, errors will be reported.
+If programs are only partially correctly detected, errors will be reported:
 
 ```
 >scantape tape.wav -g my_dir
@@ -99,8 +99,7 @@ At least one block missing or corrupted for file 'CONVOY' [0h:29m:4.326054s (174
 ```
 
 The time interval stated for each program is the tape time that you will see if you open the audio file in e.g. Audicity.
-If you would like to understand the details about the failed detection (maybe if you want to try to repair the audio), you could specify a time window in which more details will be provided.
-Then you could specify the interval stated for the failed program above when running ScanTape once again: -d 0:0:0 0:4:37. The result will be something line below:
+If you would like to understand the details about the failed detection (maybe if you want to try to repair the audio), you could specify a time window in which more details will be provided. The result will be something like below:
 
 ```
 > scantape tape.wav -g my_dir 2 -f -d 0:0:1 0:4:37 -t
