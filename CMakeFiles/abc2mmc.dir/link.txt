@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/abc2mmc.dir/abc2mmc/abc2mmc.cpp.o CMakeFiles/abc2mmc.dir/abc2mmc/ArgParser.cpp.o -o bin/abc2mmc  shared/libshared.a 

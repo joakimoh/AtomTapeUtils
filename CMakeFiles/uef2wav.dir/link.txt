@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/uef2wav.dir/uef2wav/uef2wav.cpp.o CMakeFiles/uef2wav.dir/uef2wav/ArgParser.cpp.o -o bin/uef2wav  shared/libshared.a gzstream/libgzstream.a /usr/lib/x86_64-linux-gnu/libz.so 

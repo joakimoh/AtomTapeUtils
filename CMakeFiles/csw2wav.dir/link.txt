@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/csw2wav.dir/csw2wav/csw2wav.cpp.o CMakeFiles/csw2wav.dir/csw2wav/ArgParser.cpp.o -o bin/csw2wav  shared/libshared.a gzstream/libgzstream.a /usr/lib/x86_64-linux-gnu/libz.so 

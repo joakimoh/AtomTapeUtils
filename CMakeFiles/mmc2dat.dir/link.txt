@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/mmc2dat.dir/mmc2dat/mmc2dat.cpp.o CMakeFiles/mmc2dat.dir/mmc2dat/ArgParser.cpp.o -o bin/mmc2dat  shared/libshared.a 

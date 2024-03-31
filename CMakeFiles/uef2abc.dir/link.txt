@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/uef2abc.dir/uef2abc/uef2abc.cpp.o CMakeFiles/uef2abc.dir/uef2abc/ArgParser.cpp.o -o bin/uef2abc  shared/libshared.a gzstream/libgzstream.a /usr/lib/x86_64-linux-gnu/libz.so 
