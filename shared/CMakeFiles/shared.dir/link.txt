@@ -1,2 +1,0 @@
-/usr/bin/ar qc libshared.a CMakeFiles/shared.dir/AtomBasicCodec.cpp.o CMakeFiles/shared.dir/Compress.cpp.o CMakeFiles/shared.dir/CSWCodec.cpp.o CMakeFiles/shared.dir/DataCodec.cpp.o CMakeFiles/shared.dir/MMCCodec.cpp.o CMakeFiles/shared.dir/PcmFile.cpp.o CMakeFiles/shared.dir/TAPCodec.cpp.o CMakeFiles/shared.dir/UEFCodec.cpp.o CMakeFiles/shared.dir/Utility.cpp.o CMakeFiles/shared.dir/WavEncoder.cpp.o CMakeFiles/shared.dir/zpipe.cpp.o
-/usr/bin/ranlib libshared.a
