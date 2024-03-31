@@ -1783,7 +1783,9 @@ shared/CMakeFiles/shared.dir/TAPCodec.cpp.o: shared/TAPCodec.cpp \
   /usr/include/c++/11/tr1/modified_bessel_func.tcc \
   /usr/include/c++/11/tr1/poly_hermite.tcc \
   /usr/include/c++/11/tr1/poly_laguerre.tcc \
-  /usr/include/c++/11/tr1/riemann_zeta.tcc
+  /usr/include/c++/11/tr1/riemann_zeta.tcc \
+  /usr/include/string.h \
+  /usr/include/strings.h
 
 shared/CMakeFiles/shared.dir/UEFCodec.cpp.o: shared/UEFCodec.cpp \
   /usr/include/stdc-predef.h \

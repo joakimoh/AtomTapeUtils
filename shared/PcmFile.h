@@ -1,6 +1,7 @@
 #ifndef PCM_FILE_H
 #define PCM_FILE_H
 
+#include <cstdint>
 #include "WaveSampleTypes.h"
 
 

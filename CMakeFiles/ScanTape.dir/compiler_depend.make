@@ -1536,7 +1536,6 @@ CMakeFiles/ScanTape.dir/ScanTape/ScanTape.cpp.o: ScanTape/ScanTape.cpp \
   shared/DataCodec.h \
   shared/PcmFile.h \
   shared/Utility.h \
-  shared/MMCCodec.h \
   shared/CSWCodec.h
 
 CMakeFiles/ScanTape.dir/ScanTape/WavCycleDecoder.cpp.o: ScanTape/WavCycleDecoder.cpp \
@@ -2319,8 +2318,6 @@ ScanTape/BlockDecoder.cpp:
 /usr/include/x86_64-linux-gnu/bits/statx-generic.h:
 
 /usr/include/c++/11/filesystem:
-
-shared/MMCCodec.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/struct___jmp_buf_tag.h:
 

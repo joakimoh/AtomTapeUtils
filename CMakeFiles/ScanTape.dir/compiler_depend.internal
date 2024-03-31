@@ -1542,7 +1542,6 @@ CMakeFiles/ScanTape.dir/ScanTape/ScanTape.cpp.o
  /home/joakim/Documents/GitHub/AtomTapeUtils/shared/DataCodec.h
  /home/joakim/Documents/GitHub/AtomTapeUtils/shared/PcmFile.h
  /home/joakim/Documents/GitHub/AtomTapeUtils/shared/Utility.h
- /home/joakim/Documents/GitHub/AtomTapeUtils/shared/MMCCodec.h
  /home/joakim/Documents/GitHub/AtomTapeUtils/shared/CSWCodec.h
 
 CMakeFiles/ScanTape.dir/ScanTape/WavCycleDecoder.cpp.o

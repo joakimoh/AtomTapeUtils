@@ -540,8 +540,7 @@ CMakeFiles/abc2all.dir/abc2all/abc2all.cpp.o: abc2all/abc2all.cpp \
   shared/DataCodec.h \
   shared/Compress.h \
   shared/Debug.h \
-  shared/Utility.h \
-  shared/MMCCodec.h
+  shared/Utility.h
 
 
 shared/Debug.h:
@@ -1059,8 +1058,6 @@ shared/UEFCodec.h:
 /usr/include/x86_64-linux-gnu/bits/statx-generic.h:
 
 /usr/include/c++/11/filesystem:
-
-shared/MMCCodec.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/struct___jmp_buf_tag.h:
 

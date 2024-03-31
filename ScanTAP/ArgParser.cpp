@@ -16,8 +16,8 @@ void ArgParser::printUsage(const char* name)
 {
 	cout << "Usage:\t" << name << " <TAP file> [-g <dir>] [-v]\n";
 	cout << "<TAP file>:\n\tTAP file to decode\n\n";
-	cout << "If no output file is specified, the output file name will default to the\n";
-	cout << "input file name (excluding extension) suffixed with '.dat'.\n\n";
+	cout << "If no output file is specified, each output file name will default to the\n";
+	cout << "input file name (excluding extension) with the type-specific suffix (e.g.,  '.dat').\n\n";
 	cout << "-g dir:\n\tProvide path to directory where generated files shall be put\n\t- default is work directory\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
 	cout << "\n";
