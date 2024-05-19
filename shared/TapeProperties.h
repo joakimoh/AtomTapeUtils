@@ -55,7 +55,7 @@ typedef struct TapeProperties_struct
 
 	float baseFreq = 1201; // Hz
 
-	int phase = 180; // Degrees [0-360]
+	int half_cycle = 180; // Degrees [0-360]
 
 	BlockTiming minBlockTiming = { 0.85,	0.85,	0.0,	0.0,		0.0,	0.0 };
 	BlockTiming nomBlockTiming = { 4.0,		2.0,	0.5,	0.0,		2.0,	2.0 };

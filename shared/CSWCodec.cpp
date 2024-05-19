@@ -301,7 +301,7 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
 
 }
 
-bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, Phase& firstPhase)
+bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, HalfCycle& firstHalfCycle)
 { 
     ifstream fin(CSWFileName, ios::in | ios::binary | ios::ate);
 
@@ -349,7 +349,7 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, Phase
         compressed = (csw2_hdr.compType == 0x02);
         sampleFreq = csw2_hdr.sampleRate[0] + (csw2_hdr.sampleRate[1] << 8) + (csw2_hdr.sampleRate[2] << 16) + (csw2_hdr.sampleRate[3] << 24);
         n_pulses = csw2_hdr.totNoPulses[0] + (csw2_hdr.totNoPulses[1] << 8) + (csw2_hdr.totNoPulses[2] << 16) + (csw2_hdr.totNoPulses[3] << 24);
-        firstPhase = ((csw2_hdr.flags & 0x01) == 0x01 ? HighPhase : LowPhase);
+        firstHalfCycle = ((csw2_hdr.flags & 0x01) == 0x01 ? HighHalfCycle : LowHalfCycle);
         char s[16];
         strncpy(s, csw2_hdr.encodingApp, 16);
         encoding_app = s;
@@ -368,13 +368,13 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, Phase
         compressed = false;
         sampleFreq = csw1_hdr.sampleRate[0] + (csw1_hdr.sampleRate[1] << 8);
         n_pulses = -1; // unspecified and therefore undefined for CSW format 1.1
-        firstPhase = ((csw1_hdr.flags & 0x01) == 0x01 ? HighPhase : LowPhase);
+        firstHalfCycle = ((csw1_hdr.flags & 0x01) == 0x01 ? HighHalfCycle : LowHalfCycle);
     }
 
 
 
     // Assign intial level to pulse (High or Low)
-    mPulseLevel = firstPhase;
+    mPulseLevel = firstHalfCycle;
 
 
     // Get size of pulse data
@@ -385,7 +385,7 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, Phase
         cout << "compressed: " << (compressed ? "Z-RLE" : "RLE") << "\n";
         cout << "sample frequency: " << (int)sampleFreq << "\n";
         cout << "no of pulses: " << (int)n_pulses << "\n";
-        cout << "initial polarity: " << _PHASE(firstPhase) << "\n";
+        cout << "initial polarity: " << _HALF_CYCLE(firstHalfCycle) << "\n";
         cout << "encoding app: " << encoding_app << "\n";
     }
  
@@ -545,7 +545,7 @@ bool CSWCodec::writeGap(double duration)
         return true;
 
     // Insert one very short high pulse if not already an high pulse
-    if (mPulseLevel == Phase::LowPhase)
+    if (mPulseLevel == HalfCycle::LowHalfCycle)
         mPulses.push_back(1);
 
     // Insert the long low pulse
@@ -562,7 +562,7 @@ bool CSWCodec::writeGap(double duration)
         mPulses.push_back((n_samples >> 24) % 256);
     }
 
-    mPulseLevel = Phase::LowPhase;
+    mPulseLevel = HalfCycle::LowHalfCycle;
 
     return true;
 }
@@ -572,25 +572,25 @@ bool CSWCodec::writeCycle(bool highFreq, unsigned n)
     if (n == 0)
         return true;
 
-    double n_samples_per_phase;
+    double n_samples_per_half_cycle;
     if (highFreq) {
-        n_samples_per_phase = mHighSamples / 2;
+        n_samples_per_half_cycle = mHighSamples / 2;
     }
     else {
-        n_samples_per_phase = mLowSamples / 2;       
+        n_samples_per_half_cycle = mLowSamples / 2;       
     }
 
     double sample_no = 0;
-    double prev_sample_no = - n_samples_per_phase;
+    double prev_sample_no = - n_samples_per_half_cycle;
     for (int c = 0; c < n; c++) {
 
         //  first half cycle
         int n_samples = (int) round(sample_no)  - (int) round(prev_sample_no);
          mPulses.push_back(n_samples);
  
-        // Advance sample index to next half cycle
+        // Advance sample index to next 1/2 cycle
         prev_sample_no = sample_no;
-        sample_no += n_samples_per_phase;
+        sample_no += n_samples_per_half_cycle;
  
         // Write second half cycle
         n_samples = (int)round(sample_no) - (int)round(prev_sample_no);
@@ -598,7 +598,7 @@ bool CSWCodec::writeCycle(bool highFreq, unsigned n)
      
         // Advance sample index to next cycle
         prev_sample_no = sample_no;
-        sample_no += n_samples_per_phase;
+        sample_no += n_samples_per_half_cycle;
 
     }
  

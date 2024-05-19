@@ -51,13 +51,13 @@ int main(int argc, const char* argv[])
         if (arg_parser.verbose)
             cout << "CSW file detected - scanning it...\n";
         CSWCodec CSW_codec = CSWCodec(arg_parser.verbose);
-        Phase first_phase;
-        if (!CSW_codec.decode(arg_parser.wavFile, pulses, sample_freq, first_phase)) {
+        HalfCycle first_half_cycle;
+        if (!CSW_codec.decode(arg_parser.wavFile, pulses, sample_freq, first_half_cycle)) {
             cout << "Couldn't decode CSW Wave file '" << arg_parser.wavFile << "'\n";
             return -1;
         }
 
-        cycle_decoder = new CSWCycleDecoder(sample_freq, first_phase, pulses, arg_parser, arg_parser.verbose);
+        cycle_decoder = new CSWCycleDecoder(sample_freq, first_half_cycle, pulses, arg_parser, arg_parser.verbose);
     }
     else // If not a CSW file it must be a WAV file
     {
@@ -85,7 +85,7 @@ int main(int argc, const char* argv[])
         cout << "Min lead tone duration of first block = " << arg_parser.tapeTiming.minBlockTiming.firstBlockLeadToneDuration << " s\n";
         cout << "Min lead tone duration of subsequent blocks = " << arg_parser.tapeTiming.minBlockTiming.otherBlockLeadToneDuration << " s\n";
         cout << "Min micro lead duration = " << arg_parser.tapeTiming.minBlockTiming.microLeadToneDuration << " s\n";
-        cout << "Tape timing when generated UEF/CSW files = " << (arg_parser.tapeTiming.preserve ? "Original" : "Standard") << "\n";
+        cout << "Tape timing when generating UEF/CSW files = " << (arg_parser.tapeTiming.preserve ? "Original" : "Standard") << "\n";
         cout << "Sample frequency from input file: " << sample_freq << " Hz\n";
     }
    

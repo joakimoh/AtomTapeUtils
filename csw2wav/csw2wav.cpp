@@ -22,9 +22,9 @@ using namespace std::filesystem;
 #define HIGH_CSW_LEVEL 16384
 #define LOW_CSW_LEVEL -16384
 
-bool writePulse(Samples& samples, int& pos, Phase& phase, int pulseLen)
+bool writePulse(Samples& samples, int& pos, HalfCycle& half_cycle, int pulseLen)
 {
-    uint16_t level = (phase == Phase::HighPhase ? HIGH_CSW_LEVEL : LOW_CSW_LEVEL);
+    uint16_t level = (half_cycle == HalfCycle::HighHalfCycle ? HIGH_CSW_LEVEL : LOW_CSW_LEVEL);
 
     // Write pulse samples
     if (samples.size() < pos + pulseLen) {
@@ -35,8 +35,8 @@ bool writePulse(Samples& samples, int& pos, Phase& phase, int pulseLen)
         samples[pos + s] = level;
     }
 
-    // Next phase
-    phase = (phase == Phase::HighPhase ? Phase::LowPhase : Phase::HighPhase);
+    // Next half_cycle
+    half_cycle = (half_cycle == HalfCycle::HighHalfCycle ? HalfCycle::LowHalfCycle : HalfCycle::HighHalfCycle);
 
     return true;
 
@@ -64,8 +64,8 @@ int main(int argc, const char* argv[])
     CSWCodec CSW_decoder = CSWCodec(arg_parser.verbose);
     Bytes pulses;
     int sample_freq;
-    Phase phase;
-    CSW_decoder.decode(arg_parser.srcFileName, pulses, sample_freq, phase);
+    HalfCycle half_cycle;
+    CSW_decoder.decode(arg_parser.srcFileName, pulses, sample_freq, half_cycle);
 
     // Convert pulses into samples
     Samples samples(pulses.size() * 20); // Initially reserve 20 samples per 
@@ -73,7 +73,7 @@ int main(int argc, const char* argv[])
     int i = 0;
     while (i < pulses.size()) {
         if (pulses[i] != 0) {
-            writePulse(samples, pos, phase, pulses[i]);
+            writePulse(samples, pos, half_cycle, pulses[i]);
             pos += pulses[i];
             i++;
         }
@@ -82,7 +82,7 @@ int main(int argc, const char* argv[])
                 long_pulse += pulses[i + 2] << 8;
                 long_pulse += pulses[i + 3] << 16;
                 long_pulse += pulses[i + 4] << 24;
-                writePulse(samples, pos, phase, long_pulse);
+                writePulse(samples, pos, half_cycle, long_pulse);
                 pos += long_pulse;
                 i += 5;
             }

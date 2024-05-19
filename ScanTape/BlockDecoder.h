@@ -28,6 +28,10 @@ private:
 	int mLowDataBitCycles; // #cycles for LOW "0" data bit - for F2 frequency
 	int mHighDataBitCycles;	//#cycles for HIGH "1" data bit - for F1 frequency
 	int mStopBitCycles;		// #cycles for stop bit - should be 1 1/2 "bit"
+	int mDataBitSamples; // duration (in samples) of a data bit
+	int mDataBitHalfCycleBitThreshold; // threshold (in 1/2 cycles) between a '0' and a '1'
+
+	Frequency mLastHalfCycleFrequency = Frequency::UndefinedFrequency; // no of samples in last read 1/2 cycle
 
 	ArgParser mArgParser;
 
@@ -67,12 +71,6 @@ private:
 	bool getStartBit();
 
 	bool getDataBit(Bit& bit);
-
-	//
-	// Detect a stop bit by looking for at least one and maximum mStopBitCycles high tone (F2) cycles
-	// (Even if there should normally be mStopBitCycles cycles)
-	//
-	bool getStopBit(int &nCollectedCycles);
 
 	// Get one byte
 	bool getByte(Byte *byte, int & nCollectedCycles);

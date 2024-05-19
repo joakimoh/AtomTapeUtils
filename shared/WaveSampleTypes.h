@@ -30,15 +30,17 @@ typedef BitSamples::iterator BitSamplesIter;
 
 typedef enum { LowLevel, HighLevel, NoCarrierLevel } Level;
 
-typedef enum { LowPhase, HighPhase, UndefinedPhase } Phase;
+typedef enum { LowHalfCycle, HighHalfCycle, UndefinedHalfCycle } HalfCycle;
 
 typedef enum { F1, F2, NoCarrierFrequency, UndefinedFrequency } Frequency;
 
 
 #define _BIT(x) (x==BlockDecoder::Bit::Low?"Low":(x==BlockDecoder::Bit::High?"High":"Undefined"))
+#define _HEX_DIGIT(x) (string() + (x >= 0 && x < 10?(char) ((int) '0' + x): (char) ((int) 'a' + (x & 0xf) - 10)))
+#define _BYTE(x) (_HEX_DIGIT(((x >> 4) & 0xf)) + _HEX_DIGIT((x & 0xf)))
 #define _LEVEL(x) (x==Level::LowLevel?"Low":(x==Level::HighLevel?"High":"NoCarrier"))
 #define _FREQUENCY(x) (x==Frequency::F1?"F1":(x==Frequency::F2?"F2":(x==Frequency::NoCarrierFrequency?"NoCarrier":"Undefined")))
-#define _PHASE(x) (x == HighPhase ? "High" : "Low")
+#define _HALF_CYCLE(x) (x == HighHalfCycle ? "High" : "Low")
 
 #define _BIT_SAMPLE(x) (x==BlockDecoder::Bit::Low?SAMPLE_LOW_MIN:(x==BlockDecoder::Bit::High?SAMPLE_HIGH_MAX:SAMPLE_UNDEFINED))
 #define _LEVEL_SAMPLE(x) (x==Level::Low?SAMPLE_LOW_MIN:(x==Level::High?SAMPLE_HIGH_MAX:SAMPLE_UNDEFINED))

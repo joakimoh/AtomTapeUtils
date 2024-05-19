@@ -108,10 +108,10 @@ private:
 		Byte baudRate[2]; // Baudrate, .e.g., 300 = {44, 1} <=> 1 * 256 + 44 = 300
 	} BaudRateChunk;
 
-	// UEF phase chunk
+	// UEF half_cycle chunk
 	typedef struct PhaseChunk_struct {
 		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(PHASE_CHUNK), {2, 0, 0, 0}};
-		Byte phase[2] = { 0, 0 }; // zero degrees phase shift
+		Byte half_cycle[2] = { 0, 0 }; // zero degrees phase_shift
 	} PhaseChunk;
 
 	
@@ -197,7 +197,7 @@ private:
 		int lead_tone_cycles;
 		int micro_tone_cycles;
 		double block_gap;
-		int phase = 180;
+		int half_cycle = 180;
 		double start;
 		double end;
 	} BLOCK_INFO;

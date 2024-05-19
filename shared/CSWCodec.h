@@ -52,7 +52,7 @@ class CSWCodec
 	//
 	// CSW Format
 	//
-	// Specifies pulses that corresponds to the duration (in # samples) of a LOW or HIGH phase
+	// Specifies pulses that corresponds to the duration (in # samples) of a LOW or HIGH half_cycle
 	//
 	// --  PULSE #1 --|-- PULSE #2 ---
 	// (8 samples)    | (5 samples)
@@ -120,7 +120,7 @@ public:
 	bool encode(string& filePath, int sampleFreq);
 
 	 // Decode a CSW file as a vector of pulses
-	bool decode(string &CSWFileName, Bytes &pulses, int &sampleFreq, Phase &firstPhase);
+	bool decode(string &CSWFileName, Bytes &pulses, int &sampleFreq, HalfCycle &firstHalfCycle);
 
 	// Tell whether a file is a CSW file
 	static bool isCSWFile(string& CSWFileName);
@@ -130,7 +130,7 @@ private:
 
 	// Pulse data
 	int mPulseIndex;
-	Phase mPulseLevel;
+	HalfCycle mPulseLevel;
 	int mSampleIndex;
 	int mPulseLength;
 

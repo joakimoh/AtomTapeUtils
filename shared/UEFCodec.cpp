@@ -119,9 +119,9 @@ bool UEFCodec::encode(string &filePath)
     if (mUseOriginalTiming && mTapFile.validTiming)
         baudrate = mTapFile.baudRate;
 
-    // Intialise base frequency and phase with values from Tape Timing
+    // Intialise base frequency and half_cycle with values from Tape Timing
     mBaseFrequency = mTapeTiming.baseFreq;
-    mPhase = mTapeTiming.phase;
+    mPhase = mTapeTiming.half_cycle;
 
 
     // Default values for block timing (if mUseOriginalTiming is true the recored block timing will instead by used later on)
@@ -163,9 +163,9 @@ bool UEFCodec::encode(string &filePath)
     }
 
 
-    // Phase 0
+    // HalfCycle 0
     if (!writePhaseChunk(fout)) {
-        printf("Failed to write phase chunk with phase %d degrees\n", mPhase);
+        printf("Failed to write half_cycle chunk with half_cycle %d degrees\n", mPhase);
     }
 
     // Write base frequency
@@ -492,20 +492,20 @@ bool UEFCodec::decode(string &uefFileName)
 
                 break;
             }
-            case PHASE_CHUNK: // Phase Change Chunk 0115: phase = value
+            case PHASE_CHUNK: // HalfCycle Change Chunk 0115: half_cycle = value
             {
                 if (chunk_sz != 2) {
-                    printf("Size of Phase change chunk 0115 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 2);
+                    printf("Size of HalfCycle change chunk 0115 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 2);
                     return false;
                 }
                 PhaseChunk phase_chunk;
                 phase_chunk.chunkHdr = chunk_hdr;
-                fin.read((char*)phase_chunk.phase, sizeof(phase_chunk.phase));
-                mPhase = (phase_chunk.phase[0] + (phase_chunk.phase[1] << 8));
+                fin.read((char*)phase_chunk.half_cycle, sizeof(phase_chunk.half_cycle));
+                mPhase = (phase_chunk.half_cycle[0] + (phase_chunk.half_cycle[1] << 8));
                 if (mVerbose)
-                    cout << "Phase change chunk 0115 of size " << chunk_sz << " and specifiying a phase of " << mPhase << " degrees.\n";
+                    cout << "HalfCycle change chunk 0115 of size " << chunk_sz << " and specifiying a half_cycle of " << mPhase << " degrees.\n";
 
-                mCurrentBlockInfo.phase = mPhase;
+                mCurrentBlockInfo.half_cycle = mPhase;
                 break;
             }
 
@@ -691,7 +691,7 @@ bool UEFCodec::decode(string &uefFileName)
         block.blockGap = mBlockInfo[block_no].block_gap;
         block.leadToneCycles = mBlockInfo[block_no].lead_tone_cycles;
         block.microToneCycles = mBlockInfo[block_no].micro_tone_cycles;
-        block.phaseShift = mBlockInfo[block_no].phase;
+        block.phaseShift = mBlockInfo[block_no].half_cycle;
         block.tapeStartTime = mBlockInfo[block_no].start;
         block.tapeEndTime = mBlockInfo[block_no].end;
      
@@ -1019,17 +1019,17 @@ bool UEFCodec::writeBaudrateChunk(ogzstream&fout)
     return true;
 }
 
-// Write phase chunk
+// Write half_cycle chunk
 bool UEFCodec::writePhaseChunk(ogzstream &fout)
 {
     
     PhaseChunk chunk;
-    chunk.phase[0] = mPhase & 0xff;
-    chunk.phase[1] = mPhase >> 8;
+    chunk.half_cycle[0] = mPhase & 0xff;
+    chunk.half_cycle[1] = mPhase >> 8;
     fout.write((char*)&chunk, sizeof(chunk));
 
     if (mVerbose)
-        printf("Phase chunk 0115 specifying a phase of %d degrees written.\n", mPhase);
+        printf("HalfCycle chunk 0115 specifying a half_cycle of %d degrees written.\n", mPhase);
     return true;
 }
 

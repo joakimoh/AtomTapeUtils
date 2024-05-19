@@ -21,7 +21,7 @@ WavCycleDecoder::WavCycleDecoder(
 	mFS = sampleFreq;
 	mTS = 1.0 / mFS;
 
-	// Min & max durations of F1 & F2 frequency low/high phases
+	// Min & max durations of F1 & F2 frequency low/high 1/2 cycles
 	mMinNSamplesF1Cycle = (int)round((1 - mArgParser.freqThreshold) * mFS / F1_FREQ); // Min duration of an F1 cycle
 	mMaxNSamplesF1Cycle = (int)round((1 + mArgParser.freqThreshold) * mFS / F1_FREQ); // Max duration of an F1 cycle
 	int n_samples_F1 = round(mFS / F1_FREQ);
@@ -33,6 +33,12 @@ WavCycleDecoder::WavCycleDecoder(
 	int n_samples_F12 = (int)round(3 * mFS / (F2_FREQ * 2));
 	mMaxNSamplesF12Cycle = (int)round((1 + mArgParser.freqThreshold) * 3 * mFS / (F2_FREQ * 2)); // Min duration of a 3T/2 cycle where T = 1/F2
 
+	mMinNSamplesF1HalfCycle = (int)round((1 - mArgParser.freqThreshold) * mFS / (F1_FREQ * 2));
+	mMaxNSamplesF1HalfCycle = (int)round((1 + mArgParser.freqThreshold) * mFS / (F1_FREQ * 2));
+	mMinNSamplesF2HalfCycle = (int)round((1 - mArgParser.freqThreshold) * mFS / (F2_FREQ * 2));
+	mMaxNSamplesF2HalfCycle = (int)round((1 + mArgParser.freqThreshold) * mFS / (F2_FREQ * 2));
+
+	mSamplesThresholdHalfCycle = (int)round((mFS / F1_FREQ + mFS / F2_FREQ) / 4);
 
 	if (mVerbose) {
 		printf("F1 with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F1, mMinNSamplesF1Cycle, mMaxNSamplesF1Cycle);
@@ -61,6 +67,111 @@ bool WavCycleDecoder::rollback()
 
 }
 
+// Advance n samples and record the encountered no of 1/2 cycles
+int WavCycleDecoder::countHalfCycles(int nSamples, int& half_cycles)
+{
+	Level level_p = mLevel;
+
+	half_cycles = 0;
+	int sample_no;
+
+	for (int n = 0; n < nSamples && !mLevelDecoder.endOfSamples(); n++) {
+		if (!mLevelDecoder.getNextSample(mLevel, sample_no)) // can fail for too long level duration or end of of samples
+			return false;
+		if (mLevel != level_p) {
+			half_cycles++;
+			level_p = mLevel;
+			if (half_cycles == 1) { // Decide phaseshift based on first 1/2 cycle's level
+				if (mLevel == Level::LowLevel)
+					mPhaseShift = 0;
+				else
+					mPhaseShift = 180;
+			}
+		}
+	}
+	return true;
+}
+
+// Consume as many 1/2 cycles of frequency f as possible
+int WavCycleDecoder::consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency &lastHalfCycleFrequency)
+{
+	int min_d = (f == Frequency::F1 ? mMinNSamplesF1HalfCycle : mMinNSamplesF2HalfCycle);
+	int max_d = (f == Frequency::F1 ? mMaxNSamplesF1HalfCycle : mMaxNSamplesF2HalfCycle);
+	int half_cycle_duration;
+
+	nHalfCycles = 0;
+	bool stop = false;
+	lastHalfCycleFrequency = Frequency::UndefinedFrequency;
+
+	for (;!stop;) {
+		if (!getSameLevelCycles(half_cycle_duration))
+			return false;
+
+		// Is it of the expected duration?
+		if (half_cycle_duration >= min_d && half_cycle_duration <= max_d) {
+			nHalfCycles++;
+		}
+		else
+			stop = true;
+	}
+
+	if (half_cycle_duration >= mMinNSamplesF1HalfCycle && half_cycle_duration <= mSamplesThresholdHalfCycle)
+		lastHalfCycleFrequency = Frequency::F2;
+	else if (half_cycle_duration <= mMaxNSamplesF1Cycle)
+		lastHalfCycleFrequency = Frequency::F1;
+	else
+		lastHalfCycleFrequency = Frequency::UndefinedFrequency;
+
+	return true;
+}
+
+// Stop at first occurrence of n 1/2 cycles of frequency f
+int WavCycleDecoder::stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime, Frequency &lastHalfCycleFrequency)
+{
+	int half_cycle_duration = 0;
+	int min_d = (f == Frequency::F1 ? mMinNSamplesF1HalfCycle : mMinNSamplesF2HalfCycle);
+	int max_d = (f == Frequency::F1 ? mMaxNSamplesF1HalfCycle : mMaxNSamplesF2HalfCycle);
+
+	double t_start = getTime();
+	double t_end;
+	lastHalfCycleFrequency = Frequency::UndefinedFrequency;
+
+	for (int n = 0; n < nHalfCycles;) {
+
+		// Get one half_cycle
+		Level initial_level = mLevel;
+
+		t_end = getTime();	
+
+		if (!getSameLevelCycles(half_cycle_duration))
+			return false;
+
+		// Is it of the expected duration?
+		if (half_cycle_duration >= min_d && half_cycle_duration <= max_d) {
+			n++;
+			if (n == 1) { // Decide phaseshift based on first 1/2 cycle's level
+				if (initial_level == Level::LowLevel)
+					mPhaseShift = 0;
+				else
+					mPhaseShift = 180;
+				
+				waitingTime = t_end - t_start;
+			}
+		}
+		else
+			n = 0;
+	}
+
+		if (half_cycle_duration >= mMinNSamplesF1HalfCycle && half_cycle_duration <= mSamplesThresholdHalfCycle)
+		lastHalfCycleFrequency = Frequency::F2;
+	else if (half_cycle_duration <= mMaxNSamplesF1Cycle)
+		lastHalfCycleFrequency = Frequency::F1;
+	else
+		lastHalfCycleFrequency = Frequency::UndefinedFrequency;
+
+	return true;
+}
+
 // Collect as many samples as possible of the same level (High or Low)
 bool WavCycleDecoder::getSameLevelCycles(int& nSamples) {
 
@@ -81,82 +192,82 @@ bool WavCycleDecoder::getSameLevelCycles(int& nSamples) {
 }
 
 // Get the next cycle (which is ether a low - F1 - or high - F2 - tone cycle)
-// Assumes the first sample is the start of a Phase
+// Assumes the first sample is the start of a HalfCycle
 bool WavCycleDecoder::getNextCycle(CycleSample& cycleSample)
 {
 
-	int n_samples_first_phase = 0, n_samples_second_phase = 0;
+	int n_samples_first_half_cycle = 0, n_samples_second_half_cycle = 0;
 	Frequency freq;
 
 	int sample_start = mLevelDecoder.getSampleNo();
 
-	int first_phase_level = mLevelDecoder.getLevel();
+	int first_half_cycle_level = mLevelDecoder.getLevel();
 
 	// If initial level is neither Low nor High (i.e, NoCarrier) then stop
-	if (!(first_phase_level == Level::LowLevel || first_phase_level == Level::HighLevel)) {
+	if (!(first_half_cycle_level == Level::LowLevel || first_half_cycle_level == Level::HighLevel)) {
 		/*
 		if (mTracing)
-			printf("%s: Illegal % s level detected\n", encodeTime(getTime()).c_str(), _LEVEL(first_phase_level));
+			printf("%s: Illegal % s level detected\n", encodeTime(getTime()).c_str(), _LEVEL(first_half_cycle_level));
 		*/
 		return false;
 	}
 
-	// Get first phase samples
-	if (!getSameLevelCycles(n_samples_first_phase))
+	// Get first half_cycle samples
+	if (!getSameLevelCycles(n_samples_first_half_cycle))
 		return false;
 
-	int second_phase_level = mLevelDecoder.getLevel();
+	int second_half_cycle_level = mLevelDecoder.getLevel();
 
 	// If it isn't  Low->High or High-> low cycle, then stop
 	if (
-		first_phase_level == Level::LowLevel && second_phase_level != Level::HighLevel ||
-		first_phase_level == Level::HighLevel && second_phase_level != Level::LowLevel
+		first_half_cycle_level == Level::LowLevel && second_half_cycle_level != Level::HighLevel ||
+		first_half_cycle_level == Level::HighLevel && second_half_cycle_level != Level::LowLevel
 		) {
 		/*
 		if (mTracing)
-			printf("%s: Illegal transition %s to %s detected\n", encodeTime(getTime()).c_str(), _LEVEL(first_phase_level), _LEVEL(second_phase_level));
+			printf("%s: Illegal transition %s to %s detected\n", encodeTime(getTime()).c_str(), _LEVEL(first_half_cycle_level), _LEVEL(second_half_cycle_level));
 		*/
 		return false;
 	}
 
-	// Get second phase samples
-	if (!getSameLevelCycles(n_samples_second_phase)) {
+	// Get second half_cycle samples
+	if (!getSameLevelCycles(n_samples_second_half_cycle)) {
 		/*
 		if (mTracing)
-			printf("%s: Failed to read second phase of cycle%s\n", encodeTime(getTime()).c_str());
+			printf("%s: Failed to read second half_cycle of cycle%s\n", encodeTime(getTime()).c_str());
 		*/
 		return false;
 	}
 
 	// A complete cycle was detected. Now determine whether it as an F1 or F2 one
-	int n_samples = n_samples_first_phase + n_samples_second_phase;
+	int n_samples = n_samples_first_half_cycle + n_samples_second_half_cycle;
 
 
 	if (n_samples >= mMinNSamplesF1Cycle && n_samples <= mMaxNSamplesF1Cycle) {
 		// An F1 frequency CYCLE (which has a LONG duration)
 		freq = Frequency::F1;
 		if (mPrevcycle == Frequency::F2)
-			mPhaseShift = 180; // record the phase when shifting frequency)
+			mPhaseShift = 180; // record the half_cycle when shifting frequency)
 		mPrevcycle = freq;
 	}
 	else if (n_samples >= mMinNSamplesF2Cycle && n_samples <= mMaxNSamplesF2Cycle) {
 		// An F2 frequency CYCLE (which has a SHORT duration)
 		freq = Frequency::F2;
 		if (mPrevcycle == Frequency::F1)
-			mPhaseShift = 180; // record the phase when shifting frequency
+			mPhaseShift = 180; // record the half_cycle when shifting frequency
 		mPrevcycle = freq;
 	}
 	else if (n_samples >= mMinNSamplesF12Cycle && n_samples <= mMaxNSamplesF12Cycle) {
-		// One F1 phase followed by one F2 phase. Treat this as an F2 cycle.
+		// One F1 half_cycle followed by one F2 half_cycle. Treat this as an F2 cycle.
 		if (mCycleSample.freq == Frequency::F1) {
 			freq = Frequency::F2;
-			mPhaseShift = 0; // record the phase when shifting frequency 
+			mPhaseShift = 0; // record the half_cycle when shifting frequency 
 			mPrevcycle = freq;
 		}
-		// One F2 phase followed by one F1 phase. Treat this as an F1 cycle.
+		// One F2 half_cycle followed by one F1 half_cycle. Treat this as an F1 cycle.
 		else if (mCycleSample.freq == Frequency::F2) {
 			freq = Frequency::F1;
-			mPhaseShift = 0; // record the phase when shifting frequency
+			mPhaseShift = 0; // record the half_cycle when shifting frequency
 			mPrevcycle = freq;
 		}
 		else { // mCycleSample.freq == Frequency::NoCarrierFrequency
@@ -236,46 +347,23 @@ bool WavCycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 }
 
 // Wait for a high tone (F2)
-bool WavCycleDecoder::waitForTone(double minDuration, double& duration, double& waitingTime, int& highToneCycles) {
+bool WavCycleDecoder::waitForTone(double minDuration, double& duration, double& waitingTime, int& highToneCycles, Frequency& lastHalfCycleFrequency) {
+	
+	int n_min_half_cycles = minDuration * F2_FREQ * 2;
+	int n_remaining_half_cycles;
 
-	bool found = false;
-	CycleSample cycle_sample;
+	int t_start = getTime();
+	
+	if (!stopOnHalfCycles(Frequency::F2, n_min_half_cycles, waitingTime, lastHalfCycleFrequency))
+		return false;
 
-	double t_wait_start = getTime();
+	if (!consumeHalfCycles(Frequency::F2, n_remaining_half_cycles, lastHalfCycleFrequency))
+		return false;
 
+	highToneCycles = (n_min_half_cycles + n_remaining_half_cycles) / 2;
+	duration = getTime() - t_start - waitingTime;
 
-	// Search for lead tone of the right duration
-	while (!found && !mLevelDecoder.endOfSamples()) {
-
-		// Wait for first cycle
-		if (!waitUntilCycle(Frequency::F2, cycle_sample))
-			return false;
-
-
-
-		double t_start = getTime();
-
-		// Get all following cycles
-		int n_cycles = 0;
-		while (getNextCycle(cycle_sample) && cycle_sample.freq == Frequency::F2) {
-			n_cycles++;
-		}
-		
-		double t_end = getTime();
-		duration = t_end - t_start;
-
-
-		if (duration > minDuration) {
-			found = true;
-			highToneCycles = n_cycles + 1;
-			waitingTime = t_start - t_wait_start;
-			
-		}
-	}
-
-
-
-	return found;
+	return true;
 
 }
 

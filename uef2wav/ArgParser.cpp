@@ -15,7 +15,7 @@ bool ArgParser::failed()
 void ArgParser::printUsage(const char* name)
 {
 	cout << "Usage:\t" << name << " <UEF file> [-o <output file] [-b <b>] [-lt <d>] [-slt <d>]\n";
-	cout <<	"\t[-ml <d>] [-fg <d>] [-sg <d>] [-lg <d>] [-ps <phase shift>] [-v]\n";
+	cout <<	"\t[-ml <d>] [-fg <d>] [-sg <d>] [-lg <d>] [-ps <phase_shift>] [-v]\n";
 	cout << "\t[-pot] [-f <sample freq>]\n\n";
 	cout << "<UEF file>:\n\tUEF file to decode\n";
 	cout << "\n";
@@ -29,7 +29,7 @@ void ArgParser::printUsage(const char* name)
 	cout << "-sg <d>:\n\tThe duration of the gap before the other blocks\n\t- default is " << tapeTiming.nomBlockTiming.blockGap << " s\n\n";
 	cout << "-lg <d>:\n\tThe duration of the gap after the last block\n\t- default is " << tapeTiming.nomBlockTiming.lastBlockGap << " s\n\n";
 	cout << "-b baudrate:\n\tBaudrate (300 or 1200)\n\t- default is " << tapeTiming.baudRate << "\n\n";
-	cout << "-ps <phase shift>:\n\tPhase shift when transitioning from high to low tone [0,180] degrees\n\t- default is " << tapeTiming.phase << " degrees\n\n";
+	cout << "-ps <phase_shift>:\n\tPhase shift when transitioning from high to low tone [0,180] degrees\n\t- default is " << tapeTiming.half_cycle << " degrees\n\n";
 	cout << "-pot:\n\tPreserve original tape timing when generating the CSW file - default is " << mPreserveOriginalTiming << "\n\n";
 	cout << "-f <sample freq>:\n\tSample frequency to use - default is " << mSampleFreq << "\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
@@ -78,9 +78,9 @@ ArgParser::ArgParser(int argc, const char* argv[])
 				ac++;
 		}
 		else if (strcmp(argv[ac], "-ps") == 0) {
-			tapeTiming.phase = stoi(argv[ac + 1]);
-			if (tapeTiming.phase < 0 || tapeTiming.phase > 180)
-				cout << "-ps without a valid phase shift\n";
+			tapeTiming.half_cycle = stoi(argv[ac + 1]);
+			if (tapeTiming.half_cycle < 0 || tapeTiming.half_cycle > 180)
+				cout << "-ps without a valid phase_shift\n";
 			else
 				ac++;
 		}

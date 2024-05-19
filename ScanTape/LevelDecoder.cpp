@@ -40,7 +40,7 @@ LevelDecoder::LevelDecoder(
 	mFS = sampleFreq;
 	mTS = 1 / mFS;
 
-	// A phase should never be longer than the max value of half an F1 cycle
+	// A half_cycle should never be longer than the max value of half an F1 cycle
 	mNLevelSamplesMax = (int) round((1 + mArgParser.freqThreshold) * mFS / (F1_FREQ * 2)); 
 
 	// Advance to time startTime before searching for data

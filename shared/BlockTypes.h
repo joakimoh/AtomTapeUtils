@@ -70,7 +70,7 @@ typedef struct ATMBlock_struct {
 	double tapeEndTime = 0; // end of block
 
 	// Detailed block timing - used for UEF/CSW file generation later on
-	int phaseShift = 180; // phase [degrees] when shifting from high to low frequency - normally 180 degrees
+	int phaseShift = 180; // half_cycle [degrees] when shifting from high to low frequency - normally 180 degrees
 	int leadToneCycles = 9600; // no of high frequency cycles for lead tone - normally 4 * 2400 = 10 080
 	int microToneCycles = 1200; // no of high frequency cycles between block header and data part - normally 0.5 * 2400 = 1200
 	double blockGap = 2.0; // gap after block (before the next block commence) - normally 2 s

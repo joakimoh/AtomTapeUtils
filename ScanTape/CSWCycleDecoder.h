@@ -14,7 +14,7 @@ class CSWCycleDecoder : public CycleDecoder
 	typedef struct PulseCheckPoint_struct {
 		int pulseIndex;
 		int sampleIndex;
-		Phase pulseLevel;
+		HalfCycle pulseLevel;
 		int pulseLength;
 	} PulseCheckPoint;
 
@@ -29,17 +29,28 @@ private:
 
 	// Pulse data
 	int mPulseIndex;
-	Phase mPulseLevel;
+	HalfCycle mPulseLevel;
 	int mSampleIndex;
 	int mPulseLength;
 
 	bool getNextPulse();
 
-	bool getPulseLength(int &nextPulseIndex);
+	bool getPulseLength(int &nextPulseIndex, int & mPulseLength);
+
+	int nextPulseLength(int& pulseLength);
 
 public:
 
-	CSWCycleDecoder(int sampleFreq, Phase firstPhase, Bytes &Pulses, ArgParser & argParser, bool verbose);
+	CSWCycleDecoder(int sampleFreq, HalfCycle firstHalfCycle, Bytes &Pulses, ArgParser & argParser, bool verbose);
+
+	// Advance n samples and record the encountered no of 1/2 cycles
+	int countHalfCycles(int nSamples, int& half_cycles);
+
+	// Consume as many 1/2 cycles of frequency f as possible
+	int consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency& lastHalfCycleFrequency);
+
+	// Stop at first occurrence of n 1/2 cycles of frequency f
+	int stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime, Frequency &lastHalfCycleFrequency);
 
 	// Get the next cycle (which is ether a low - F1 - or high - F2 - tone cycle)
 	bool getNextCycle(CycleSample& cycleSample);
@@ -48,7 +59,7 @@ public:
 	bool waitUntilCycle(Frequency freq, CycleSample& cycleSample);
 
 	// Wait for a high tone (F2)
-	bool  waitForTone(double minDuration, double& duration, double& waitingTime, int& highToneCycles);
+	bool  waitForTone(double minDuration, double& duration, double& waitingTime, int& highToneCycles, Frequency& lastHalfCycleFrequency);
 
 	// Get last sampled cycle
 	CycleSample getCycle();

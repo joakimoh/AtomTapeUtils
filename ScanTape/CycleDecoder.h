@@ -37,19 +37,25 @@ protected:
 
 	vector<CycleSample> mCycleSampleCheckpoints;
 
-	// Min & max durations of F1 & F2 frequency low/high phases
+	// Min & max durations of F1 & F2 frequency cycles
 	int mMinNSamplesF1Cycle; // Min duration of an F1 cycle
 	int mMaxNSamplesF1Cycle; // Max duration of an F1 cycle
 	int mMinNSamplesF2Cycle; // Min duration of an F2 cycle
 	int mMaxNSamplesF2Cycle; // Max duration of an F2 cycle
 
-	// If each cycle starts with a low phase but the cycle detection expect a cycle to start with a high
-	// phase, then when there is a switch from an F1 to and F2 (or F2 to an F1) cycle, the detected cycle
-	// stretching over a transition from a low (F1) to high (f1) tone will be around 3T/2.
+	int mMinNSamplesF1HalfCycle; // Min duration of an F1 1/2 cycle
+	int mMaxNSamplesF1HalfCycle; // Max duration of an F1 1/2 cycle
+	int mMinNSamplesF2HalfCycle; // Min duration of an F2 1/2 cycle
+	int mMaxNSamplesF2HalfCycle; // Max duration of an F2 1/2 cycle
+	int mSamplesThresholdHalfCycle; // Threshold between an F1 and an F2 1/2 cycle
+
+	// If each cycle starts with a low half_cycle but the cycle detection expects a cycle to start with a high
+	// half_cycle, then when there is a switch from an F1 to and F2 (or F2 to an F1) cycle, the detected cycle
+	// stretching over a transition from a low (F1) to high (F2) tone will be around 3T/2.
 	// This corresponds to use case (2) below. If the cycle detection instead
-	// expects cycles to start with a low phase, then all detected cycles will always have a length of
+	// expects cycles to start with a low half_cycle, then all detected cycles will always have a length of
 	// either T or 2T. This corresponds to use case (1) below. The same will be the case if each cycle
-	// starts with a high phase but the cycle detection expects each to start with a low phase.
+	// starts with a high half_cycle but the cycle detection expects each to start with a low half_cycle.
 	//
 	// ----    ----        --------        --------    ----    ----		High	signal level
 	//     ----    --------        --------        ----    ----			Low
@@ -60,15 +66,32 @@ protected:
 	int mMinNSamplesF12Cycle; // Min duration of a 3T/2 cycle where T = 1/F2
 	int mMaxNSamplesF12Cycle; // Min duration of a 3T/2 cycle where T = 1/F2
 
-	int mPhaseShift = 180; // phase [degrees] when shifting from high to low frequency - normally 180 degrees
+	int mPhaseShift = 180; // half_cycle [degrees] when starting an F1/F2 cycle
+	// For UEF format
+	// 0 <=> cycle starts with a LOW level
+	// 180 <=> cycle starts with a HIGH level
+	// Normally 180 degrees
 
 
 public:
 
 	CycleDecoder(ArgParser argParser) : mArgParser(argParser) {};
 
-	// Get the phase (Low or High) of the current cycle
-	int getPhase() { return mPhaseShift;  }
+
+	// Get the current phaseshift (in degrees)
+	int getPhaseShift() { return mPhaseShift;  }
+
+	// Advance n samples and record the encountered no of 1/2 cycles
+	virtual int countHalfCycles(int nSamples, int& half_cycles) = 0;
+
+	// Consume as many 1/2 cycles of frequency f as possible
+	virtual int  consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency& lastHalfCycleFrequency) = 0;
+
+	// Stop at first occurrence of n 1/2 cycles of frequency f
+	virtual int stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime, Frequency &lastHalfCycleFrequency) = 0;
+
+	// Get duration (in samples) of one F2 cycle
+	double getF2Duration() { return (double) mFS / F2_FREQ;  }
 
 	// Get the next cycle (which is ether a low - F1 - or high - F2 - tone cycle)
 	virtual bool getNextCycle(CycleSample& cycleSample) = 0;
@@ -77,7 +100,7 @@ public:
 	virtual bool waitUntilCycle(Frequency freq, CycleSample& cycleSample) = 0;
 
 	// Wait for a high tone (F2)
-	virtual bool  waitForTone(double minDuration, double &duration, double &waitingTime, int &highToneCycles) = 0;
+	virtual bool  waitForTone(double minDuration, double &duration, double &waitingTime, int &highToneCycles, Frequency& lastHalfCycleFrequency) = 0;
 
 	// Get last sampled cycle
 	virtual CycleSample getCycle() = 0;

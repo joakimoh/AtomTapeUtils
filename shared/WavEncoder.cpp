@@ -416,11 +416,11 @@ bool WavEncoder::writeCycle(bool highFreq, unsigned n)
         n_samples = (int) round(mLowSamples * n);
     }
 
-    double phase = ((mPhase + 180) % 360) * PI / 180;
+    double half_cycle = ((mPhase + 180) % 360) * PI / 180;
 
     double f = 2 * n * PI / n_samples;
     for (int s = 0; s < n_samples; s++) {
-        Sample y = (Sample) round(sin(s * f + phase) * mMaxSampleAmplitude);
+        Sample y = (Sample) round(sin(s * f + half_cycle) * mMaxSampleAmplitude);
         mSamples.push_back(y);
     }
     return true;
