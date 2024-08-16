@@ -6,7 +6,7 @@
 #include <string>
 
 #include "../shared/CommonTypes.h"
-#include "../shared/BlockTypes.h"
+#include "../shared/AtomBlockTypes.h"
 #include "../shared/WaveSampleTypes.h"
 #include "CycleDecoder.h"
 
@@ -17,12 +17,9 @@
 class BlockDecoder
 {
 
-private:
+protected:
 
 	CycleDecoder& mCycleDecoder;
-
-	AtomTapeBlockHdr mAtomTapeBlockHdr; // read Atom tape header (excluding synchronisation bytes and filename)
-
 
 	int mStartBitCycles;	// #cycles for start bit - should be 1 "bit"
 	int mLowDataBitCycles; // #cycles for LOW "0" data bit - for F2 frequency
@@ -43,18 +40,14 @@ private:
 
 	bool mReadingCRC = false;
 
-	string mAtomFileName = "???";
+	string mTapeFileName = "???";
 
 
 public:
 
-	int nReadBytes;
+	int nReadBytes = 0;
 
-	BlockDecoder(CycleDecoder& cycleDecoder, ArgParser & argParser, bool verbose);
-
-	bool readBlock(
-		double leadToneDuration, ATMBlock &readBlock, BlockType &block_type, 
-		int &blockNo, bool &leadToneDetected);
+	BlockDecoder(CycleDecoder& cycleDecoder, ArgParser& argParser, bool verbose);
 
 	double getTime();
 
@@ -64,8 +57,7 @@ public:
 	// Roll back to a previously saved file position
 	bool rollback();
 
-
-private:
+protected:
 
 	// Detect a start bit by looking for exactly mStartBitCycles low tone (F1) cycles
 	bool getStartBit();
@@ -76,14 +68,18 @@ private:
 	bool getByte(Byte *byte, int & nCollectedCycles);
 	bool getByte(Byte* byte);
 
+	// Get a word (two bytes)
+	bool getWord(Word* word);
+
 	bool checkByte(Byte refValue, Byte &readVal);
 
 	bool checkBytes(Byte refVal, int n);
 
-	bool getFileName(char name[16], Byte &CRC, int &len);
-
 	// Get bytes
-	bool getBytes(Bytes& block, int n, Byte &CRC);
+	bool getBytes(Bytes& block, int n, Word &CRC);
+
+	// CRC calculation
+	virtual void updateCRC(Word &CRC, Byte data) = 0;
 
 
 };

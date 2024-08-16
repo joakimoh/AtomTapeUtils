@@ -6,14 +6,22 @@
 #include <string.h>
 #include "UEFCodec.h"
 #include "CommonTypes.h"
-#include "BlockTypes.h"
+#include "AtomBlockTypes.h"
 #include "Debug.h"
 #include "Utility.h"
-#include "BlockTypes.h"
+#include "AtomBlockTypes.h"
 
 
 
 using namespace std;
+
+void UEFCodec::updateCRC(Word& CRC, Byte byte)
+{
+    if (mBbcMicro)
+        updateBBMCRC(CRC, byte);
+    else
+        updateAtomCRC(CRC, byte);
+}
 
 
 bool UEFCodec::decodeFloat(Byte encoded_val[4], float& decoded_val)
@@ -66,12 +74,12 @@ bool UEFCodec::encodeFloat(float val, Byte encoded_val[4])
     return true;
 }
 
-UEFCodec::UEFCodec(bool verbose) : mVerbose(verbose)
+UEFCodec::UEFCodec(bool verbose, bool mBbcMicro) : mVerbose(verbose), mBbcMicro(mBbcMicro)
 {
 
 }
 
-UEFCodec::UEFCodec(TAPFile& tapFile, bool useOriginalTiming, bool verbose): mTapFile(tapFile), mVerbose(verbose)
+UEFCodec::UEFCodec(bool useOriginalTiming, bool verbose, bool mBbcMicro): mVerbose(verbose), mBbcMicro(mBbcMicro)
 {
     mUseOriginalTiming = useOriginalTiming;
 }
@@ -86,9 +94,9 @@ bool UEFCodec::setTapeTiming(TapeProperties tapeTiming)
 
 
 
-bool UEFCodec::encode(string &filePath)
+bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
 {
-    if (mTapFile.blocks.empty()) 
+    if (tapeFile.blocks.empty()) 
         return false;
 
     ogzstream  fout(filePath.c_str());
@@ -98,13 +106,13 @@ bool UEFCodec::encode(string &filePath)
     }
 
     if (mVerbose)
-        cout << "Encoding program '" << mTapFile.blocks[0].hdr.name << "' as an UEF file...\n\n";
+        cout << "Encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as an UEF file...\n\n";
 
-   ATMBlockIter ATM_block_iter = mTapFile.blocks.begin();
+   FileBlockIter ATM_block_iter = tapeFile.blocks.begin();
  
 
     int block_no = 0;
-    int n_blocks = (int)mTapFile.blocks.size();
+    int n_blocks = (int)tapeFile.blocks.size();
 
     
 
@@ -116,8 +124,8 @@ bool UEFCodec::encode(string &filePath)
      *
      */
     int baudrate = mTapeTiming.baudRate;
-    if (mUseOriginalTiming && mTapFile.validTiming)
-        baudrate = mTapFile.baudRate;
+    if (mUseOriginalTiming && tapeFile.validTiming)
+        baudrate = tapeFile.baudRate;
 
     // Intialise base frequency and half_cycle with values from Tape Timing
     mBaseFrequency = mTapeTiming.baseFreq;
@@ -185,7 +193,7 @@ bool UEFCodec::encode(string &filePath)
     //
 
 
-    while (ATM_block_iter < mTapFile.blocks.end()) {
+    while (ATM_block_iter < tapeFile.blocks.end()) {
 
         // Write base frequency
         /*
@@ -195,7 +203,7 @@ bool UEFCodec::encode(string &filePath)
         */
 
         // Write a lead tone for the block
-        if (mUseOriginalTiming && mTapFile.validTiming)
+        if (mUseOriginalTiming && tapeFile.validTiming)
             lead_tone_duration = (ATM_block_iter->leadToneCycles) / (2 * mBaseFrequency);
         if (!writeHighToneChunk(fout, lead_tone_duration)) {
             printf("Failed to write %f Hz lead tone of duration %f s\n", mBaseFrequency, lead_tone_duration);
@@ -222,7 +230,7 @@ bool UEFCodec::encode(string &filePath)
 
         // Initialise CRC
 
-        Byte CRC = 0;
+        Word CRC = 0;
 
         // --------------------- start of block header chunk ------------------------
         //
@@ -233,7 +241,7 @@ bool UEFCodec::encode(string &filePath)
         // --------------------------------------------------------------------------
 
 
-        int data_len = ATM_block_iter->hdr.lenHigh * 256 + ATM_block_iter->hdr.lenLow;  // get data length
+        int data_len = ATM_block_iter->atomHdr.lenHigh * 256 + ATM_block_iter->atomHdr.lenLow;  // get data length
 
         Byte b7 = (block_no < n_blocks - 1 ? 0x80 : 0x00);          // calculate flags
         Byte b6 = (data_len > 0 ? 0x40 : 0x00);
@@ -245,8 +253,8 @@ bool UEFCodec::encode(string &filePath)
         addBytes2Vector(header_data, preamble, 4);
 
         int name_len = 0;
-        for (; name_len < sizeof(ATM_block_iter->hdr.name) && ATM_block_iter->hdr.name[name_len] != 0; name_len++);
-        addBytes2Vector(header_data, (Byte*)ATM_block_iter->hdr.name, name_len); // store block name
+        for (; name_len < sizeof(ATM_block_iter->atomHdr.name) && ATM_block_iter->atomHdr.name[name_len] != 0; name_len++);
+        addBytes2Vector(header_data, (Byte*)ATM_block_iter->atomHdr.name, name_len); // store block name
 
         header_data.push_back(0xd);
 
@@ -257,11 +265,11 @@ bool UEFCodec::encode(string &filePath)
 
         header_data.push_back((data_len > 0 ? data_len - 1 : 0));   // store length - 1
 
-        header_data.push_back(ATM_block_iter->hdr.execAdrHigh);     // store execution address
-        header_data.push_back(ATM_block_iter->hdr.execAdrLow);
+        header_data.push_back(ATM_block_iter->atomHdr.execAdrHigh);     // store execution address
+        header_data.push_back(ATM_block_iter->atomHdr.execAdrLow);
 
-        header_data.push_back(ATM_block_iter->hdr.loadAdrHigh);     // store load address
-        header_data.push_back(ATM_block_iter->hdr.loadAdrLow);
+        header_data.push_back(ATM_block_iter->atomHdr.loadAdrHigh);     // store load address
+        header_data.push_back(ATM_block_iter->atomHdr.loadAdrLow);
 
 
         if (!writeComplexDataChunk(fout, 8, 'N', -1, header_data, CRC)) {
@@ -275,7 +283,7 @@ bool UEFCodec::encode(string &filePath)
 
 
         // Add micro tone between header and data
-        if (mUseOriginalTiming && mTapFile.validTiming)
+        if (mUseOriginalTiming && tapeFile.validTiming)
             data_block_micro_lead_tone_duration = ATM_block_iter-> microToneCycles / (2* mBaseFrequency);
         if (!writeHighToneChunk(fout, data_block_micro_lead_tone_duration)) {
             printf("Failed to write %f Hz micro lead tone of duration %f s\n", mBaseFrequency, data_block_micro_lead_tone_duration);
@@ -320,9 +328,9 @@ bool UEFCodec::encode(string &filePath)
 
         // Write CRC chunk header
         Bytes CRC_data;
-        Byte dummy = 0;
+        Word dummy_CRC = 0;
         CRC_data.push_back(CRC);
-        if (!writeSimpleDataChunk(fout, CRC_data, dummy)) {
+        if (!writeSimpleDataChunk(fout, CRC_data, dummy_CRC)) {
             printf("Failed to write CRC data chunk%s\n", "");
         }
 
@@ -344,7 +352,7 @@ bool UEFCodec::encode(string &filePath)
         // Write a gap at the end of the block
         if (block_no == n_blocks - 1)
             block_gap = last_block_gap;
-        if (mUseOriginalTiming && mTapFile.validTiming)
+        if (mUseOriginalTiming && tapeFile.validTiming)
             block_gap = ATM_block_iter->blockGap;
         if (!writeFloatPrecGapChunk(fout, block_gap)) {
             printf("Failed to write %f s and of block gap\n", block_gap);
@@ -366,15 +374,16 @@ bool UEFCodec::encode(string &filePath)
     }
 
     if (mVerbose)
-        cout << "\nDone encoding program '" << mTapFile.blocks[0].hdr.name << "' as an UEF file...\n\n";
+        cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as an UEF file...\n\n";
 
     return true;
 
 }
 
-bool UEFCodec::decode(string &uefFileName)
+bool UEFCodec::decode(string &uefFileName, TapeFile& tapeFile)
 {
     igzstream fin(uefFileName.c_str());
+    file_being_read = false;
 
     if (!fin.good()) {
 
@@ -388,10 +397,10 @@ bool UEFCodec::decode(string &uefFileName)
     filesystem::path fin_p = uefFileName;
     string file_name = fin_p.stem().string();
 
-    mTapFile.blocks.clear();
-    mTapFile.complete = true;
-    mTapFile.validFileName = blockNameFromFilename(file_name);
-    mTapFile.isAbcProgram = true;
+    tapeFile.blocks.clear();
+    tapeFile.complete = true;
+    tapeFile.validFileName = blockNameFromFilename(file_name);
+    tapeFile.isBasicProgram = true;
 
     if (mVerbose)
         cout << "Initial block reading state is " << _BLOCK_STATE(mBlockState) << "...\n";
@@ -418,7 +427,7 @@ bool UEFCodec::decode(string &uefFileName)
         long chunk_sz = chunk_hdr.chunkSz[0] + (chunk_hdr.chunkSz[1] << 8) + (chunk_hdr.chunkSz[2] << 16) + (chunk_hdr.chunkSz[3] << 24);
 
         if (mVerbose)
-            cout << "\nChunk " << _CHUNK_ID(chunk_id) << " of size " << dec << chunk_sz << " read...\n";
+            cout << "\nChunk " << _CHUNK_ID(chunk_id) << " of size " << dec << chunk_sz << " read at state " << _BLOCK_STATE(mBlockState) << "...\n";
 
         switch (chunk_id) {
 
@@ -601,6 +610,7 @@ bool UEFCodec::decode(string &uefFileName)
             {
                 if (mVerbose)
                     cout << "Data block chunk 0100 of size " << chunk_sz << ".\n";
+                int count = 0;
                 for (int i = 0; i < chunk_sz; i++) {
                     Byte byte;
                     fin.read((char*)&byte, 1);
@@ -665,27 +675,188 @@ bool UEFCodec::decode(string &uefFileName)
     }
 
     if (mVerbose)
-        cout << "\n\nUEF File bytes read - now to decode them as an Atom Tape File\n\n";
+        cout << "\n\nUEF File bytes read - now to decode them as a Acorn Atom/BBC Micro Tape File\n\n";
 
 
 
     //
     // Iterate over the collected data and create an Atom File with ATM blocks from it
     //
+    bool success;
+    if (mBbcMicro)
+        success = createBBMFile(data, tapeFile);
+    else
+        success = createAtomFile(data, tapeFile);
     
+    fin.close();
+
+    if (mVerbose)
+        cout << "\nDone decoding UEF file '" << uefFileName << "'...\n\n";
+
+    return success;
+}
+
+bool UEFCodec::createBBMFile(Bytes data, TapeFile &tapeFile)
+{
     int block_no = 0;
     BytesIter data_iter = data.begin();
-    BlockType block_type = BlockType::Unknown;
+    bool is_last_block = false;
+    bool is_first_block = true;
     string tape_file_name;
 
-    while (data_iter < data.end()) {
+    while (data_iter < data.end() && !is_last_block) {
+
+        if (is_last_block)
+            is_first_block = true;
 
         //
         // Read one block
         // 
 
-        ATMBlock block;
-        Byte CRC = 0;
+        FileBlock block(BBCMicroBlock);
+        Word hdr_CRC;
+        BytesIter hdr_start = data_iter;
+
+         /*
+        block.blockGap = mBlockInfo[block_no].block_gap;
+        block.leadToneCycles = mBlockInfo[block_no].lead_tone_cycles;
+        block.microToneCycles = mBlockInfo[block_no].micro_tone_cycles;
+        block.phaseShift = mBlockInfo[block_no].half_cycle;
+        block.tapeStartTime = mBlockInfo[block_no].start;
+        block.tapeEndTime = mBlockInfo[block_no].end;
+        */
+        // Skip dummy byte if it is the first block
+        if (is_first_block) {
+            Word dummy_CRC;
+            Byte dummy_byte;
+            if (!read_bytes(data_iter, data, 1, dummy_CRC, &dummy_byte)) {
+                printf("Failed to read dummy byte for block #%d.\n", block_no);
+                return false;
+            }
+            is_first_block = false;
+        }
+        // Read preamble (1 x 0x2a)
+        if (!check_bytes(data_iter, data, 1, hdr_CRC, 0x2a)) {
+            printf("Failed to read preamble bytes for block #%d.\n", block_no);
+            return false;
+        }
+
+        hdr_CRC = 0;
+
+        // Read block name (up to 10 chars terminated by 0x0)
+        if (!read_block_name(data_iter, data, hdr_CRC, &block.bbmHdr.name[0])) {
+            printf("Failed to read name bytes for block #%d.\n", block_no);
+            return false;
+        }
+
+
+        // Read remaining of block header
+        BBMTapeBlockHdr hdr;
+        if (!read_bytes(data_iter, data, sizeof(hdr), hdr_CRC, (Byte*)&hdr)) {
+            printf("Failed to read last part of header for block #%d '%s'.\n", block_no, block.bbmHdr.name);
+            return false;
+        }
+
+        // Fill the Tape File Block with it
+        int data_len = bytes2uint(&hdr.blockLen[0], 2, true);
+        uint32_t load_address = bytes2uint(&hdr.loadAdr[0], 4, true);
+        uint32_t exec_address = bytes2uint(&hdr.execAdr[0], 4, true);
+        block_no = bytes2uint(&hdr.blockNo[0], 2, true);
+        block.bbmHdr.blockFlag = hdr.blockFlag;
+        uint32_t next_address = bytes2uint(&hdr.nextFileAdr[0], 4, true);
+        for(int i = 0; i < 4; i++) {
+            block.bbmHdr.execAdr[i] = hdr.execAdr[i];
+            block.bbmHdr.loadAdr[i] = hdr.loadAdr[i];
+        }
+        for (int i = 0; i < 2; i++) {
+            block.bbmHdr.blockLen[i] = hdr.blockLen[i];
+            block.bbmHdr.blockNo[i] = hdr.blockNo[i];
+        }  
+        block.bbmHdr.locked = (hdr.blockFlag & 0x40) != 0;
+        is_last_block = (hdr.blockFlag & 0x80) != 0;
+
+        if (mVerbose)
+            printf("%s %.8x %.8x %.4x %.4x %.4x %.8x\n", block.bbmHdr.name, load_address,
+                exec_address, block_no, data_len,
+                hdr.blockFlag, next_address
+            );
+
+        logData(0x0000, hdr_start, data_iter - hdr_start - 1);
+
+        // Read header CRC
+        Word read_hdr_CRC;
+        if (!read_word(data_iter, data, read_hdr_CRC, false)) {
+            printf("Failed to read header CRC for block #%d '%s'.\n", block_no, block.bbmHdr.name);
+            return false;
+        }
+
+
+        // Check header CRC
+        if (read_hdr_CRC != hdr_CRC) {
+            printf("Incorrect header CRC 0x%.4x (expected 0x%.4x) for block #%d '%s'.\n", read_hdr_CRC, hdr_CRC, block_no, block.bbmHdr.name);
+            return false;
+        }
+
+        Word data_CRC = 0;
+
+        // Read block data
+        if (!read_bytes(data_iter, data, data_len, data_CRC, block.data)) {
+            printf("Failed to read data part of block #%d '%s'.\n", block_no, block.bbmHdr.name);
+            return false;
+        }
+        BytesIter bi = block.data.begin();
+        logData(load_address, bi, block.data.size());
+
+
+        // Read data CRC
+        Word read_data_CRC;
+        if (!read_word(data_iter, data, read_data_CRC, false)) {
+            printf("Failed to read data block CRC for block #%d '%s'.\n", block_no, block.bbmHdr.name);
+            return false;
+        }
+ 
+
+        // Check data CRC
+        if (read_data_CRC != data_CRC) {
+            printf("Incorrect data CRC 0x%.4x (expected 0x%.4x) for block #%d '%s'.\n", read_data_CRC, data_CRC, block_no, block.bbmHdr.name);
+            return false;
+        }
+
+        tapeFile.blocks.push_back(block);
+
+        if (block_no == 0)
+            tape_file_name = block.bbmHdr.name;
+        else if (tape_file_name != block.bbmHdr.name) {
+            printf("Name of block #%d '%s' not consistent with tape file name '%s'.\n", block_no, block.bbmHdr.name, tape_file_name.c_str());
+            return false;
+        }
+
+        block_no++; // predict next block no
+    }
+
+    if (!is_last_block) {
+        printf("Missing last block for Atom File '%s'.\n", tape_file_name.c_str());
+        return false;
+    }
+
+    return true;
+}
+
+bool UEFCodec::createAtomFile(Bytes data, TapeFile& tapeFile)
+{
+    BytesIter data_iter = data.begin();
+    BlockType block_type = BlockType::Unknown;
+    string tape_file_name;
+    int block_no = 0;
+
+    while (data_iter < data.end() && !(block_type & BlockType::Last)) {
+
+        //
+        // Read one block
+        // 
+
+        FileBlock block(AtomBlock);
+        Word CRC = 0;
         BytesIter hdr_start = data_iter;
 
         block.blockGap = mBlockInfo[block_no].block_gap;
@@ -694,7 +865,7 @@ bool UEFCodec::decode(string &uefFileName)
         block.phaseShift = mBlockInfo[block_no].half_cycle;
         block.tapeStartTime = mBlockInfo[block_no].start;
         block.tapeEndTime = mBlockInfo[block_no].end;
-     
+
         // Read preamble (4 x 0x2a)
         if (!check_bytes(data_iter, data, 4, CRC, 0x2a)) {
             printf("Failed to read preamble bytes for block #%d.\n", block_no);
@@ -703,7 +874,7 @@ bool UEFCodec::decode(string &uefFileName)
 
 
         // Read block name (up to 13 chars terminated by 0xd)
-        if (!read_block_name(data_iter, data, CRC, block.hdr.name)) {
+        if (!read_block_name(data_iter, data, CRC, &block.atomHdr.name[0])) {
             printf("Failed to read name bytes for block #%d.\n", block_no);
             return false;
         }
@@ -711,63 +882,65 @@ bool UEFCodec::decode(string &uefFileName)
 
         // Read remaining of block header
         AtomTapeBlockHdr hdr;
-        if (!read_bytes(data_iter, data, sizeof(hdr), CRC, (Byte *)  & hdr)) {
-            printf("Failed to read last part of header  for block #%d '%s'.\n", block_no, block.hdr.name);
+        if (!read_bytes(data_iter, data, sizeof(hdr), CRC, (Byte*)&hdr)) {
+            printf("Failed to read last part of header  for block #%d '%s'.\n", block_no, block.atomHdr.name);
             return false;
         }
 
 
         int data_len;
         block_type = parseBlockFlag(hdr, data_len);
+        block_no = hdr.blockNoHigh * 256 + hdr.blockNoLow;
 
-        block.hdr.execAdrHigh = hdr.execAdrHigh;
-        block.hdr.execAdrLow = hdr.execAdrLow;
-        block.hdr.lenHigh = data_len / 256;
-        block.hdr.lenLow = data_len % 256;
-        block.hdr.loadAdrHigh = hdr.loadAdrHigh;
-        block.hdr.loadAdrLow = hdr.loadAdrLow;
+        block.atomHdr.execAdrHigh = hdr.execAdrHigh;
+        block.atomHdr.execAdrLow = hdr.execAdrLow;
+        block.atomHdr.lenHigh = data_len / 256;
+        block.atomHdr.lenLow = data_len % 256;
+        block.atomHdr.loadAdrHigh = hdr.loadAdrHigh;
+        block.atomHdr.loadAdrLow = hdr.loadAdrLow;
+        
 
         if (mVerbose)
-            printf("%s %.4x %.4x %.4x %.2x %.2x %.7s\n", block.hdr.name, hdr.loadAdrHigh * 256 + hdr.loadAdrLow,
-            hdr.execAdrHigh * 256 + hdr.execAdrLow, hdr.blockNoHigh * 256 + hdr.blockNoLow, hdr.dataLenM1,
-            hdr.flags, _BLOCK_ORDER(block_type)
-        );
+            printf("%s %.4x %.4x %.4x %.2x %.2x %.7s\n", block.atomHdr.name, hdr.loadAdrHigh * 256 + hdr.loadAdrLow,
+                hdr.execAdrHigh * 256 + hdr.execAdrLow, hdr.blockNoHigh * 256 + hdr.blockNoLow, hdr.dataLenM1,
+                hdr.flags, _BLOCK_ORDER(block_type)
+            );
 
-        logData(0x0000, hdr_start, data_iter - hdr_start + 1);
+        logData(0x0000, hdr_start, data_iter - hdr_start - 1);
 
         // Read block data
         if (!read_bytes(data_iter, data, data_len, CRC, block.data)) {
-            printf("Failed to read data part of block #%d '%s'.\n", block_no, block.hdr.name);
+            printf("Failed to read data part of block #%d '%s'.\n", block_no, block.atomHdr.name);
             return false;
         }
         BytesIter bi = block.data.begin();
         int load_address = hdr.loadAdrHigh * 256 + hdr.loadAdrLow;
         logData(load_address, bi, block.data.size());
-        
+
 
         // Read CRC
         if (!(data_iter < data.end())) {
-            printf("Failed to read CRC for block #%d '%s'.\n", block_no, block.hdr.name);
+            printf("Failed to read CRC for block #%d '%s'.\n", block_no, block.atomHdr.name);
             return false;
         }
-        Byte read_CRC = *data_iter++;
+        Word read_CRC = *data_iter++;
 
         // Check CRC
         if (read_CRC != CRC) {
-            printf("Incorrect CRC 0x%.2x (expected 0x%.2x) for block #%d '%s'.\n", read_CRC, CRC, block_no, block.hdr.name);
+            printf("Incorrect CRC 0x%.2x (expected 0x%.2x) for block #%d '%s'.\n", read_CRC, CRC, block_no, block.atomHdr.name);
             return false;
         }
- 
-        mTapFile.blocks.push_back(block);
+
+        tapeFile.blocks.push_back(block);
 
         if (block_type & BlockType::First)
-            tape_file_name = block.hdr.name;
-        else if (tape_file_name != block.hdr.name) {
-            printf("Name of block #%d '%s' not consistent with tape file name '%s'.\n", block_no, block.hdr.name, tape_file_name.c_str());
+            tape_file_name = block.atomHdr.name;
+        else if (tape_file_name != block.atomHdr.name) {
+            printf("Name of block #%d '%s' not consistent with tape file name '%s'.\n", block_no, block.atomHdr.name, tape_file_name.c_str());
             return false;
         }
 
-        block_no++;
+        block_no++; // predict next block no
 
     }
 
@@ -776,21 +949,33 @@ bool UEFCodec::decode(string &uefFileName)
         return false;
     }
 
-    fin.close();
+    return true;
 
-    if (mVerbose)
-        cout << "\nDone decoding UEF file '" << uefFileName << "'...\n\n";
+}
+
+bool UEFCodec::read_word(BytesIter& data_iter, Bytes& data, Word& word, bool little_endian)
+{
+    Word dummy_CRC;
+    Bytes bytes;
+    if (!read_bytes(data_iter, data, 2, dummy_CRC, bytes)) {
+        printf("Failed to read word.\n");
+        return false;
+    }
+
+    if (little_endian)
+        word = bytes[1] * 256 + bytes[0];
+    else
+        word = bytes[0] * 256 + bytes[1];
 
     return true;
 }
-
-bool UEFCodec::read_bytes(BytesIter& data_iter, Bytes& data, int n, Byte & CRC, Bytes &block_data)
+bool UEFCodec::read_bytes(BytesIter& data_iter, Bytes& data, int n, Word & CRC, Bytes &block_data)
 {
     int i = 0;
 
     for (i = 0; i < n && data_iter < data.end(); data_iter++) {
         block_data.push_back(*data_iter);
-        CRC += *data_iter;
+        updateCRC(CRC, *data_iter);
         i++;
     }
 
@@ -802,13 +987,13 @@ bool UEFCodec::read_bytes(BytesIter& data_iter, Bytes& data, int n, Byte & CRC, 
     return true;
 }
 
-bool UEFCodec::read_bytes(BytesIter& data_iter, Bytes& data, int n, Byte & CRC, Byte bytes[])
+bool UEFCodec::read_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, Byte bytes[])
 {
     int i = 0;
 
     for (i = 0; i < n && data_iter < data.end(); data_iter++) {
         bytes[i] = *data_iter;
-        CRC += *data_iter;
+        updateCRC(CRC, *data_iter);
         i++;
     }
 
@@ -820,16 +1005,16 @@ bool UEFCodec::read_bytes(BytesIter& data_iter, Bytes& data, int n, Byte & CRC, 
     return true;
 }
 
-bool UEFCodec::check_bytes(BytesIter& data_iter, Bytes& data, int n, Byte & CRC, Byte refVal)
+bool UEFCodec::check_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, Byte refVal)
 {
     int i = 0;
 
     for (i = 0; i < n && data_iter < data.end(); data_iter++) {
         if (*data_iter != refVal) {
-            printf("UEF Byte %d was %x when expecting %d.\n", i, *data_iter, refVal);
+            printf("UEF Byte %.2x was %x when expecting %2x.\n", i, *data_iter, refVal);
             return false;
         }
-        CRC += *data_iter;
+        updateCRC(CRC, *data_iter);
         i++;
     }
 
@@ -841,23 +1026,12 @@ bool UEFCodec::check_bytes(BytesIter& data_iter, Bytes& data, int n, Byte & CRC,
     return true;
 }
 
-bool UEFCodec::read_block_name(BytesIter &data_iter, Bytes &data, Byte& CRC, char name[ATM_MMC_HDR_NAM_SZ])
+bool UEFCodec::read_block_name(BytesIter &data_iter, Bytes &data, Word& CRC, char *name)
 {
-    int i = 0;
-
-    for (i = 0; i < ATM_MMC_HDR_NAM_SZ && *data_iter != 0xd && data_iter < data.end(); data_iter++) {
-        name[i] = *data_iter;
-        CRC += *data_iter;
-        i++;
-    }
-    for (int j = i; j < ATM_MMC_HDR_NAM_SZ; name[j++] = '\0');
-
-    if (*data_iter != 0xd)
-        return false;
-
-    CRC += *data_iter++; // should be 0xd;
-
-    return true;
+    if (mBbcMicro)
+        return readBBMTapeFileName(data_iter, data, CRC, name);
+    else
+        return readAtomTapeFileName(data_iter, data, CRC, name);
 }
 
 bool UEFCodec::writeUEFHeader(ogzstream&fout, Byte majorVersion, Byte minorVersion)
@@ -1048,7 +1222,7 @@ bool UEFCodec::writeHighToneChunk(ogzstream &fout, float duration)
     return true;
 }
 
-bool UEFCodec::writeComplexDataChunk(ogzstream &fout, Byte bitsPerPacket, Byte parity, Byte stopBitInfo, Bytes data, Byte & CRC)
+bool UEFCodec::writeComplexDataChunk(ogzstream &fout, Byte bitsPerPacket, Byte parity, Byte stopBitInfo, Bytes data, Word & CRC)
 {
 
     ComplexDataBlockChunkHdr chunk;
@@ -1065,7 +1239,7 @@ bool UEFCodec::writeComplexDataChunk(ogzstream &fout, Byte bitsPerPacket, Byte p
     BytesIter data_iter = data.begin();
     for (int i = 0; i < block_size - 3; i++) {
         Byte b = *data_iter++;
-        CRC += b;
+        updateCRC(CRC, b);
         fout.write((char*)&b, sizeof(b));
     }
 
@@ -1074,7 +1248,7 @@ bool UEFCodec::writeComplexDataChunk(ogzstream &fout, Byte bitsPerPacket, Byte p
     return true;
 }
 
-bool UEFCodec::writeSimpleDataChunk(ogzstream &fout, Bytes data, Byte &CRC)
+bool UEFCodec::writeSimpleDataChunk(ogzstream &fout, Bytes data, Word &CRC)
 {
     SimpleDataBlockChunkHdr chunk;
     int block_size = data.size();
@@ -1087,7 +1261,7 @@ bool UEFCodec::writeSimpleDataChunk(ogzstream &fout, Bytes data, Byte &CRC)
     BytesIter data_iter = data.begin();
     for (int i = 0; i < block_size; i++) {
         Byte b = *data_iter++;
-        CRC += b;
+        updateCRC(CRC, b);
         fout.write((char*)&b, sizeof(b));
     }
 
@@ -1128,90 +1302,155 @@ bool UEFCodec::addBytes2Vector(Bytes& v, Byte bytes[], int n)
     return true;
 }
 
-bool UEFCodec::getTAPFile(TAPFile& tapFile)
-{
-    tapFile = mTapFile;
-
-    return true;
-}
-
-bool UEFCodec::setTAPFile(TAPFile& tapFile)
-{
-    mTapFile = tapFile;
-
-    return true;
-}
-
-bool UEFCodec::updateBlockState(CHUNK_TYPE chunkType, double duration)
+bool UEFCodec::updateAtomBlockState(CHUNK_TYPE chunkType, double duration)
 {
     switch (chunkType) {
-        case CHUNK_TYPE::GAP_CHUNK:
-        {
-            if (
-                mBlockState == BLOCK_STATE::READING_DATA || // Normally a gap comes after reading the data
-                mBlockState == BLOCK_STATE::READING_GAP // In case the gap is split ito several gap chunks
-            ) {
-                if (!firstBlock) { // gap between blocks are saved as an attribute of the previous block
-                    mCurrentBlockInfo.block_gap = duration;
-                    mBlockInfo.push_back(mCurrentBlockInfo);
-                }
-                else
-                    firstBlock = false;
-                mBlockState = BLOCK_STATE::READING_GAP;
+    case CHUNK_TYPE::GAP_CHUNK:
+    {
+        if (
+            mBlockState == BLOCK_STATE::READING_DATA || // Normally a gap comes after reading the data
+            mBlockState == BLOCK_STATE::READING_GAP // In case the gap is split ito several gap chunks
+        ) {
+            if (!firstBlock) { // gap between blocks are saved as an attribute of the previous block
+                mCurrentBlockInfo.block_gap = duration;
+                mBlockInfo.push_back(mCurrentBlockInfo);
             }
             else
-                return false;
+                firstBlock = false;
+            mBlockState = BLOCK_STATE::READING_GAP;
+        }
+        else
+            return false;
 
-            break;
+        break;
+    }
+    case CHUNK_TYPE::TONE_CHUNK:
+    {
+        if ( // A lead tone?
+            mBlockState == BLOCK_STATE::READING_GAP || // Normally a lead tone comes after a gap
+            mBlockState == BLOCK_STATE::READING_DATA // Also allow lead tone without previous gap
+        ) {     
+            mCurrentBlockInfo.lead_tone_cycles = duration * mBaseFrequency * 2;
+            mBlockState = BLOCK_STATE::READING_LEAD_TONE;
+            mCurrentBlockInfo.start = mCurrentTime;
         }
-        case CHUNK_TYPE::TONE_CHUNK:
-        {
-            if ( // A lead tone?
-                mBlockState == BLOCK_STATE::READING_GAP || // Normally a lead tone comes after a gap
-                mBlockState == BLOCK_STATE::READING_DATA // Also allow lead tone without previous gap
+        else if ( // Must be a micro tone (separating block header and block data)
+            mBlockState == BLOCK_STATE::READING_HDR // A micro tone must come after reading the header
             ) {
-                mCurrentBlockInfo.lead_tone_cycles = duration * mBaseFrequency * 2;
-                mBlockState = BLOCK_STATE::READING_LEAD_TONE;
-                mCurrentBlockInfo.start = mCurrentTime;
-            }
-            else if ( // Must be a micro tone (separating block header and block data)
-                mBlockState == BLOCK_STATE::READING_HDR // A micro tone must come after reading the header
-                ) {
-                mCurrentBlockInfo.micro_tone_cycles = duration * mBaseFrequency * 2;
-                mBlockState = BLOCK_STATE::READING_MICRO_TONE;
-            }
-            else
-                return false;
-            break;
+            mCurrentBlockInfo.micro_tone_cycles = duration * mBaseFrequency * 2;
+            mBlockState = BLOCK_STATE::READING_MICRO_TONE;
         }
-        case CHUNK_TYPE::DATA_CHUNK:
-        {
-            if ( // Block header?
-                mBlockState == BLOCK_STATE::READING_LEAD_TONE || // Normally the block header comes after the lead tone
-                mBlockState == BLOCK_STATE::READING_HDR // In case the block header is being split into several data chunks
+        else
+            return false;
+        break;
+    }
+    case CHUNK_TYPE::DATA_CHUNK:
+    {
+        if ( // Block header?
+            mBlockState == BLOCK_STATE::READING_LEAD_TONE || // Normally the block header comes after the lead tone
+            mBlockState == BLOCK_STATE::READING_HDR // In case the block header is being split into several data chunks
             ) {
-                mBlockState = BLOCK_STATE::READING_HDR;
-            }
-            else if ( // Must be block data then
-                mBlockState == BLOCK_STATE::READING_MICRO_TONE || // Normally the block data comes after the micro tone
-                mBlockState == BLOCK_STATE::READING_DATA // In case the block data is split into several data chunks
-            ) {
-                mBlockState = BLOCK_STATE::READING_DATA;
-                mCurrentBlockInfo.end = mCurrentTime; // Last block data read will give the time when the block ends
-            }
-            else {
-                printf("Bytes when block state was %s!\n", _BLOCK_STATE(mBlockState));
-                return false;
-            }
-            break;
+            mBlockState = BLOCK_STATE::READING_HDR;
         }
-
-        default:
-        {
-            cout << "Undefined chunk type " << (int)chunkType << "\n";
+        else if ( // Must be block data then
+            mBlockState == BLOCK_STATE::READING_MICRO_TONE || // Normally the block data comes after the micro tone
+            mBlockState == BLOCK_STATE::READING_DATA // In case the block data is split into several data chunks
+            ) {
+            mBlockState = BLOCK_STATE::READING_DATA;
+            mCurrentBlockInfo.end = mCurrentTime; // Last block data read will give the time when the block ends
+        }
+        else {
+            printf("Bytes when block state was %s!\n", _BLOCK_STATE(mBlockState));
             return false;
         }
+        break;
     }
+
+    default:
+    {
+        cout << "Undefined chunk type " << (int)chunkType << "\n";
+        return false;
+    }
+
+    }
+}
+
+bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
+{
+    switch (chunkType) {
+    case CHUNK_TYPE::GAP_CHUNK:
+    {
+        if (
+            mBlockState == BLOCK_STATE::READING_LEAD_TONE_PREFIX // Normally a gap comes after reading the last block only
+        ) {
+            mCurrentBlockInfo.block_gap = duration;
+            firstBlock = true;   
+            mBlockState = BLOCK_STATE::READING_GAP;
+        }
+        else
+            return false;
+
+        break;
+    }
+    case CHUNK_TYPE::TONE_CHUNK:
+    {
+        if ( // A lead tone?
+            mBlockState == BLOCK_STATE::READING_GAP // A tone after a gap signal the end of a file and the start of a new one
+            ) {
+            if (file_being_read) {
+                mCurrentBlockInfo.trailer_tone_cycles = duration * mBaseFrequency * 2;
+                mBlockInfo.push_back(mCurrentBlockInfo);
+            }
+            else {            
+                file_being_read = true;
+            }
+            mBlockState = BLOCK_STATE::READING_LEAD_TONE_PREFIX;
+            mCurrentBlockInfo.start = mCurrentTime;
+            firstBlock = true;
+        } else if (mBlockState == BLOCK_STATE::READING_HDR_DATA) { // A tone separates blocks
+            mCurrentBlockInfo.lead_tone_cycles = duration * mBaseFrequency * 2;
+            mBlockState = BLOCK_STATE::READING_LEAD_TONE_PREFIX;
+        } else if (mBlockState == BLOCK_STATE::READING_DUMMY_BYTE) { // A tone follows after a dummy byte for the first block
+            mBlockState = BLOCK_STATE::READING_LEAD_TONE_SUFFIX;
+            mCurrentBlockInfo.lead_tone_cycles += duration * mBaseFrequency * 2;
+        }
+        else
+            return false;
+        break;
+    }
+    case CHUNK_TYPE::DATA_CHUNK:
+    {
+        if (mBlockState == BLOCK_STATE::READING_LEAD_TONE_PREFIX && firstBlock) {
+            mBlockState = BLOCK_STATE::READING_DUMMY_BYTE;
+            firstBlock = false;
+        }
+        else if ( // Block header & data?
+            mBlockState == BLOCK_STATE::READING_LEAD_TONE_SUFFIX ||
+            mBlockState == BLOCK_STATE::READING_LEAD_TONE_PREFIX
+            ) {
+            mBlockState = BLOCK_STATE::READING_HDR_DATA;
+        }
+        else {
+            printf("Bytes when block state was %s!\n", _BLOCK_STATE(mBlockState));
+            return false;
+        }
+        break;
+    }
+
+    default:
+    {
+        cout << "Undefined chunk type " << (int)chunkType << "\n";
+        return false;
+    }
+
+    }
+}
+bool UEFCodec::updateBlockState(CHUNK_TYPE chunkType, double duration)
+{
+    if (mBbcMicro)
+        updateBBMBlockState(chunkType, duration);
+    else
+        updateAtomBlockState(chunkType, duration);
 
     mCurrentTime += duration;
 

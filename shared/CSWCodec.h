@@ -9,7 +9,7 @@
 #include "TAPCodec.h"
 #include "../shared/TapeProperties.h"
 #include "../shared/WaveSampleTypes.h"
-
+#include "../shared/BlockTypes.h"
 
 using namespace std;
 
@@ -91,8 +91,6 @@ class CSWCodec
 
 private:
 
-	TAPFile mTapFile;
-
 	TapeProperties mTapeTiming;
 
 	bool mUseOriginalTiming = false;
@@ -104,20 +102,14 @@ public:
 	// Default constructor
 	CSWCodec(bool verbose);
 
-	// Constructor allowing the codec to be initialised with a TAP file and a Tape timing
-	CSWCodec(TAPFile& tapFile, bool useOriginalTiming, bool verbose);
+	// Constructor
+	CSWCodec(bool useOriginalTiming, bool verbose);
 
 	// Reinitialise codec with a new tape timing
 	bool setTapeTiming(TapeProperties tapeTiming);
 
-	// Get the codec's TAP file
-	bool getTAPFile(TAPFile& tapFile);
-
-	// Reinitialise codec with a new TAP file
-	bool setTAPFile(TAPFile& tapFile);
-
 	// Encode a TAP File structure as CSW file
-	bool encode(string& filePath, int sampleFreq);
+	bool encode(TapeFile &tapeFile, string& filePath, int sampleFreq);
 
 	 // Decode a CSW file as a vector of pulses
 	bool decode(string &CSWFileName, Bytes &pulses, int &sampleFreq, HalfCycle &firstHalfCycle);

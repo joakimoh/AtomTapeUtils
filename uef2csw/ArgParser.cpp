@@ -21,6 +21,7 @@ void ArgParser::printUsage(const char *name)
 	cout << "-v:\n\tVerbose output\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.csw'.\n\n";
+	cout << "-bbm:\n\Scan for BBC Micro (default is Acorn Atom)\n\n";
 	cout << "\n";
 }
 
@@ -43,6 +44,9 @@ ArgParser::ArgParser(int argc, const char* argv[])
 
 			dstFileName = argv[ac+1];
 			ac++;
+		}
+		else if (strcmp(argv[ac], "-bbm") == 0) {
+			bbcMicro = true;
 		}
 		else if (strcmp(argv[ac], "-f") == 0) {
 			long freq = strtol(argv[ac + 1], NULL, 10);

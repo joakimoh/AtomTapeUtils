@@ -6,10 +6,10 @@
 #include <string.h>
 #include "CSWCodec.h"
 #include "CommonTypes.h"
-#include "BlockTypes.h"
+#include "AtomBlockTypes.h"
 #include "Debug.h"
 #include "Utility.h"
-#include "BlockTypes.h"
+#include "AtomBlockTypes.h"
 #include "WaveSampleTypes.h"
 #include "zpipe.h"
 
@@ -23,7 +23,7 @@ CSWCodec::CSWCodec(bool verbose) : mVerbose(verbose)
 
 }
 
-CSWCodec::CSWCodec(TAPFile& tapFile, bool useOriginalTiming, bool verbose): mTapFile(tapFile), mVerbose(verbose)
+CSWCodec::CSWCodec(bool useOriginalTiming, bool verbose): mVerbose(verbose)
 {
     mUseOriginalTiming = useOriginalTiming;
 }
@@ -35,22 +35,8 @@ bool CSWCodec::setTapeTiming(TapeProperties tapeTiming)
     return true;
 }
 
-bool CSWCodec::getTAPFile(TAPFile& tapFile)
-{
-    tapFile = mTapFile;
 
-    return true;
-}
-
-bool CSWCodec::setTAPFile(TAPFile& tapFile)
-{
-    mTapFile = tapFile;
-
-    return true;
-}
-
-
-bool CSWCodec::encode(string &filePath, int sampleFreq)
+bool CSWCodec::encode(TapeFile& tapeFile, string &filePath, int sampleFreq)
 {
 
     mFS = sampleFreq;
@@ -83,21 +69,21 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
     float high_tone_freq = mTapeTiming.baseFreq * 2;
 
  
-    if (mTapFile.blocks.empty())
+    if (tapeFile.blocks.empty())
         return false;
 
 
     if (mVerbose)
-        cout << "\nEncode program '" << mTapFile.blocks[0].hdr.name << "' as a CSW file...\n\n";
+        cout << "\nEncode program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
 
 
-    ATMBlockIter ATM_block_iter = mTapFile.blocks.begin();
+    FileBlockIter ATM_block_iter = tapeFile.blocks.begin();
 
 
 
 
     int block_no = 0;
-    int n_blocks = (int)mTapFile.blocks.size();
+    int n_blocks = (int)tapeFile.blocks.size();
 
     // Encode initial gap before first block
     if (!writeGap(first_block_gap)) {
@@ -108,7 +94,7 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
         cout << first_block_gap << " s GAP\n";
 
 
-    while (ATM_block_iter < mTapFile.blocks.end()) {
+    while (ATM_block_iter < tapeFile.blocks.end()) {
 
         // Write a lead tone for the block
         if (mUseOriginalTiming) {
@@ -139,7 +125,7 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
         // --------------------------------------------------------------------------
 
 
-        int data_len = ATM_block_iter->hdr.lenHigh * 256 + ATM_block_iter->hdr.lenLow;  // get data length
+        int data_len = ATM_block_iter->atomHdr.lenHigh * 256 + ATM_block_iter->atomHdr.lenLow;  // get data length
 
         Byte b7 = (block_no < n_blocks - 1 ? 0x80 : 0x00);          // calculate flags
         Byte b6 = (data_len > 0 ? 0x40 : 0x00);
@@ -153,9 +139,9 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
 
         // store block name
         int name_len = 0;
-        for (; name_len < sizeof(ATM_block_iter->hdr.name) && ATM_block_iter->hdr.name[name_len] != 0; name_len++);
+        for (; name_len < sizeof(ATM_block_iter->atomHdr.name) && ATM_block_iter->atomHdr.name[name_len] != 0; name_len++);
         for (int i = 0; i < name_len; i++)
-            header_data.push_back(ATM_block_iter->hdr.name[i]);
+            header_data.push_back(ATM_block_iter->atomHdr.name[i]);
 
         header_data.push_back(0xd);
 
@@ -166,11 +152,11 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
 
         header_data.push_back((data_len > 0 ? data_len - 1 : 0));   // store length - 1
 
-        header_data.push_back(ATM_block_iter->hdr.execAdrHigh);     // store execution address
-        header_data.push_back(ATM_block_iter->hdr.execAdrLow);
+        header_data.push_back(ATM_block_iter->atomHdr.execAdrHigh);     // store execution address
+        header_data.push_back(ATM_block_iter->atomHdr.execAdrLow);
 
-        header_data.push_back(ATM_block_iter->hdr.loadAdrHigh);     // store load address
-        header_data.push_back(ATM_block_iter->hdr.loadAdrLow);
+        header_data.push_back(ATM_block_iter->atomHdr.loadAdrHigh);     // store load address
+        header_data.push_back(ATM_block_iter->atomHdr.loadAdrLow);
 
 
         // Encode the header bytes
@@ -295,7 +281,7 @@ bool CSWCodec::encode(string &filePath, int sampleFreq)
     mPulses.clear();
 
     if (mVerbose)
-        cout << "\nDone encoding program '" << mTapFile.blocks[0].hdr.name << "' as a CSW file...\n\n";
+        cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
 
     return true;
 

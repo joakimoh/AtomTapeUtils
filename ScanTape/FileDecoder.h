@@ -6,6 +6,7 @@
 #include "BlockDecoder.h"
 #include <vector>
 #include "../shared/CommonTypes.h"
+#include "BlockTypes.h"
 
 
 
@@ -14,26 +15,23 @@ class FileDecoder
 {
 
 
-private:
+protected:
 
-	BlockDecoder mBlockDecoder;
-	TAPFile mTapFile;
 
 	ArgParser mArgParser;
 
 	bool mTracing;
 	bool mVerbose;
 
+	string timeToStr(double t);
 
 public:
 
 
 
-	FileDecoder(BlockDecoder& blockDecoder, ArgParser &argParser);
+	FileDecoder(ArgParser& argParser);
 
-	bool readFile(ofstream& logFile);
-
-	bool getTAPFile(TAPFile& tapFile);
+	virtual bool readFile(ofstream& logFile, TapeFile& tapFile) = 0;
 
 
 

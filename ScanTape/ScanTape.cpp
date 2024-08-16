@@ -11,8 +11,10 @@
 #include "LevelDecoder.h"
 #include "WavCycleDecoder.h"
 #include "CSWCycleDecoder.h"
-#include "BlockDecoder.h"
-#include "FileDecoder.h"
+#include "AtomBlockDecoder.h"
+#include "BBMBlockDecoder.h"
+#include "AtomFileDecoder.h"
+#include "BBMFileDecoder.h"
 #include "../shared/WaveSampleTypes.h"
 #include "ArgParser.h"
 #include "../shared/UEFCodec.h"
@@ -21,6 +23,7 @@
 #include "../shared/PcmFile.h"
 #include "../shared/Utility.h"
 #include "../shared/CSWCodec.h"
+#include "BlockTypes.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -87,16 +90,33 @@ int main(int argc, const char* argv[])
         cout << "Min micro lead duration = " << arg_parser.tapeTiming.minBlockTiming.microLeadToneDuration << " s\n";
         cout << "Tape timing when generating UEF/CSW files = " << (arg_parser.tapeTiming.preserve ? "Original" : "Standard") << "\n";
         cout << "Sample frequency from input file: " << sample_freq << " Hz\n";
+        cout << "Target computer: " << (arg_parser.bbcMicro?"BBC Micro":"Acorn Atom") << "\n";
     }
    
-    
+    FileDecoder *fileDecoder = NULL;
+    TapeFile *tapFile = NULL;
 
-    // Create A Block Decoder used to detect and read one block from a cycle stream
-    BlockDecoder block_decoder(*cycle_decoder, arg_parser, arg_parser.verbose);
+    if (arg_parser.bbcMicro) {
 
-    // Create a File Decoder used to detect and read a complete Atom Tape File
-    FileDecoder fileDecoder(block_decoder, arg_parser);
+        // Create A Block Decoder used to detect and read one block from a cycle stream
+        BBMBlockDecoder block_decoder(*cycle_decoder, arg_parser, arg_parser.verbose);
 
+        // Create a File Decoder used to detect and read a complete Atom Tape File
+        fileDecoder = new BBMFileDecoder(block_decoder, arg_parser);
+
+        tapFile = new TapeFile(BBCMicroFile);
+    }
+    else {
+
+        // Create A Block Decoder used to detect and read one block from a cycle stream
+        AtomBlockDecoder block_decoder(*cycle_decoder, arg_parser, arg_parser.verbose);
+
+        // Create a File Decoder used to detect and read a complete Atom Tape File
+        fileDecoder = new AtomFileDecoder(block_decoder, arg_parser);
+
+        tapFile = new TapeFile(AtomFile);
+    }
+ 
 
     // Create a log file
     string fout_name = "tape.log";
@@ -121,53 +141,49 @@ int main(int argc, const char* argv[])
     
     // Read complete Atom files using the File Decoder
     bool read_file;
-    while ((read_file = fileDecoder.readFile(fout))) {
-
-        TAPFile tapFile;
-        if (!fileDecoder.getTAPFile(tapFile)) {
-            cout << "Failed to get TAP file\n";
-            return -1;
-        }
+    while ((read_file = fileDecoder->readFile(fout, *tapFile))) {
 
 
-            if (tapFile.blocks.size() > 0) {
+            if (tapFile->blocks.size() > 0) {
 
                 if (!read_file) {
                     cout << "Failed to scan the WAV file!\n";
                     //return -1;
                 }
                 if (arg_parser.verbose)
-                    cout << "Atom Tape File '" << tapFile.blocks.front().hdr.name <<
-                        "' read. Base file name used for generated files is: '" << tapFile.validFileName << "'.\n";
+                    cout << (tapFile->fileType == AtomFile ?"Atom":"BBC Micro") << " Tape File '" << tapFile->blocks.front().blockName() <<
+                        "' read. Base file name used for generated files is: '" << tapFile->validFileName << "'.\n";
 
-                DataCodec DATA_codec = DataCodec(tapFile, arg_parser.verbose);
-                string DATA_file_name = crEncodedFileNamefromDir(arg_parser.genDir, tapFile, "dat");
-                if (!DATA_codec.encode(DATA_file_name)) {
+                DataCodec DATA_codec = DataCodec(arg_parser.verbose);
+                string DATA_file_name = crEncodedFileNamefromDir(arg_parser.genDir, *tapFile, "dat");
+                if (!DATA_codec.encode(*tapFile, DATA_file_name)) {
                     cout << "Failed to write the DATA file!\n";
                     //return -1;
                 }
 
-                AtomBasicCodec ABC_codec = AtomBasicCodec(tapFile, arg_parser.verbose);
-                string ABC_file_name = crEncodedFileNamefromDir(arg_parser.genDir, tapFile, "abc");
-                if (!ABC_codec.encode(ABC_file_name)) {
-                    cout << "Failed to write the program file!\n";
-                    //return -1;
+                if (tapFile->fileType == AtomFile) {
+                    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, false);
+                    string ABC_file_name = crEncodedFileNamefromDir(arg_parser.genDir, *tapFile, "abc");
+                    if (!ABC_codec.encode(*tapFile, ABC_file_name)) {
+                        cout << "Failed to write the program file!\n";
+                        //return -1;
+                    }
                 }
 
-                if (tapFile.complete) {
+                if (tapFile->complete) {
 
                     // Only generate TAP & UEF files if the Tape file was completed (without missing blocks)
 
-                    TAPCodec TAP_codec = TAPCodec(tapFile, arg_parser.verbose);
-                    string TAP_file_name = crEncodedFileNamefromDir(arg_parser.genDir, tapFile, "");
-                    if (!TAP_codec.encode(TAP_file_name)) {
+                    TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
+                    string TAP_file_name = crEncodedFileNamefromDir(arg_parser.genDir, *tapFile, "");
+                    if (!TAP_codec.encode(*tapFile, TAP_file_name)) {
                         cout << "Failed to write the TAP file!\n";
                         //return -1;
                     }
 
-                    UEFCodec UEF_codec = UEFCodec(tapFile, arg_parser.tapeTiming.preserve, arg_parser.verbose);
-                    string UEF_file_name = crEncodedFileNamefromDir(arg_parser.genDir, tapFile, "uef");
-                    if (!UEF_codec.encode(UEF_file_name)) {
+                    UEFCodec UEF_codec = UEFCodec(arg_parser.tapeTiming.preserve, arg_parser.verbose, arg_parser.bbcMicro);
+                    string UEF_file_name = crEncodedFileNamefromDir(arg_parser.genDir, *tapFile, "uef");
+                    if (!UEF_codec.encode(*tapFile, UEF_file_name)) {
                         cout << "Failed to write the UEF file!\n";
                         //return -1;
                     }

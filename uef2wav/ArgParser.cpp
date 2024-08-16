@@ -33,6 +33,7 @@ void ArgParser::printUsage(const char* name)
 	cout << "-pot:\n\tPreserve original tape timing when generating the CSW file - default is " << mPreserveOriginalTiming << "\n\n";
 	cout << "-f <sample freq>:\n\tSample frequency to use - default is " << mSampleFreq << "\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
+	cout << "-bbm:\n\Scan for BBC Micro (default is Acorn Atom)\n\n";
 	cout << "\n";
 }
 
@@ -54,6 +55,9 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
 			dstFileName = argv[ac + 1];
 			ac++;
+		}
+		else if (strcmp(argv[ac], "-bbm") == 0) {
+			bbcMicro = true;
 		}
 		else if (strcmp(argv[ac], "-f") == 0) {
 			long freq = strtol(argv[ac + 1], NULL, 10);

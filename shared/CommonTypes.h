@@ -10,6 +10,7 @@ using namespace std;
 
 
 typedef uint8_t Byte;
+typedef uint16_t Word;
 typedef vector<Byte> Bytes;
 typedef Bytes::iterator BytesIter;
 

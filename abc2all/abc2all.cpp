@@ -41,12 +41,13 @@ int main(int argc, const char* argv[])
 
 
     // Decode ABC file
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose);
-    if (!ABC_codec.decode(arg_parser.srcFileName)) {
+    TapeFile TAP_file(AtomFile);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, false);
+    if (!ABC_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
     }
-    TAPFile TAP_file;
-    ABC_codec.getTAPFile(TAP_file);
+    
+
 
 
 
@@ -55,23 +56,23 @@ int main(int argc, const char* argv[])
     // 
 
     // Generate DATA file
-    DataCodec DATA_codec = DataCodec(TAP_file, arg_parser.verbose);
+    DataCodec DATA_codec = DataCodec(arg_parser.verbose);
     string DATA_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "dat");
-    if (!DATA_codec.encode(DATA_file_name)) {
+    if (!DATA_codec.encode(TAP_file, DATA_file_name)) {
         cout << "Failed to write the DATA file!\n";
     }
 
     // Generate TAP file
-    TAPCodec TAP_codec = TAPCodec(TAP_file, arg_parser.verbose);
+    TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
     string TAP_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "");
-    if (!TAP_codec.encode(TAP_file_name)) {
+    if (!TAP_codec.encode(TAP_file, TAP_file_name)) {
         cout << "Failed to write the TAP file!\n";
     }
 
     // generate UEF file
-    UEFCodec UEF_codec = UEFCodec(TAP_file, false, arg_parser.verbose);
+    UEFCodec UEF_codec = UEFCodec(false, arg_parser.verbose, false);
     string UEF_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "uef");
-    if (!UEF_codec.encode(UEF_file_name)) {
+    if (!UEF_codec.encode(TAP_file, UEF_file_name)) {
         cout << "Failed to write the UEF file!\n";
     }
 

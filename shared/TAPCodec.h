@@ -20,41 +20,27 @@ public:
 
 
 	/*
-	 * Create TAP Codec and initialise it with a TAP
-	 * file structure. If the file is not complete,
-	 * then 'complete' shall be set to false.
+	 * Create TAP Codec.
 	 */
-	TAPCodec(TAPFile& tapFile, bool verbose);
-
 	TAPCodec(bool verbose);
 
 	/*
 	 * Encode TAP File structure as TAP file
 	 */
-	bool encode(string & filePath);
+	bool encode(TapeFile& tapFile, string & filePath);
 
 	/*
 	 * Decode TAP file as TAP File structure
 	 */
-	bool decode(string &dataFileName);
+	bool decode(string &dataFileName, TapeFile& tapFile);
 
-	bool decodeSingleFile(ifstream& fin, unsigned file_size, TAPFile& tapFile);
+	bool decodeSingleFile(ifstream& fin, unsigned file_size, TapeFile& tapFile);
 
-	bool decodeMultipleFiles(string& tapFileName, vector<TAPFile> &atomFiles);
+	bool decodeMultipleFiles(string& tapFileName, vector<TapeFile> &atomFiles);
 
-	/*
-	 * Get the codec's TAP file 
-	 */
-	bool getTAPFile(TAPFile& tapFile);
-
-	/*
-	 * Reinitialise codec with a new TAP file
-	 */
-	bool setTAPFile(TAPFile& tapFile);
 
 private:
 
-	TAPFile mTapFile;
 	bool mVerbose = false;
 };
 

@@ -5,6 +5,82 @@
 #include "Debug.h"
 #include <filesystem>
 
+uint32_t bytes2uint(Byte* bytes, int n, bool littleEndian)
+{
+    uint32_t u = 0;
+    for (int i = 0; i < n && i < 4; i++) {
+        if (littleEndian)
+            u = (u << 8) & 0xffffff00 |  *(bytes + n - 1 - i);
+        else
+            u = (u << 8) & 0xffffff00 | + *(bytes+i);
+    }
+    return u;
+
+}
+
+bool readAtomTapeFileName(BytesIter& data_iter, Bytes& data, Word& CRC, char *name)
+{
+    int i = 0;
+
+    for (i = 0; i < ATM_MMC_HDR_NAM_SZ && *data_iter != 0xd && data_iter < data.end(); data_iter++) {
+        name[i] = *data_iter;
+        updateAtomCRC(CRC, *data_iter);
+        i++;
+    }
+    for (int j = i; j < ATM_MMC_HDR_NAM_SZ; name[j++] = '\0');
+
+    if (*data_iter != 0xd)
+        return false;
+
+    updateAtomCRC(CRC, *data_iter++); // should be 0xd;
+
+    return true;
+}
+
+bool readBBMTapeFileName(BytesIter& data_iter, Bytes& data, Word& CRC, char *name)
+{
+    int i = 0;
+
+    for (i = 0; i < BBM_MMC_HDR_NAM_SZ && *data_iter != 0x0 && data_iter < data.end(); data_iter++) {
+        name[i] = *data_iter;
+        updateBBMCRC(CRC, *data_iter);
+        i++;
+    }
+    for (int j = i; j < BBM_MMC_HDR_NAM_SZ; name[j++] = '\0');
+
+    if (*data_iter != 0x0)
+        return false;
+
+    updateBBMCRC(CRC, *data_iter++); // should be 0x0;
+
+    return true;
+}
+
+void updateAtomCRC(Word& CRC, Byte data)
+{
+    CRC = (CRC + data) % 256;
+}
+
+/*
+ * Calculate 16-bit CRC for BBC Micro
+ * 
+ * The CRC is XMODEM with the polynom x^16 + x^12 + x^5 + 1 (0x11021) 
+ * start value 0 and check value 0x31C3
+ */
+void updateBBMCRC(Word& CRC, Byte data)
+{
+    CRC ^=  data << 8;
+    for (int i = 0; i < 8; i++)
+    {
+        if (CRC & 0x8000)
+            CRC = (CRC << 1) ^ 0x11021;
+        else
+            CRC = CRC << 1;
+    } 
+}
+
+
+
 string crDefaultOutFileName(string filePath, string fileExt)
 {
     filesystem::path file_path = filePath;
@@ -37,10 +113,10 @@ string crDefaultOutFileName(string filePath)
 
     return file_out_path.string();
 }
-string crEncodedFileNamefromDir(string dirPath, TAPFile mTapFile, string fileExt)
+string crEncodedFileNamefromDir(string dirPath, TapeFile tapeFile, string fileExt)
 {
     filesystem::path dir_path = dirPath;
-    filesystem::path file_base = mTapFile.validFileName;
+    filesystem::path file_base = tapeFile.validFileName;
 
     string suffix;
     string file_ext;
@@ -49,10 +125,10 @@ string crEncodedFileNamefromDir(string dirPath, TAPFile mTapFile, string fileExt
     else
         file_ext = "." + fileExt;
 
-    if (mTapFile.complete)
+    if (tapeFile.complete)
         suffix = file_ext;
     else
-        suffix = "_incomplete_" + to_string(mTapFile.firstBlock) + "_" + to_string(mTapFile.lastBlock) + file_ext;
+        suffix = "_incomplete_" + to_string(tapeFile.firstBlock) + "_" + to_string(tapeFile.lastBlock) + file_ext;
 
     filesystem::path output_file_name = dir_path / file_base;
     output_file_name += suffix;
@@ -112,7 +188,7 @@ string blockNameFromFilename(string fn)
     int len = (int)fn.length();
     int p = 0;
     int atom_file_pos = 0;
-    while (p < len && atom_file_pos < MAX_TAPE_NAME_LEN) {
+    while (p < len && atom_file_pos < MAX_ATM_NAME_LEN) {
         char c = fn[p];
         // Look for escape sequences __ and _hh 
         if (fn[p] == '_') {
@@ -236,6 +312,21 @@ BlockType parseBlockFlag(AtomTapeBlockHdr hdr, int& blockLen) {
 
 }
 
+bool extractBBMBlockPars(
+    FileBlock block, bool is_last_block, int nReadChars,
+    int& loadAdr, int& loadAdrUB, int& execAdr, int& blockSz,
+    bool& isBasicProgram, string& fileName
+) {
+    loadAdr = -1;
+    loadAdrUB = -1;
+    execAdr = -1;
+    blockSz = -1;
+    isBasicProgram = false;
+    fileName = "???";
+
+    return true;
+}
+
 //
 // Extract parameters from the read block's header.
 //
@@ -259,36 +350,36 @@ BlockType parseBlockFlag(AtomTapeBlockHdr hdr, int& blockLen) {
 //        Byte loadAdrHigh;
 //        Byte loadAdrLow;
 //
-// The read block is stored in a Wouter Ras ATM header format structure (ATMBlock).
+// The read block is stored in a Wouter Ras ATM header format structure (FileBlock).
 // This structure is similar to the tape structure but neither includes the block no
 // nor the flags. This is most likely because the block no (and related flag bits)
 // follows from the block sequence itself as blocks are numbered 0, 1, 2, ..., n-1
 // where n = no of blocks..
 //
 bool extractBlockPars(
-    ATMBlock block, BlockType blockType, int nReadChars,
+    FileBlock block, BlockType blockType, int nReadChars,
     int& loadAdr, int& loadAdrUB, int& execAdr, int& blockSz,
-    bool& isAbcProgram, string& fileName
+    bool& isBasicProgram, string& fileName
 )
 {
     loadAdr = -1;
     loadAdrUB = -1;
     execAdr = -1;
     blockSz = -1;
-    isAbcProgram = false;
+    isBasicProgram = false;
     fileName = "???";
 
     // Get TAP filename if it was completey read
     if (nReadChars > 4) { // name comes after 4-bytes preamble
         fileName = "";
         int sz = 0;
-        for (sz = 0; sz < sizeof(block.hdr.name) && block.hdr.name[sz] != 0x0; sz++) {
-            if (block.hdr.name[sz] < 0x20 || block.hdr.name[sz] > 0x7f) {
+        for (sz = 0; sz < sizeof(block.atomHdr.name) && block.atomHdr.name[sz] != 0x0; sz++) {
+            if (block.atomHdr.name[sz] < 0x20 || block.atomHdr.name[sz] > 0x7f) {
                 fileName += "?";
                 break;
             }
             else
-                fileName += block.hdr.name[sz];
+                fileName += block.atomHdr.name[sz];
         }
     } else
         return false; // If filename not read then the rest will not have been read either...
@@ -297,19 +388,19 @@ bool extractBlockPars(
     int offset = 4 + fileName.length();
 
     if (nReadChars > offset + (long)  & ((AtomTapeBlockHdr*)0)->loadAdrLow)
-        loadAdr = block.hdr.loadAdrHigh * 256 + block.hdr.loadAdrLow;
+        loadAdr = block.atomHdr.loadAdrHigh * 256 + block.atomHdr.loadAdrLow;
 
     if (nReadChars > offset + (long)&((AtomTapeBlockHdr*)0)->dataLenM1)
-        blockSz = block.hdr.lenHigh * 256 + block.hdr.lenLow;
+        blockSz = block.atomHdr.lenHigh * 256 + block.atomHdr.lenLow;
 
     if (loadAdr > 0 && blockSz > 0)
         loadAdrUB = loadAdr + blockSz;
 
     if (nReadChars > offset + (long) &((AtomTapeBlockHdr*)0) -> execAdrLow)
-        execAdr = block.hdr.execAdrHigh * 256 + block.hdr.execAdrLow;
+        execAdr = block.atomHdr.execAdrHigh * 256 + block.atomHdr.execAdrLow;
 
     if (execAdr == 0xc2b2)
-        isAbcProgram = true;
+        isBasicProgram = true;
 
     return (nReadChars >= sizeof(AtomTapeBlockHdr) + offset);
 }

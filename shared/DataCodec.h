@@ -11,18 +11,14 @@ class DataCodec
 
 public:
 	/*
-	 * Create DATA Codec and initialise it with a TAP
-	 * file structure. If the file is not complete,
-	 * then 'complete' shall be set to false.
+	 * Create DATA Codec.
 	 */
-	DataCodec(TAPFile& tapFile, bool verbose);
-
 	DataCodec(bool verbose);
 
 	/*
 	 * Encode TAP File structure as DATA file
 	 */
-	bool encode(string& filePath);
+	bool encode(TapeFile &tapFile, string& filePath);
 
 	// Used by decode() below as a first decode step
 	bool decode2Bytes(string& dataFileName, int& startAdress, Bytes& data);
@@ -30,21 +26,10 @@ public:
 	/*
 	 * Decode DATA file as TAP File structure
 	 */
-	bool decode(string& tapFileName);
-
-	/*
-	 * Get the codec's TAP file
-	 */
-	bool getTAPFile(TAPFile& tapFile);
-
-	/*
-	 * Reinitialise codec with a new TAP file
-	 */
-	bool setTAPFile(TAPFile& tapFile);
+	bool decode(string& tapFileName, TapeFile &tapFile);
 
 private:
 
-	TAPFile mTapFile;
 	bool mVerbose = false;
 };
 

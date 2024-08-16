@@ -13,16 +13,9 @@ using namespace std;
 namespace fs = std::filesystem;
 
 /*
- * Create DATA Codec and initialise it with a TAP
- * file structure. If the file is not complete,
- * then 'complete' shall be set to false.
+ * Create DATA Codec.
  */
-DataCodec::DataCodec(TAPFile& tapFile, bool verbose): mTapFile(tapFile), mVerbose(verbose)
-{
-
-}
-
-DataCodec::DataCodec(bool verbose) : mVerbose(verbose)
+DataCodec::DataCodec(bool verbose): mVerbose(verbose)
 {
 
 }
@@ -30,10 +23,10 @@ DataCodec::DataCodec(bool verbose) : mVerbose(verbose)
 /*
  * Encode TAP File structure as DATA file
  */
-bool DataCodec::encode(string& filePath)
+bool DataCodec::encode(TapeFile &tapeFile, string& filePath)
 {
 
-    if (mTapFile.blocks.empty()) {
+    if (tapeFile.blocks.empty()) {
         cout << "Empty TAP file => no DATA to encode!\n";
         return false;
     }
@@ -45,21 +38,21 @@ bool DataCodec::encode(string& filePath)
     }
 
     if (mVerbose)
-        cout << "\nEncoding program '" << mTapFile.blocks[0].hdr.name << "' as a DATA file...\n\n";
+        cout << "\nEncoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a DATA file...\n\n";
 
-    ATMBlockIter ATM_block_iter = mTapFile.blocks.begin();
+    FileBlockIter file_block_iter = tapeFile.blocks.begin();
 
     int c = 0;
     bool new_line = true;
     unsigned block_no = 0;
     unsigned atom_file_sz = 0;
-    while (ATM_block_iter < mTapFile.blocks.end()) {
+    while (file_block_iter < tapeFile.blocks.end()) {
 
-        BytesIter bi = ATM_block_iter->data.begin();
-        int exec_adr = ATM_block_iter->hdr.execAdrHigh * 256 + ATM_block_iter->hdr.execAdrLow;
-        int load_adr = ATM_block_iter->hdr.loadAdrHigh * 256 + ATM_block_iter->hdr.loadAdrLow;
-        int data_len = ATM_block_iter->hdr.lenHigh * 256 + ATM_block_iter->hdr.lenLow;
-        string name = ATM_block_iter->hdr.name;
+        BytesIter bi = file_block_iter->data.begin();
+        int exec_adr = file_block_iter->atomHdr.execAdrHigh * 256 + file_block_iter->atomHdr.execAdrLow;
+        int load_adr = file_block_iter->atomHdr.loadAdrHigh * 256 + file_block_iter->atomHdr.loadAdrLow;
+        int data_len = file_block_iter->atomHdr.lenHigh * 256 + file_block_iter->atomHdr.lenLow;
+        string name = file_block_iter->atomHdr.name;
         char s[64];
 
         if (mVerbose) {
@@ -74,11 +67,11 @@ bool DataCodec::encode(string& filePath)
 
         BytesIter li;
         int line_sz = 16;
-        while (bi < ATM_block_iter->data.end()) {
+        while (bi < file_block_iter->data.end()) {
 
             if (new_line) {
-                if (ATM_block_iter->data.end() - bi < 16)
-                    line_sz = ATM_block_iter->data.end() - bi;
+                if (file_block_iter->data.end() - bi < 16)
+                    line_sz = file_block_iter->data.end() - bi;
                 li = bi;
                 sprintf(s, "%.4x ", load_adr);
                 fout << s;
@@ -111,20 +104,20 @@ bool DataCodec::encode(string& filePath)
 
 
         }
-        ATM_block_iter++;
+        file_block_iter++;
     }
 
     fout.close();
 
     if (mVerbose) {
-        int exec_adr = mTapFile.blocks[0].hdr.execAdrHigh * 256 + mTapFile.blocks[0].hdr.execAdrLow;
-        int load_adr = mTapFile.blocks[0].hdr.loadAdrHigh * 256 + mTapFile.blocks[0].hdr.loadAdrLow;
-        int data_len = mTapFile.blocks[0].hdr.lenHigh * 256 + mTapFile.blocks[0].hdr.lenLow;
-        string name = mTapFile.blocks[0].hdr.name;
+        int exec_adr = tapeFile.blocks[0].atomHdr.execAdrHigh * 256 + tapeFile.blocks[0].atomHdr.execAdrLow;
+        int load_adr = tapeFile.blocks[0].atomHdr.loadAdrHigh * 256 + tapeFile.blocks[0].atomHdr.loadAdrLow;
+        int data_len = tapeFile.blocks[0].atomHdr.lenHigh * 256 + tapeFile.blocks[0].atomHdr.lenLow;
+        string name = tapeFile.blocks[0].atomHdr.name;
         printf("\n%13s %4x %4x %4x %2d %5d\n", name.c_str(),
             load_adr, load_adr + atom_file_sz - 1, exec_adr, block_no, atom_file_sz
         );
-        cout << "\nDone encoding program '" << mTapFile.blocks[0].hdr.name << "' as a DATA file...\n\n";
+        cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a DATA file...\n\n";
     }
 
     return true;
@@ -189,7 +182,7 @@ bool DataCodec::decode2Bytes(string& dataFileName, int &startAdress, Bytes &data
 /*
  * Decode DATA file as TAP File structure
  */
-bool DataCodec::decode(string& dataFileName)
+bool DataCodec::decode(string& dataFileName, TapeFile &tapeFile)
 {
     Bytes data;
     int load_address;
@@ -206,17 +199,17 @@ bool DataCodec::decode(string& dataFileName)
     string file_name = fin_p.stem().string();
     string block_name = blockNameFromFilename(file_name);
 
-    mTapFile.blocks.clear();
-    mTapFile.complete = true;
-    mTapFile.validFileName = file_name;
-    mTapFile.isAbcProgram = true;
+    tapeFile.blocks.clear();
+    tapeFile.complete = true;
+    tapeFile.validFileName = file_name;
+    tapeFile.isBasicProgram = true;
 
 
     BytesIter data_iterator = data.begin();
 
 
     // Create ATM blocks
-    ATMBlock block;
+    FileBlock block(AtomBlock);
     int block_no = 0;
     bool new_block = true;
     int count = 0;
@@ -236,15 +229,15 @@ bool DataCodec::decode(string& dataFileName)
             block.data.clear();
             block.tapeStartTime = -1;
             block.tapeEndTime = -1;
-            block.hdr.execAdrHigh = (exec_adr >> 8) & 0xff;
-            block.hdr.execAdrLow = exec_adr & 0xff;
-            block.hdr.loadAdrHigh = (load_address >> 8) & 0xff;;
-            block.hdr.loadAdrLow = load_address & 0xff;
-            for (int i = 0; i < sizeof(block.hdr.name); i++) {
+            block.atomHdr.execAdrHigh = (exec_adr >> 8) & 0xff;
+            block.atomHdr.execAdrLow = exec_adr & 0xff;
+            block.atomHdr.loadAdrHigh = (load_address >> 8) & 0xff;;
+            block.atomHdr.loadAdrLow = load_address & 0xff;
+            for (int i = 0; i < sizeof(block.atomHdr.name); i++) {
                 if (i < block_name.length())
-                    block.hdr.name[i] = block_name[i];
+                    block.atomHdr.name[i] = block_name[i];
                 else
-                    block.hdr.name[i] = 0;
+                    block.atomHdr.name[i] = 0;
             }
             new_block = false;
         }
@@ -257,9 +250,9 @@ bool DataCodec::decode(string& dataFileName)
             count++;
         }
         else {
-            block.hdr.lenHigh = 1;
-            block.hdr.lenLow = 0;
-            mTapFile.blocks.push_back(block);
+            block.atomHdr.lenHigh = 1;
+            block.atomHdr.lenLow = 0;
+            tapeFile.blocks.push_back(block);
             new_block = true;
             if (mVerbose) {
                 printf("%13s %4x %4x %4x %2d %5d\n", block_name.c_str(),
@@ -276,9 +269,9 @@ bool DataCodec::decode(string& dataFileName)
     }
 
     // Catch last block
-    block.hdr.lenHigh = count / 256;
-    block.hdr.lenLow = count % 256;
-    mTapFile.blocks.push_back(block);
+    block.atomHdr.lenHigh = count / 256;
+    block.atomHdr.lenLow = count % 256;
+    tapeFile.blocks.push_back(block);
 
     if (data.end() - data_iter < 256)
         block_sz = data.end() - data_iter;
@@ -293,9 +286,9 @@ bool DataCodec::decode(string& dataFileName)
     //logData(load_address, block_iterator, block.data.size());
 
     if (mVerbose) {
-        unsigned exec_adr = mTapFile.blocks[0].hdr.execAdrHigh * 256 + mTapFile.blocks[0].hdr.execAdrLow;
-        unsigned load_adr = mTapFile.blocks[0].hdr.loadAdrHigh * 256 + mTapFile.blocks[0].hdr.loadAdrLow;
-        string atom_filename = mTapFile.blocks[0].hdr.name;
+        unsigned exec_adr = tapeFile.blocks[0].atomHdr.execAdrHigh * 256 + tapeFile.blocks[0].atomHdr.execAdrLow;
+        unsigned load_adr = tapeFile.blocks[0].atomHdr.loadAdrHigh * 256 + tapeFile.blocks[0].atomHdr.loadAdrLow;
+        string atom_filename = tapeFile.blocks[0].atomHdr.name;
         if (mVerbose) {
             printf("\n%13s %4x %4x %4x %2d %5d\n", atom_filename.c_str(),
                 load_adr, load_adr + atom_file_sz - 1, exec_adr, block_no, atom_file_sz
@@ -305,24 +298,4 @@ bool DataCodec::decode(string& dataFileName)
     }
 
     return true;
-}
-
-/*
- * Get the codec's TAP file
- */
-bool DataCodec::getTAPFile(TAPFile& tapFile)
-{
-	tapFile = mTapFile;
-
-	return true;
-}
-
-/*
- * Reinitialise codec with a new TAP file
- */
-bool DataCodec::setTAPFile(TAPFile& tapFile)
-{
-	mTapFile = tapFile;
-
-	return true;
 }

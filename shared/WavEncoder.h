@@ -18,7 +18,6 @@ class WavEncoder
 
 private:
 
-	TAPFile mTapFile;
 	Samples mSamples;
 	TapeProperties mTapeTiming;
 	bool mUseOriginalTiming = false;
@@ -44,7 +43,7 @@ public:
 
 	WavEncoder(int sampleFreq, bool verbose);
 
-	WavEncoder(TAPFile& tapFile, bool useOriginalTiming, int sampleFreq, bool verbose);
+	WavEncoder(bool useOriginalTiming, int sampleFreq, bool verbose);
 
 	bool setTapeTiming(TapeProperties tapeTiming);
 
@@ -60,18 +59,7 @@ public:
 	/*
 	 * Encode TAP File structure as WAV file
 	 */
-	bool encode(string& filePath);
-
-
-	/*
-	 * Get the encoder's TAP file
-	 */
-	bool getTAPFile(TAPFile& tapFile);
-
-	/*
-	 * Reinitialise encoder with a new TAP file
-	 */
-	bool setTAPFile(TAPFile& tapFile);
+	bool encode(TapeFile& tapFile, string& filePath);
 
 
 

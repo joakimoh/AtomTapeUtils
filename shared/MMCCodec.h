@@ -24,34 +24,21 @@ public:
 	 * file structure. If the file is not complete,
 	 * then 'complete' shall be set to false.
 	 */
-	MMCCodec(TAPFile& tapFile, bool verbose);
-
 	MMCCodec(bool verbose);
 
 	/*
 	 * Encode TAP File structure as an MMC file
 	 */
-	bool encode(string& filePath);
+	bool encode(TapeFile &tapeFile, string& filePath);
 
 	/*
 	 * Decode MMC file as a TAP File structure
 	 */
-	bool decode(string& dataFileName);
-
-	/*
-	 * Get the codec's TAP file
-	 */
-	bool getTAPFile(TAPFile& tapFile);
-
-	/*
-	 * Reinitialise codec with a new TAP file
-	 */
-	bool setTAPFile(TAPFile& tapFile);
+	bool decode(string& dataFileName, TapeFile& tapeFile);
 
 
 private:
 
-	TAPFile mTapFile;
 
 	bool mVerbose = false;
 

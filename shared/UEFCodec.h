@@ -19,13 +19,16 @@ class UEFCodec
 
 private:
 
-	TAPFile mTapFile;
 
 	TapeProperties mTapeTiming;
 
 	bool mUseOriginalTiming = false;
 
 	bool mVerbose = false;
+
+	bool mBbcMicro = false;
+
+	bool file_being_read = false;
 
 
 	//
@@ -172,8 +175,8 @@ private:
 	bool writeBaudrateChunk(ogzstream&fout);
 	bool writePhaseChunk(ogzstream&fout);
 	bool writeHighToneChunk(ogzstream&fout, float duration);
-	bool writeComplexDataChunk(ogzstream&fout, Byte bitsPerPacket, Byte parity, Byte stopBitInfo, Bytes data, Byte &CRC);
-	bool writeSimpleDataChunk(ogzstream&fout, Bytes data, Byte & CRC);
+	bool writeComplexDataChunk(ogzstream&fout, Byte bitsPerPacket, Byte parity, Byte stopBitInfo, Bytes data, Word &CRC);
+	bool writeSimpleDataChunk(ogzstream&fout, Bytes data, Word& CRC);
 	bool writeOriginChunk(ogzstream&fout, string origin);
 	bool writeTargetChunk(ogzstream& fout);
 
@@ -183,7 +186,12 @@ private:
 	//
 
 	typedef enum {
-		READING_GAP, READING_LEAD_TONE, READING_HDR, READING_MICRO_TONE, READING_DATA,UNDEFINED_BLOCK_STATE
+		READING_GAP,
+		READING_LEAD_TONE_PREFIX, READING_DUMMY_BYTE, READING_LEAD_TONE_SUFFIX, /* BBC Micro only */
+		READING_LEAD_TONE, /* Electron and Acorn Atom only */
+		READING_HDR, READING_MICRO_TONE, READING_DATA, // Atom Acorn only
+		READING_HDR_DATA, READING_TRAILER_TONE,// BBC Micro only
+		UNDEFINED_BLOCK_STATE
 	} BLOCK_STATE;
 
 	typedef enum { TONE_CHUNK, DATA_CHUNK, GAP_CHUNK, UNDEFINED_CHUNK } CHUNK_TYPE;
@@ -191,11 +199,17 @@ private:
 #define _BLOCK_STATE(x) \
     (x==READING_GAP?"READING_GAP":\
     (x==READING_LEAD_TONE?"READING_LEAD_TONE":(x==READING_HDR?"READING_HDR":\
-    (x==READING_MICRO_TONE?"READING_MICRO_TONE":(x==READING_DATA?"READING_DATA":"???")))))
+    (x==READING_MICRO_TONE?"READING_MICRO_TONE":(x==READING_DATA?"READING_DATA":\
+	(x==READING_LEAD_TONE_PREFIX?"READING_LEAD_TONE_PREFIX":\
+	(x == READING_DUMMY_BYTE ? "READING_DUMMY_BYTE" :\
+	(x == READING_LEAD_TONE_SUFFIX ? "READING_LEAD_TONE_SUFFIX" : (x == READING_HDR_DATA?"READING_HDR_DATA":\
+	(x == READING_TRAILER_TONE?"READING_TRAILER_TONE":"???")))\
+	)))))))
 
 	typedef struct BLOCK_INFO_struct {
 		int lead_tone_cycles;
 		int micro_tone_cycles;
+		int trailer_tone_cycles; // Only for BBC Micro
 		double block_gap;
 		int half_cycle = 180;
 		double start;
@@ -208,51 +222,54 @@ private:
 	float mCurrentTime = 0;
 	bool firstBlock = true;
 	bool updateBlockState(CHUNK_TYPE chunkType, double duration);
+	bool UEFCodec::updateAtomBlockState(CHUNK_TYPE chunkType, double duration);
+	bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration);
 
 
 
 	bool addBytes2Vector(Bytes& v, Byte bytes[], int n);
 
 	// Methods to decode bytes
-	static bool read_bytes(BytesIter& data_iter, Bytes& data, int n, Byte& CRC, Bytes& block_data);
-	static bool read_bytes(BytesIter& data_iter, Bytes& data, int n, Byte& CRC, Byte bytes[]);
-	static bool check_bytes(BytesIter& data_iter, Bytes& data, int n, Byte& CRC, Byte refVal);
-	static bool read_block_name(BytesIter& data_iter, Bytes& data, Byte& CRC, char name[ATM_MMC_HDR_NAM_SZ]);
+	bool read_word(BytesIter& data_iter, Bytes& data, Word& word, bool little_endian);
+	bool read_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, Bytes& block_data);
+	bool read_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, Byte bytes[]);
+	bool check_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, Byte refVal);
+	bool read_block_name(BytesIter& data_iter, Bytes& data, Word& CRC, char *name);
+
+	// Methods to create Tape File from extracted data stream
+	bool createAtomFile(Bytes data, TapeFile& tapeFile);
+	bool createBBMFile(Bytes data, TapeFile& tapeFile);
+
+	void updateCRC(Word& CRC, Byte byte);
+
 
 
 public:
 
 
-	UEFCodec(bool verbose);
+	UEFCodec(bool verbose, bool mBbcMicro);
+
+	UEFCodec(bool useOriginalTiming, bool verbose, bool mBbcMicro);
+
 
 	static bool decodeFloat(Byte encoded_val[4], float& decoded_val);
 
 	static bool encodeFloat(float val, Byte encoded_val[4]);
-
-	UEFCodec(TAPFile& tapFile, bool useOriginalTiming, bool verbose);
+	
 
 	bool setTapeTiming(TapeProperties tapeTiming);
+
 	/*
 	 * Encode TAP File structure as UEF file 
 	 */
-	bool encode(string& filePath);
+	bool encode(TapeFile& tapFile, string& filePath);
 
 	/*
 	 * Decode UEF file as TAP File structure
 	 */
-	bool decode(string &uefFileName);
+	bool decode(string &uefFileName, TapeFile& tapFile);
 
-	/*
-	 * Get the codec's TAP file
-	 */
-	bool getTAPFile(TAPFile& tapFile);
-
-	/*
-	 * Reinitialise codec with a new TAP file
-	 */
-	bool setTAPFile(TAPFile& tapFile);
-
-
+	
 
 
 };

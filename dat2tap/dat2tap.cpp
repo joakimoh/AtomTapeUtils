@@ -50,18 +50,15 @@ int main(int argc, const char* argv[])
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
     DataCodec DATA_codec = DataCodec(arg_parser.verbose);
-
-    if (!DATA_codec.decode(arg_parser.srcFileName)) {
+    TapeFile TAP_file(AtomFile);
+    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode DATA file '%s'\n", arg_parser.srcFileName.c_str());
     }
 
-    TAPFile TAP_file;
 
-    DATA_codec.getTAPFile(TAP_file);
+    TAPCodec TAP_codec(arg_parser.verbose);
 
-    TAPCodec TAP_codec(TAP_file, arg_parser.verbose);
-
-    if (!TAP_codec.encode(arg_parser.dstFileName)) {
+    if (!TAP_codec.encode(TAP_file, arg_parser.dstFileName)) {
         printf("Failed to encode DATA file '%s' as TAP/MMC file '%s'\n",
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );

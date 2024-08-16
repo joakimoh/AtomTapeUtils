@@ -36,19 +36,17 @@ int main(int argc, const char* argv[])
     if (arg_parser.verbose)
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose);
-
-    if (!ABC_codec.decode(arg_parser.srcFileName)) {
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, false);
+    TapeFile TAP_file(AtomFile);
+    if (!ABC_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
     }
 
-    TAPFile TAP_file;
+   
 
-    ABC_codec.getTAPFile(TAP_file);
+    DataCodec DATA_codec = DataCodec(arg_parser.verbose);
 
-    DataCodec DATA_codec = DataCodec(TAP_file, arg_parser.verbose);
-
-    if (!DATA_codec.encode(arg_parser.dstFileName)) {
+    if (!DATA_codec.encode(TAP_file, arg_parser.dstFileName)) {
         printf("Failed to encode program file '%s' as DATA file '%s'\n",
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );

@@ -26,6 +26,8 @@ public:
 
 	bool verbose = false;
 
+	bool bbcMicro = false;
+
 private:
 
 	void printUsage(const char *);

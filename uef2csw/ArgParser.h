@@ -18,6 +18,7 @@ public:
 	int mSampleFreq = 44100;
 
 	bool verbose = false;
+	bool bbcMicro = false;
 
 private:
 

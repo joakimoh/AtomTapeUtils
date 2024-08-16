@@ -19,20 +19,14 @@ TAPCodec::TAPCodec(bool verbose) : mVerbose(verbose)
 }
 
 
-TAPCodec::TAPCodec(TAPFile &tapFile, bool verbose): mTapFile(tapFile), mVerbose(verbose)
-{
-
-}
-
-
 
 /*
  * Encode TAP File structure as TAP file
  */
-bool TAPCodec::encode(string& filePath)
+bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
 {
 
-    if (mTapFile.blocks.empty())
+    if (tapeFile.blocks.empty())
         return false;
 
 
@@ -42,43 +36,43 @@ bool TAPCodec::encode(string& filePath)
         return false;
     }
 
-    ATMBlockIter ATM_block_iter = mTapFile.blocks.begin();
+    FileBlockIter ATM_block_iter = tapeFile.blocks.begin();
     unsigned block_no = 0;
 
     if (mVerbose)
-        cout << "\nEncoding program '" << mTapFile.blocks[0].hdr.name << "' as a TAP file...\n\n";
+        cout << "\nEncoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a TAP file...\n\n";
 
     // Get atom file data for header (exec adr, load adr & file sz)
-    unsigned exec_adr = mTapFile.blocks[0].hdr.execAdrHigh * 256 + mTapFile.blocks[0].hdr.execAdrLow;
-    unsigned load_adr = mTapFile.blocks[0].hdr.loadAdrHigh * 256 + mTapFile.blocks[0].hdr.loadAdrLow;
+    unsigned exec_adr = tapeFile.blocks[0].atomHdr.execAdrHigh * 256 + tapeFile.blocks[0].atomHdr.execAdrLow;
+    unsigned load_adr = tapeFile.blocks[0].atomHdr.loadAdrHigh * 256 + tapeFile.blocks[0].atomHdr.loadAdrLow;
     unsigned atom_file_sz = 0;
-    string atom_filename = mTapFile.blocks[0].hdr.name;
-    for (int i = 0; i < mTapFile.blocks.size(); i++) {
-        atom_file_sz += mTapFile.blocks[i].hdr.lenHigh * 256 + mTapFile.blocks[i].hdr.lenLow;
+    string atom_filename = tapeFile.blocks[0].atomHdr.name;
+    for (int i = 0; i < tapeFile.blocks.size(); i++) {
+        atom_file_sz += tapeFile.blocks[i].atomHdr.lenHigh * 256 + tapeFile.blocks[i].atomHdr.lenLow;
     }
 
     // Write TAP header
-    ATMBlock block;
-    block.hdr.execAdrHigh = (exec_adr >> 8) & 0xff;
-    block.hdr.execAdrLow = exec_adr & 0xff;
-    block.hdr.loadAdrHigh = (load_adr >> 8) & 0xff;
-    block.hdr.loadAdrLow = load_adr & 0xff;
-    block.hdr.lenHigh = (atom_file_sz >> 8) & 0xff;
-    block.hdr.lenLow = atom_file_sz & 0xff;
-    strncpy(block.hdr.name, atom_filename.c_str(), ATM_MMC_HDR_NAM_SZ);
-    fout.write((char*)&block.hdr, sizeof(block.hdr));
+    FileBlock block(AtomBlock);
+    block.atomHdr.execAdrHigh = (exec_adr >> 8) & 0xff;
+    block.atomHdr.execAdrLow = exec_adr & 0xff;
+    block.atomHdr.loadAdrHigh = (load_adr >> 8) & 0xff;
+    block.atomHdr.loadAdrLow = load_adr & 0xff;
+    block.atomHdr.lenHigh = (atom_file_sz >> 8) & 0xff;
+    block.atomHdr.lenLow = atom_file_sz & 0xff;
+    strncpy(block.atomHdr.name, atom_filename.c_str(), ATM_MMC_HDR_NAM_SZ);
+    fout.write((char*)&block.atomHdr, sizeof(block.atomHdr));
 
     // Write TAP ATM blocks
-    while (ATM_block_iter < mTapFile.blocks.end()) {
+    while (ATM_block_iter < tapeFile.blocks.end()) {
 
         // Write data
         fout.write((char*)&ATM_block_iter->data[0], ATM_block_iter->data.size());
 
         if (mVerbose) {
-            string atom_filename = ATM_block_iter->hdr.name;
-            unsigned data_sz = ATM_block_iter->hdr.lenHigh * 256 + ATM_block_iter->hdr.lenLow;
-            unsigned load_adr_start = ATM_block_iter->hdr.loadAdrHigh * 256 + ATM_block_iter->hdr.loadAdrLow;
-            unsigned exec_adr_start = ATM_block_iter->hdr.execAdrHigh * 256 + ATM_block_iter->hdr.execAdrLow;
+            string atom_filename = ATM_block_iter->atomHdr.name;
+            unsigned data_sz = ATM_block_iter->atomHdr.lenHigh * 256 + ATM_block_iter->atomHdr.lenLow;
+            unsigned load_adr_start = ATM_block_iter->atomHdr.loadAdrHigh * 256 + ATM_block_iter->atomHdr.loadAdrLow;
+            unsigned exec_adr_start = ATM_block_iter->atomHdr.execAdrHigh * 256 + ATM_block_iter->atomHdr.execAdrLow;
             unsigned load_adr_end = load_adr_start + data_sz - 1;
 
             printf("%13s %4x %4x %4x %3d %5d\n", atom_filename.c_str(),
@@ -101,7 +95,7 @@ bool TAPCodec::encode(string& filePath)
             );
         }
 
-        cout << "\nDone encoding program '" << mTapFile.blocks[0].hdr.name << "' as a TAP file...\n\n";
+        cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a TAP file...\n\n";
     }
 
     return true;
@@ -111,7 +105,7 @@ bool TAPCodec::encode(string& filePath)
 /*
  * Decode TAP file as TAP File structure
  */
-bool TAPCodec::decode(string& tapFileName)
+bool TAPCodec::decode(string& tapFileName, TapeFile& tapeFile)
 {
     ifstream fin(tapFileName, ios::in | ios::binary | ios::ate);
 
@@ -133,7 +127,7 @@ bool TAPCodec::decode(string& tapFileName)
         cout << "\nDecoding TAP file '" << tapFileName << "'...\n\n";
 
     // Read one Atom File from the TAP file
-    if (!decodeSingleFile(fin, file_size, mTapFile)) {
+    if (!decodeSingleFile(fin, file_size, tapeFile)) {
         cout << "Failed to decode TAP file '" << tapFileName << "'!\n";
     }
 
@@ -145,7 +139,7 @@ bool TAPCodec::decode(string& tapFileName)
     return true;
 }
 
-bool TAPCodec::decodeMultipleFiles(string& tapFileName, vector<TAPFile> &atomFiles)
+bool TAPCodec::decodeMultipleFiles(string& tapFileName, vector<TapeFile> &atomFiles)
 {
     ifstream fin(tapFileName, ios::in | ios::binary | ios::ate);
 
@@ -167,7 +161,7 @@ bool TAPCodec::decodeMultipleFiles(string& tapFileName, vector<TAPFile> &atomFil
         cout << "\nDecoding TAP file '" << tapFileName << "'...\n\n";
 
     // Read one Atom File from the TAP file
-    TAPFile TAP_file;
+    TapeFile TAP_file(AtomFile);
     while (decodeSingleFile(fin, file_size, TAP_file)) {
         atomFiles.push_back(TAP_file);
     }
@@ -180,7 +174,7 @@ bool TAPCodec::decodeMultipleFiles(string& tapFileName, vector<TAPFile> &atomFil
     return true;
 }
 
-bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TAPFile &tapFile)
+bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TapeFile &tapFile)
 {
 
     // Test for end of file
@@ -191,17 +185,17 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TAPFile &tapF
     string atom_filename;
     unsigned atom_file_sz, exec_adr, load_adr;
     if (fin.tellg() < file_size - sizeof(ATMHdr)) {
-        ATMBlock block;
-        fin.read((char*)&block.hdr, sizeof(block.hdr));
-        exec_adr = block.hdr.execAdrHigh * 256 + block.hdr.execAdrLow;
-        load_adr = block.hdr.loadAdrHigh * 256 + block.hdr.loadAdrLow;
-        atom_file_sz = block.hdr.lenHigh * 256 + block.hdr.lenLow;
-        atom_filename = block.hdr.name;
+        FileBlock block(AtomBlock);
+        fin.read((char*)&block.atomHdr, sizeof(block.atomHdr));
+        exec_adr = block.atomHdr.execAdrHigh * 256 + block.atomHdr.execAdrLow;
+        load_adr = block.atomHdr.loadAdrHigh * 256 + block.atomHdr.loadAdrLow;
+        atom_file_sz = block.atomHdr.lenHigh * 256 + block.atomHdr.lenLow;
+        atom_filename = block.atomHdr.name;
         tapFile.firstBlock = 0;
         tapFile.validFileName = filenameFromBlockName(atom_filename);
         tapFile.blocks.clear();
         tapFile.complete = true;
-        tapFile.isAbcProgram = true;
+        tapFile.isBasicProgram = true;
         tapFile.baudRate = 300;
     }
     else {
@@ -217,7 +211,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TAPFile &tapF
     unsigned read_bytes = 0;
     while (!done) {
 
-        ATMBlock block;
+        FileBlock block(AtomBlock);
         if (fin.tellg() <= file_size - expected_block_sz && read_bytes < atom_file_sz) {
 
             if (mVerbose) {
@@ -226,14 +220,14 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TAPFile &tapF
                 );
             }
 
-            // Fill block hdr based on TAP header data
-            block.hdr.execAdrHigh = (exec_adr >> 8) & 0xff;
-            block.hdr.execAdrLow = exec_adr & 0xff;
-            block.hdr.loadAdrHigh = (block_load_adr >> 8) & 0xff;
-            block.hdr.loadAdrLow = block_load_adr & 0xff;
-            block.hdr.lenHigh = (expected_block_sz >> 8) & 0xff;
-            block.hdr.lenLow = expected_block_sz & 0xff;
-            strncpy(block.hdr.name, atom_filename.c_str(), ATM_MMC_HDR_NAM_SZ);
+            // Fill block atomHdr based on TAP header data
+            block.atomHdr.execAdrHigh = (exec_adr >> 8) & 0xff;
+            block.atomHdr.execAdrLow = exec_adr & 0xff;
+            block.atomHdr.loadAdrHigh = (block_load_adr >> 8) & 0xff;
+            block.atomHdr.loadAdrLow = block_load_adr & 0xff;
+            block.atomHdr.lenHigh = (expected_block_sz >> 8) & 0xff;
+            block.atomHdr.lenLow = expected_block_sz & 0xff;
+            strncpy(block.atomHdr.name, atom_filename.c_str(), ATM_MMC_HDR_NAM_SZ);
 
 
             // Read block data
@@ -271,27 +265,4 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TAPFile &tapF
 
 
     return true;
-}
-
-/*
- * Get the codec's TAP file
- */
-bool TAPCodec::getTAPFile(TAPFile& tapFile)
-{
-    tapFile = mTapFile;
-
-    return true;
-}
-
-
-
-/*
- * Reinitialise codec with a new TAP file
- */
-bool TAPCodec::setTAPFile(TAPFile& tapFile)
-{
-    mTapFile = tapFile;
-
-    return true;
-
 }

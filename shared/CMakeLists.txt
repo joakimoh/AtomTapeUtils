@@ -10,7 +10,7 @@ add_library(
 	"UEFCodec.cpp"  
 	"Utility.cpp"
 	"WavEncoder.cpp"
-	"zpipe.cpp")
+	"zpipe.cpp" "BBMBlockTypes.h" "BlockTypes.h")
 
 # Locate zlib
 find_package(ZLIB REQUIRED)

@@ -34,20 +34,17 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    UEFCodec UEF_codec = UEFCodec(arg_parser.verbose);
-
-    if (!UEF_codec.decode(arg_parser.srcFileName)) {
+    UEFCodec UEF_codec = UEFCodec(arg_parser.verbose, arg_parser.bbcMicro);
+    TapeFile TAP_file(AtomFile);
+    if (!UEF_codec.decode(arg_parser.srcFileName, TAP_file)) {
         cout << "Failed to decode UEF file '" << arg_parser.srcFileName << "'\n";
     }
 
-    TAPFile TAP_file;
-
-    UEF_codec.getTAPFile(TAP_file);
 
 
-    CSWCodec CSW_codec = CSWCodec(TAP_file,arg_parser.mPreserveOriginalTiming, arg_parser.verbose);
+    CSWCodec CSW_codec = CSWCodec(arg_parser.mPreserveOriginalTiming, arg_parser.verbose);
 
-    if (!CSW_codec.encode(arg_parser.dstFileName, arg_parser.mSampleFreq)) {
+    if (!CSW_codec.encode(TAP_file, arg_parser.dstFileName, arg_parser.mSampleFreq)) {
         
         cout << "Failed to encode UEF file '" << arg_parser.srcFileName << "' as CSW file '" << arg_parser.dstFileName << "'\n";
     }
