@@ -57,17 +57,29 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	wavFile = argv[1];
 
 	int ac = 2;
-
+	// First search for option '-bbm' to select target machine and the
+	// related default timing properties
+	tapeTiming = atomTiming;
 	while (ac < argc) {
-		if (strcmp(argv[ac], "-g") == 0 && ac + 1 < argc) {
+		if (strcmp(argv[ac], "-bbm") == 0) {
+			bbcMicro = true;
+			tapeTiming = bbmTiming;
+		}
+		ac++;
+	}
+
+	// Now lock for remaining options
+	ac = 2;
+	while (ac < argc) {
+		if (strcmp(argv[ac], "-bbm") == 0) {
+			// Nothing to do here as already handled above
+		}
+		else if (strcmp(argv[ac], "-g") == 0 && ac + 1 < argc) {
 			filesystem::path dir_path=  argv[ac + 1];
 			if (!filesystem::is_directory(dir_path))
 				cout << "-g without a valid directory\n";
 			genDir = argv[ac+1];
 			ac++;
-		}
-		else if (strcmp(argv[ac], "-bbm") == 0) {
-			bbcMicro = true;
 		}
 		else if (strcmp(argv[ac], "-pot") == 0) {
 			tapeTiming.preserve = true;

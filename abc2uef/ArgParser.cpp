@@ -14,7 +14,7 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char *name)
 {
-	cout << "Usage:\t" << name << " <ABC file> [-o <output file>] [-b <b>] [-lt <d>] [-slt <d>]\n";
+	cout << "Usage:\t" << name << " <ABC file> [-o <output file>] [-b <b>] [-lt <d>] [-slt <d>] [-bbm]\n";
 	cout <<	"\t[-ml <d>] [-fg <d>] [-sg <d>] [-lg <d>] [-ps <phase_shift>] [-v]\n";
 	cout << "\n";
 	cout << "<ABC file>:\n\tAcorn Atom BASIC program file to decode\n";
@@ -31,7 +31,7 @@ void ArgParser::printUsage(const char *name)
 	cout << "-sg <d>:\n\tThe duration of the gap before the other blocks\n\t- default is " << tapeTiming.nomBlockTiming.blockGap << " s\n\n";
 	cout << "-lg <d>:\n\tThe duration of the gap after the last block\n\t- default is " << tapeTiming.nomBlockTiming.lastBlockGap << " s\n\n";
 	cout << "-ps <phase_shift>:\n\tPhase shift when transitioning from high to low tone [0,180] degrees\n\t- default is " << tapeTiming.half_cycle << " degrees\n\n";
-
+	cout << "-bbm:\n\Target machine is BBC Micro (default is Acorn Atom)\n\n";
 	cout << "\n";
 }
 
@@ -54,9 +54,24 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	dstFileName = crDefaultOutFileName(srcFileName, "uef");
 
 	int ac = 2;
-
+	// First search for option '-bbm' to select target machine and the
+	// related default timing properties
+	tapeTiming = atomTiming;
 	while (ac < argc) {
-		if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
+		if (strcmp(argv[ac], "-bbm") == 0) {
+			bbcMicro = true;
+			tapeTiming = bbmTiming;
+		}
+		ac++;
+	}
+
+	// Now lock for remaining options
+	ac = 2;
+	while (ac < argc) {
+		if (strcmp(argv[ac], "-bbm") == 0) {
+			// Nothing to do here as already handled above
+		}
+		else if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
 			dstFileName = argv[ac+1];
 			ac++;
 		}

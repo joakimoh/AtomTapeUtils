@@ -26,7 +26,7 @@ public:
 	BBMBlockDecoder(CycleDecoder& cycleDecoder, ArgParser& argParser, bool verbose);
 
 	bool readBlock(
-		double leadToneDuration, FileBlock& readBlock,
+		double leadToneDuration, double trailerToneDuration, FileBlock& readBlock, bool firstBlock,
 		bool& isLastBlock, int& blockNo, bool& leadToneDetected);
 
 

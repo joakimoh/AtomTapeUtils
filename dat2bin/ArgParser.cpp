@@ -14,11 +14,12 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Usage:\t" << name << " <DATA file> [-o <output file>] [-v]\n";
+	cout << "Usage:\t" << name << " <DATA file> [-o <output file>] [-v] [-bbm]\n";
 	cout << "<DAT file>:\n\tDATA file to convert to binary file\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.bin'.\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
+	cout << "-bbm:\n\Target machine is BBC Micro (default is Acorn Atom)\n\n";
 	cout << "\n";
 }
 
@@ -41,9 +42,22 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	dstFileName = crDefaultOutFileName(srcFileName, "bin");
 
 	int ac = 2;
-
+	// First search for option '-bbm' to select target machine and the
+	// related  properties
 	while (ac < argc) {
-		if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
+		if (strcmp(argv[ac], "-bbm") == 0) {
+			bbcMicro = true;
+		}
+		ac++;
+	}
+
+	// Now lock for remaining options
+	ac = 2;
+	while (ac < argc) {
+		if (strcmp(argv[ac], "-bbm") == 0) {
+			// Nothing to do here as already handled above
+		}
+		else if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
 			dstFileName = argv[ac + 1];
 			ac++;
 		}

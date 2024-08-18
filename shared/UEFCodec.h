@@ -37,7 +37,7 @@ private:
 
 	typedef enum {
 		ORIGIN_CHUNK = 0x0000, SIMPLE_DATA_CHUNK = 0x100, COMPLEX_DATA_CHUNK = 0x0104,
-		HIGH_TONE_CHUNK = 0x0110, PHASE_CHUNK = 0x0115, BAUD_RATE_CHUNK = 0x117, SECURITY_CHUNK = 0x0114,
+		CARRIER_TONE_CHUNK = 0x0110, CARRIER_TONE_WITH_DUMMY_BYTE = 0x0111, PHASE_CHUNK = 0x0115, BAUD_RATE_CHUNK = 0x117, SECURITY_CHUNK = 0x0114,
 		BAUDWISE_GAP_CHUNK = 0x0112, FLOAT_GAP_CHUNK = 0x0116, BASE_FREQ_CHUNK = 0x113,
 		TARGET_CHUNK = 0x0005, UNKNOWN_CHUNK = 0xffff
 	} CHUNK_ID;
@@ -46,14 +46,16 @@ private:
 	(x==ORIGIN_CHUNK?"ORIGIN_CHUNK":\
 	(x==SIMPLE_DATA_CHUNK?"SIMPLE_DATA_CHUNK":\
 	(x==COMPLEX_DATA_CHUNK?"COMPLEX_DATA_CHUNK":\
-	(x==HIGH_TONE_CHUNK?"HIGH_TONE_CHUNK":\
+	(x==CARRIER_TONE_CHUNK?"CARRIER_TONE_CHUNK":\
 	(x==PHASE_CHUNK?"PHASE_CHUNK":\
 	(x==BAUD_RATE_CHUNK?"BAUD_RATE_CHUNK":\
 	(x==SECURITY_CHUNK?"SECURITY_CHUNK":\
 	(x==BAUDWISE_GAP_CHUNK?"BAUDWISE_GAP_CHUNK":\
 	(x==FLOAT_GAP_CHUNK?"FLOAT_GAP_CHUNK":\
 	(x==BASE_FREQ_CHUNK?"BASE_FREQ_CHUNK":\
-	(x==TARGET_CHUNK?"TARGET_CHUNK":"???")))))))))))
+	(x==TARGET_CHUNK?"TARGET_CHUNK":\
+	(x== CARRIER_TONE_WITH_DUMMY_BYTE?"CARRIER_TONE_WITH_DUMMY_BYTE":"???")\
+		)))))))))))
 
 	// UEF Header
 	typedef struct UefHdr_struct {
@@ -118,11 +120,19 @@ private:
 	} PhaseChunk;
 
 	
-	// UEF high tone chunk
-	typedef struct HighToneChunk_struct {
-		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(HIGH_TONE_CHUNK), {2, 0, 0, 0}};
+	// UEF carrier chunk
+	typedef struct CarrierChunk_struct {
+		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(CARRIER_TONE_CHUNK), {2, 0, 0, 0}};
 		Byte duration[2] = { 224, 11 }; //  in (1/(baud rate*2))ths of a second: 3060 / (300 * 2) =  5.1 s
-	} HighToneChunk;
+	} CarrierChunk;
+
+	// UEF carrier chunk with dummy byte
+	typedef struct CarrierChunkDummy_struct {
+		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(CARRIER_TONE_WITH_DUMMY_BYTE), {4, 0, 0, 0} };
+		Byte duration[4] = { 4, 0, 0xba, 0x2f };	// first bytes: #cycles of carrier before dummy byte (default 4 cycles)
+													// last two bytes: #cycles of carrier after dummy byte (default 12218 cycles <=> 5.1s)
+													// in (1/(2*base frequency))ths of a second: 3060 / (300 * 2) =  5.1 s
+	} CarrierChunkDummy;
 
 	//
 	// UEF data chunk of type 0104
@@ -159,9 +169,10 @@ private:
 
 
 
-	float mBaseFrequency = 1200;
-	unsigned mBaudRate = 300;
-	unsigned mPhase = 180;
+	float mBaseFrequency = 1200; // Default for an UEF file
+	unsigned mBaudRate = 1200; // Default for an UEF file
+	unsigned mPhase = 180; // Default for an UEF file
+
 	TargetMachine mTarget = ATOM;
 
 
@@ -174,7 +185,8 @@ private:
 	string decode_security_cycles(SecurityCyclesChunkHdr& hdr, Bytes cycles);
 	bool writeBaudrateChunk(ogzstream&fout);
 	bool writePhaseChunk(ogzstream&fout);
-	bool writeHighToneChunk(ogzstream&fout, float duration);
+	bool writeCarrierChunk(ogzstream&fout, float duration);
+	bool writeCarrierChunkwithDummyByte(ogzstream& fout, int firstCycles, int followingCycles);
 	bool writeComplexDataChunk(ogzstream&fout, Byte bitsPerPacket, Byte parity, Byte stopBitInfo, Bytes data, Word &CRC);
 	bool writeSimpleDataChunk(ogzstream&fout, Bytes data, Word& CRC);
 	bool writeOriginChunk(ogzstream&fout, string origin);
@@ -187,22 +199,22 @@ private:
 
 	typedef enum {
 		READING_GAP,
-		READING_LEAD_TONE_PREFIX, READING_DUMMY_BYTE, READING_LEAD_TONE_SUFFIX, /* BBC Micro only */
-		READING_LEAD_TONE, /* Electron and Acorn Atom only */
+		READING_CARRIER_PRELUDE, READING_DUMMY_BYTE, READING_CARRIER_POSTLUDE, /* BBC Micro only */
+		READING_CARRIER, /* Electron and Acorn Atom and BBC Micro if the carrier with dummy byte is used */
 		READING_HDR, READING_MICRO_TONE, READING_DATA, // Atom Acorn only
 		READING_HDR_DATA, READING_TRAILER_TONE,// BBC Micro only
 		UNDEFINED_BLOCK_STATE
 	} BLOCK_STATE;
 
-	typedef enum { TONE_CHUNK, DATA_CHUNK, GAP_CHUNK, UNDEFINED_CHUNK } CHUNK_TYPE;
+	typedef enum { CARRIER_CHUNK, DATA_CHUNK, GAP_CHUNK, UNDEFINED_CHUNK } CHUNK_TYPE;
 
 #define _BLOCK_STATE(x) \
     (x==READING_GAP?"READING_GAP":\
-    (x==READING_LEAD_TONE?"READING_LEAD_TONE":(x==READING_HDR?"READING_HDR":\
+    (x==READING_CARRIER?"READING_CARRIER":(x==READING_HDR?"READING_HDR":\
     (x==READING_MICRO_TONE?"READING_MICRO_TONE":(x==READING_DATA?"READING_DATA":\
-	(x==READING_LEAD_TONE_PREFIX?"READING_LEAD_TONE_PREFIX":\
+	(x==READING_CARRIER_PRELUDE?"READING_CARRIER_PRELUDE":\
 	(x == READING_DUMMY_BYTE ? "READING_DUMMY_BYTE" :\
-	(x == READING_LEAD_TONE_SUFFIX ? "READING_LEAD_TONE_SUFFIX" : (x == READING_HDR_DATA?"READING_HDR_DATA":\
+	(x == READING_CARRIER_POSTLUDE ? "READING_CARRIER_POSTLUDE" : (x == READING_HDR_DATA?"READING_HDR_DATA":\
 	(x == READING_TRAILER_TONE?"READING_TRAILER_TONE":"???")))\
 	)))))))
 
@@ -268,6 +280,14 @@ public:
 	 * Decode UEF file as TAP File structure
 	 */
 	bool decode(string &uefFileName, TapeFile& tapFile);
+
+	/*
+	 * Decode UEF file but only print it's content rather than converting a Tape File 
+	 */
+	bool inspect(string& uefFileName);
+	
+private:
+		bool inspectFile(Bytes data); // help method to inspect above
 
 	
 

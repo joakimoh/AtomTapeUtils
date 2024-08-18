@@ -52,11 +52,19 @@ BBMBlockDecoder::BBMBlockDecoder(
 /*
  *
  * Read a complete BBC Micro tape block, starting with the detection of its lead tone and
- * ending with the reading of the stop bit of the calc_hdr_CRC byte that ends the block.
+ * ending with the reading of the stop bit of the (data) CRC that ends the block.
  *
+ * Timing and format of a BBC Micro Tape File is
+ * <0.625s lead tone prelude > <dummy byte> <0.625s lead tone postlude>] <header with CRC>
+ *  {<data with CRC> <0.25s lead tone> <data with CRC } <0.83s trailer tone> <3.3s gap>
+ *
+ * This means that only the first block of a tape file will have a dummy byte inserted within
+ * the lead tone. All blocks are separated only by an 0.25 lead tone and the last block ends
+ * with a 0.83s lead tone followed by a 3.3s gap (before a new tape file starts).
+ * 
  */
 bool BBMBlockDecoder::readBlock(
-	double leadToneDuration, FileBlock& readBlock,
+	double leadToneDuration, double trailerToneDuration, FileBlock& readBlock, bool firstBlock,
 	bool &isLastBlock, int& blockNo, bool& leadToneDetected
 )
 {
@@ -73,27 +81,46 @@ bool BBMBlockDecoder::readBlock(
 	leadToneDetected = false;
 
 	// Invalidate block data in case readBlock returns with only partilly filled out block
-	for (int i = 0; i < 4; i++) {
-		readBlock.bbmHdr.loadAdr[i] = 0xff;
-		readBlock.bbmHdr.execAdr[i] = 0xff;
-	}
-	for (int i = 0; i < 2; i++) {
-		readBlock.bbmHdr.blockNo[i] = 0xff;
-		readBlock.bbmHdr.blockLen[i] = 0xff;
-	}
+	initbytes(&readBlock.bbmHdr.loadAdr[0], 0xff, 4);
+	initbytes(&readBlock.bbmHdr.execAdr[0], 0xff, 4);
+	initbytes(&readBlock.bbmHdr.blockNo[0], 0xff, 2);
+	initbytes(&readBlock.bbmHdr.blockLen[0], 0xff, 2);
 	readBlock.bbmHdr.locked = false;
 	readBlock.bbmHdr.name[0] = 0xff;
 
 
 	// Wait for lead tone of a min duration but still 'consume' the complete tone
-	double duration, dummy;
-	if (!mCycleDecoder.waitForTone(leadToneDuration, duration, dummy, readBlock.leadToneCycles, mLastHalfCycleFrequency)) {
+	double duration, waiting_time;
+	if (!mCycleDecoder.waitForTone(leadToneDuration, duration, waiting_time, readBlock.leadToneCycles, mLastHalfCycleFrequency)) {
 		// This is not necessarily an error - it could be because the end of the tape as been reached...
+		cout << "no lead tone found at " << encodeTime(getTime()) << "\n";
 			return false;
 	}
 	leadToneDetected = true;
-	if (mVerbose)
-		cout << duration << "s lead tone detected at " << encodeTime(getTime()) << "\n";
+	if (mVerbose) {
+		if (firstBlock)
+			cout << duration << "s prelude lead tone detected at " << encodeTime(getTime()) << "\n";
+		else
+			cout << duration << "s lead tone detected at " << encodeTime(getTime()) << "\n";
+	}
+
+	if (firstBlock) {
+		// Skip dummy byte
+		if (!checkBytes(0xaa, 1)) {
+			if (mTracing)
+				DEBUG_PRINT(getTime(), ERR, "Failed to read dummy byte (0xaa byte)%s\n", "");
+			//return false;
+		}
+		// Get postlude part of lead tone
+		int lead_tone_prelude_cycles = readBlock.leadToneCycles;
+		if (!mCycleDecoder.waitForTone(leadToneDuration, duration, waiting_time, readBlock.leadToneCycles, mLastHalfCycleFrequency)) {
+			// This is not necessarily an error - it could be because the end of the tape as been reached...
+			return false;
+		}
+		readBlock.leadToneCycles += lead_tone_prelude_cycles;
+		if (mVerbose)
+			cout << duration << "s postlude lead tone detected at " << encodeTime(getTime()) << "\n";
+	}
 
 	// Read block header's preamble (i.e., synhronisation byte)
 	if (!checkBytes(0x2a, 1)) {
@@ -132,46 +159,25 @@ bool BBMBlockDecoder::readBlock(
 		updateCRC(calc_hdr_CRC, *hdr++);
 	}
 
-	// Extract address information and update BBM block with it
-	for (int i = 0; i < 4; i++) {
-		readBlock.bbmHdr.loadAdr[i] = mBBMTapeBlockHdr.loadAdr[i];
-		readBlock.bbmHdr.execAdr[i] = mBBMTapeBlockHdr.execAdr[i];
-	}
-	for (int i = 0; i < 2; i++) {
-		readBlock.bbmHdr.blockNo[i] = mBBMTapeBlockHdr.blockNo[i];
-		readBlock.bbmHdr.blockLen[i] = mBBMTapeBlockHdr.blockLen[i];
-	}
+	// Extract heaader information and update BBM block with it
+	int load_adr = bytes2uint(&mBBMTapeBlockHdr.loadAdr[0], 4, true);
+	int exec_adr = bytes2uint(&mBBMTapeBlockHdr.execAdr[0], 4, true);
+	int block_len = bytes2uint(&mBBMTapeBlockHdr.blockLen[0], 2, true);
+	blockNo = bytes2uint(&mBBMTapeBlockHdr.blockNo[0], 2, true);
+	int next_adr = bytes2uint(&mBBMTapeBlockHdr.nextFileAdr[0], 4, true);
+	isLastBlock = (mBBMTapeBlockHdr.blockFlag & 0x80) != 0;
+	copybytes(&mBBMTapeBlockHdr.loadAdr[0], &readBlock.bbmHdr.loadAdr[0], 4);
+	copybytes(&mBBMTapeBlockHdr.execAdr[0], &readBlock.bbmHdr.execAdr[0], 4);
+	copybytes(&mBBMTapeBlockHdr.blockNo[0], &readBlock.bbmHdr.blockNo[0], 2);
+	copybytes(&mBBMTapeBlockHdr.blockLen[0], &readBlock.bbmHdr.blockLen[0], 2);
 	readBlock.bbmHdr.locked = (mBBMTapeBlockHdr.blockFlag & 0x1) != 0;
+	readBlock.bbmHdr.blockFlag = mBBMTapeBlockHdr.blockFlag;
 
-	// Extract block no (returned to caller of readBlock)
-	blockNo = mBBMTapeBlockHdr.blockNo[0] * 256 + mBBMTapeBlockHdr.blockNo[1];
-
-	// Extract data length information
-	int len = readBlock.bbmHdr.blockLen[0] * 256 + readBlock.bbmHdr.blockLen[1];
-
-	// Interpret block flag (b7 = last block - ignored, b6 = block is empty - ignored, b0 = file locked - considered)
-	if (mBBMTapeBlockHdr.blockFlag & 0x1)
-		readBlock.bbmHdr.locked = true;
-	else
-		readBlock.bbmHdr.locked = false;
-	if (mBBMTapeBlockHdr.blockFlag & 0x80)
-		isLastBlock = true;
-	else
-		isLastBlock = false;
 
 	if (mVerbose)
-		cout << "Header " << mTapeFileName << " " << hex <<
-		((mBBMTapeBlockHdr.loadAdr[0] >> 24) & 0xff) <<
-		((mBBMTapeBlockHdr.loadAdr[1] >> 16) & 0xff) <<
-		((mBBMTapeBlockHdr.loadAdr[2] >> 8) & 0xff) <<
-		((mBBMTapeBlockHdr.loadAdr[3]) & 0xff) <<
-		" " <<
-		((mBBMTapeBlockHdr.blockLen[0] >> 8) & 0xff) <<
-		((mBBMTapeBlockHdr.blockLen[1]) & 0xff) <<
-		" " <<
-		((mBBMTapeBlockHdr.blockNo[0] >> 8) & 0xff) <<
-		((mBBMTapeBlockHdr.blockNo[1]) & 0xff) <<
-		" read at " << encodeTime(getTime()) << dec << "\n";
+		cout << "Header " << mTapeFileName << " " << hex << load_adr << " " <<
+		exec_adr << " " << block_len << " " << blockNo << " " << (int) mBBMTapeBlockHdr.blockFlag <<
+		" " << next_adr << "  read at " << encodeTime(getTime()) << dec << "\n";
 
 	// Get header CRC
 	Word hdr_CRC;
@@ -181,9 +187,7 @@ bool BBMBlockDecoder::readBlock(
 		return false;
 	}
 
-	if (mVerbose)
-		cout << "header CRC read at " << encodeTime(getTime()) << "\n";
-
+	
 	// Check calc_hdr_CRC
 	if (false && hdr_CRC != calc_hdr_CRC) {
 		if (mTracing)
@@ -191,44 +195,22 @@ bool BBMBlockDecoder::readBlock(
 		return false;
 	}
 
-
-	// Consume micro lead tone between header and data block (to record it's duration only)
-	int micro_tone_half_cycles;
-	if (!mCycleDecoder.stopOnHalfCycles(Frequency::F2, 1, dummy, mLastHalfCycleFrequency)) { // Find the  first F2 1/2 cycle
-		if (mTracing)
-			DEBUG_PRINT(getTime(), ERR, "Failed to detect a start of data tone for file '%s'\n", readBlock.bbmHdr.name);
-		return false;
-	}
-	if (!mCycleDecoder.consumeHalfCycles(Frequency::F2, micro_tone_half_cycles, mLastHalfCycleFrequency)) { // Consume the remaining 1/2 cycles
-		if (mTracing)
-			DEBUG_PRINT(getTime(), ERR, "Failed to detect a start of data tone for file '%s'\n", readBlock.bbmHdr.name);
-		return false;
-	}
-	micro_tone_half_cycles++;
-	double micro_tone_duration = (double)micro_tone_half_cycles / (F2_FREQ * 2);
-	mArgParser.tapeTiming.minBlockTiming.microLeadToneDuration = micro_tone_duration;
-
 	if (mVerbose)
-		cout << micro_tone_duration << "s micro tone detected at " << encodeTime(getTime()) << "\n";
+		cout << "A correct header CRC 0x" << hex << hdr_CRC << " read at " << encodeTime(getTime()) << "\n";
+
 
 	// Get data bytes
 	calc_data_CRC = 0x0;
-	if (len > 0) {
-		if (!getBytes(readBlock.data, len, calc_data_CRC)) {
+	if (block_len > 0) {
+		if (!getBytes(readBlock.data, block_len, calc_data_CRC)) {
 			if (mTracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to read block data for file '%s'!\n", readBlock.bbmHdr.name);
 			return false;
 		}
 	}
 
-	if (mVerbose) {
-		cout << "Data bytes: ";
-		for (int i = 0; i < len; i++)
-			cout << _BYTE(readBlock.data[i]) << " ";
-		cout << "\n";
-
-		cout << len << " bytes of Block data read at " << encodeTime(getTime()) << "\n";
-	}
+	if (DEBUG_LEVEL == DBG)
+		logData(load_adr, &readBlock.data[0], block_len);
 
 	// Get data CRC
 	Word data_CRC;
@@ -238,9 +220,7 @@ bool BBMBlockDecoder::readBlock(
 		return false;
 	}
 
-	if (mVerbose)
-		cout << "data CRC read at " << encodeTime(getTime()) << "\n";
-
+	
 	// Check calc_hdr_CRC
 	if (data_CRC != calc_data_CRC) {
 		if (mTracing)
@@ -248,23 +228,34 @@ bool BBMBlockDecoder::readBlock(
 		return false;
 	}
 
-	if (mVerbose) {
-		cout << len << " bytes data block + CRC read at " << encodeTime(getTime()) << "\n";
-	}
-
-
-	// Detect gap to next block by waiting for 100 cycles of the next block's lead tone
-	// After detection, there will be a roll back to the end of the block
-	// so that the next block detection will not miss the lead tone.
-	checkpoint();
-	Frequency dummy_freq;
-	if (!mCycleDecoder.stopOnHalfCycles(Frequency::F2, 100, readBlock.blockGap, dummy_freq)) {
-		readBlock.blockGap = 2.0;
-	}
-	rollback();
-
 	if (mVerbose)
-		cout << readBlock.blockGap << " s gap after block, starting at " << encodeTime(getTime()) << "\n";
+		cout << "A correct data CRC 0x" << hex << data_CRC << " read at " << encodeTime(getTime()) << "\n";
+
+	if (mVerbose) {
+		cout << dec << block_len << " bytes data block + CRC read at " << encodeTime(getTime()) << "\n";
+	}
+
+	// Skip trailer tone that only exists for the last block of a file
+	if (isLastBlock) {
+		double duration, dummy;
+		if (!mCycleDecoder.waitForTone(trailerToneDuration, duration, dummy, readBlock.trailerToneCycles, mLastHalfCycleFrequency)) {
+			// This is not necessarily an error - it could be because the end of the tape as been reached...
+			return false;
+		}
+
+		// Detect gap to next file by waiting for 100 cycles of the next files's first block's lead tone
+		// After detection, there will be a roll back to the end of the block
+		// so that the next block detection will not miss the lead tone.
+		checkpoint();
+		Frequency dummy_freq;
+		if (!mCycleDecoder.stopOnHalfCycles(Frequency::F2, 100, readBlock.blockGap, dummy_freq)) {
+			readBlock.blockGap = 2.0;
+		}
+		rollback();
+
+		if (mVerbose)
+			cout << readBlock.blockGap << " s gap after block, starting at " << encodeTime(getTime()) << "\n";
+	}
 
 	return true;
 }

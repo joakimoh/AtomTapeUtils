@@ -76,6 +76,12 @@ add_executable (
 )
 target_link_libraries(uef2wav PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
 
+add_executable (
+	inspectuef  "inspectUEF/inspectuef.cpp"
+	"inspectuef/ArgParser.h"  "inspectuef/ArgParser.cpp"
+)
+target_link_libraries(inspectuef PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
+
 add_executable ( 
 	csw2wav  "csw2wav/csw2wav.cpp"
 	"csw2wav/ArgParser.h"  "csw2wav/ArgParser.cpp"
@@ -138,7 +144,7 @@ add_executable(
 	ScanTape "ScanTape/ScanTape.cpp"
 	"ScanTape/ArgParser.h" "ScanTape/ArgParser.cpp"
 	"ScanTape/LevelDecoder.h" "ScanTape/LevelDecoder.cpp"
-	"ScanTape/CycleDecoder.h"
+	"ScanTape/CycleDecoder.h" "ScanTape/CycleDecoder.cpp"
 	"ScanTape/CSWCycleDecoder.h" "ScanTape/CSWCycleDecoder.cpp"
 	"ScanTape/WavCycleDecoder.h" "ScanTape/WavCycleDecoder.cpp"
 	"ScanTape/BlockDecoder.h" "ScanTape/BlockDecoder.cpp"

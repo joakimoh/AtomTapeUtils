@@ -5,6 +5,19 @@
 #include "Debug.h"
 #include <filesystem>
 
+void initbytes(Byte* bytes, Byte v, int n)
+{
+    for (int i = 0; i < n; i++) {
+        bytes[i] = v;
+    }
+}
+void copybytes(Byte* from, Byte* to, int n)
+{
+    for (int i = 0; i < n; i++) {
+        to[i] = from[i];
+        to[i] = from[i];
+    }
+}
 uint32_t bytes2uint(Byte* bytes, int n, bool littleEndian)
 {
     uint32_t u = 0;
@@ -245,10 +258,18 @@ string filenameFromBlockName(string fileName)
     return s;
 }
 
-void logData(int address, BytesIter data_iter, int data_sz) {
+void logData(int address, Byte* data, int sz)
+{
+    vector<Byte> bytes;
+    for (int i = 0; i < sz; i++)
+        bytes.push_back(*(data+i));
+    BytesIter bi = bytes.begin();
 
-    if (DEBUG_LEVEL != DBG)
-        return;
+    logData(address, bi, sz);
+
+}
+
+void logData(int address, BytesIter &data_iter, int data_sz) {
 
     BytesIter di = data_iter;
     BytesIter di_16 = data_iter;
@@ -317,12 +338,12 @@ bool extractBBMBlockPars(
     int& loadAdr, int& loadAdrUB, int& execAdr, int& blockSz,
     bool& isBasicProgram, string& fileName
 ) {
-    loadAdr = -1;
-    loadAdrUB = -1;
-    execAdr = -1;
-    blockSz = -1;
+    loadAdr = bytes2uint(&block.bbmHdr.loadAdr[0], 4, true);  
+    execAdr = bytes2uint(&block.bbmHdr.execAdr[0], 4, true);
+    blockSz = bytes2uint(&block.bbmHdr.blockLen[0], 2, true);
+    loadAdrUB = loadAdr + blockSz;
     isBasicProgram = false;
-    fileName = "???";
+    fileName = block.bbmHdr.name;
 
     return true;
 }

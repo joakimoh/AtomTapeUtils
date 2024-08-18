@@ -20,7 +20,7 @@ public:
 	string srcFileName;
 	TapeProperties tapeTiming;
 	bool verbose = false;
-
+	bool bbcMicro = false;
 
 
 

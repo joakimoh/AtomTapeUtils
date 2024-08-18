@@ -6,6 +6,9 @@
 #include "CommonTypes.h"
 #include "BlockTypes.h"
 
+void copybytes(Byte* from, Byte* to, int n);
+void initbytes(Byte* bytes, Byte v, int n);
+
 uint32_t bytes2uint(Byte* bytes, int n, bool littleEndian);
 
 // Read file name from tape block
@@ -21,7 +24,8 @@ string crDefaultOutFileName(string filePath, string fileExt);
 string crEncodedFileNamefromDir(string dirPath, TapeFile tapeFile, string fileExt);
 
 // Log continuous memory data starting from an assumed address
-void logData(int address, BytesIter data_iter, int data_sz);
+void logData(int address, BytesIter &data_iter, int data_sz);
+void logData(int address, Byte* data, int sz);
 
 BlockType parseBlockFlag(AtomTapeBlockHdr hdr, int& blockLen);
 

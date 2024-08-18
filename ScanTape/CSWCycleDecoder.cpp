@@ -80,37 +80,7 @@ bool CSWCycleDecoder::rollback()
 
 }
 
-bool CSWCycleDecoder::collectCycles(
-	Frequency freq, int nRequiredCycles,
-	CSWCycleDecoder::CycleSample& lastValidCycleSample, int& nCollectedCycles
-)
-{
-	CycleSample sample;
-	nCollectedCycles = 0;
-	for (int c = 0; c < nRequiredCycles; c++) {		
-		if (!getNextCycle(sample) && sample.freq != freq) {
-			return false;
-		}
-		nCollectedCycles = c + 1;
-		lastValidCycleSample = sample;
-	}
 
-	return true;
-}
-
-bool CSWCycleDecoder::collectCycles(
-	Frequency freq, CycleSample& lastValidCycleSample, int maxCycles, int& nCollectedCycles
-)
-{
-	CycleSample sample;
-	nCollectedCycles = 0;
-	while (getNextCycle(sample) && sample.freq == freq && nCollectedCycles < maxCycles) {
-		lastValidCycleSample = sample;
-		nCollectedCycles++;
-	}
-
-	return true;
-}
 
 // Get last sampled cycle
 CycleDecoder::CycleSample CSWCycleDecoder::getCycle()
@@ -178,7 +148,7 @@ int CSWCycleDecoder::nextPulseLength(int & pulseLength)
 }
 
 // Advance n samples and record the encountered no of 1/2 cycles
-int CSWCycleDecoder::countHalfCycles(int nSamples, int& half_cycles)
+int CSWCycleDecoder::countHalfCycles(int nSamples, int& half_cycles, Frequency& lastHalfCycleFrequency)
 {
 	int initial_sample_index = mSampleIndex;
 	bool stop = false;
@@ -207,6 +177,10 @@ int CSWCycleDecoder::countHalfCycles(int nSamples, int& half_cycles)
 		}
 
 	}
+
+	// Record the frequency of the last 1/2 cycle (but only if a 1/2 cycle was detected)
+	updateHalfCycleFreq(half_cycles, lastHalfCycleFrequency);
+
 	return true;
 }
 
@@ -232,12 +206,8 @@ int CSWCycleDecoder::consumeHalfCycles(Frequency f, int& nHalfCycles, Frequency&
 			stop = true;
 	}
 
-	if (mPulseLength >= mMinNSamplesF1HalfCycle && mPulseLength <= mMaxNSamplesF1HalfCycle)
-		lastHalfCycleFrequency = Frequency::F1;
-	else if (mPulseLength >= mMinNSamplesF2HalfCycle && mPulseLength <= mMaxNSamplesF2HalfCycle)
-		lastHalfCycleFrequency = Frequency::F2;
-	else
-		lastHalfCycleFrequency = Frequency::UndefinedFrequency;
+	// Record the frequency of the last 1/2 cycle (but only if a 1/2 cycle was detected)
+	updateHalfCycleFreq(mPulseLength, lastHalfCycleFrequency);
 
 	return true;
 }
@@ -250,10 +220,11 @@ int CSWCycleDecoder::stopOnHalfCycles(Frequency f, int nHalfCycles, double &wait
 
 	double t_start = getTime();
 	double t_end;
+	int n = 0;
 
 	lastHalfCycleFrequency = Frequency::UndefinedFrequency;
 
-	for (int n = 0; n < nHalfCycles;) {
+	for (n = 0; n < nHalfCycles;) {
 
 		t_end = getTime();
 
@@ -277,12 +248,8 @@ int CSWCycleDecoder::stopOnHalfCycles(Frequency f, int nHalfCycles, double &wait
 			n = 0;
 	}
 
-	if (mPulseLength >= mMinNSamplesF1HalfCycle && mPulseLength <= mMaxNSamplesF1HalfCycle)
-		lastHalfCycleFrequency = Frequency::F1;
-	else if (mPulseLength >= mMinNSamplesF2HalfCycle && mPulseLength <= mMaxNSamplesF2HalfCycle)
-		lastHalfCycleFrequency = Frequency::F2;
-	else
-		lastHalfCycleFrequency = Frequency::UndefinedFrequency;
+	if (n > 0)
+		lastHalfCycleFrequency = f;
 
 	return true;
 }
@@ -421,7 +388,7 @@ bool CSWCycleDecoder::waitForTone(double minDuration, double &duration, double& 
 	int n_min_half_cycles = minDuration * F2_FREQ * 2;
 	int n_remaining_half_cycles;
 
-	int t_start = getTime();
+	double t_start = getTime();
 
 	if (!stopOnHalfCycles(Frequency::F2, n_min_half_cycles, waitingTime, lastHalfCycleFrequency))
 		return false;
@@ -435,6 +402,7 @@ bool CSWCycleDecoder::waitForTone(double minDuration, double &duration, double& 
 	return true;
 
 }
+
 
 
 double CSWCycleDecoder::getTime()

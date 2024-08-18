@@ -161,16 +161,18 @@ int main(int argc, const char* argv[])
                     //return -1;
                 }
 
-                if (tapFile->fileType == AtomFile) {
-                    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, false);
-                    string ABC_file_name = crEncodedFileNamefromDir(arg_parser.genDir, *tapFile, "abc");
-                    if (!ABC_codec.encode(*tapFile, ABC_file_name)) {
-                        cout << "Failed to write the program file!\n";
-                        //return -1;
-                    }
+                AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.bbcMicro);
+                string ABC_file_name;
+                if (tapFile->fileType == AtomFile)
+                    ABC_file_name = crEncodedFileNamefromDir(arg_parser.genDir, *tapFile, "abc");
+                else
+                    ABC_file_name = crEncodedFileNamefromDir(arg_parser.genDir, *tapFile, "bbc");
+                if (!ABC_codec.encode(*tapFile, ABC_file_name)) {
+                    cout << "Failed to write the program file!\n";
+                    //return -1;
                 }
 
-                if (tapFile->complete) {
+                if (false && tapFile->complete) {
 
                     // Only generate TAP & UEF files if the Tape file was completed (without missing blocks)
 

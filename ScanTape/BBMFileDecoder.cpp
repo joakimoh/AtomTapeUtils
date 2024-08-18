@@ -59,6 +59,7 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
 
 
     double min_lead_tone_duration = mArgParser.tapeTiming.minBlockTiming.firstBlockLeadToneDuration;
+    double min_trailer_tone_duration = mArgParser.tapeTiming.minBlockTiming.trailerLeadToneDuration;
 
     // Read all blocks belonging to the same file
     unsigned n_blocks = 0;
@@ -67,7 +68,7 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
         FileBlock read_block(BBCMicroBlock);
         int block_sz;
         bool isBasicProgram;
-        int exec_adr, load_adr, load_adr_UB;
+        int exec_adr, file_load_adr, load_adr_UB;
         string fn;
 
         // Read tape block as BBM block
@@ -75,7 +76,7 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
         mBlockDecoder.checkpoint();
         bool lead_tone_detected;
         bool success = mBlockDecoder.readBlock(
-            min_lead_tone_duration, read_block, is_last_block, block_no,
+            min_lead_tone_duration, min_trailer_tone_duration, read_block, first_block, is_last_block, block_no,
             lead_tone_detected
         );
 
@@ -88,7 +89,7 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
         // Extract BBM header parameters
         bool complete_header = extractBBMBlockPars(
             read_block, is_last_block, mBlockDecoder.nReadBytes,
-            load_adr, load_adr_UB, exec_adr, block_sz, isBasicProgram, fn
+            file_load_adr, load_adr_UB, exec_adr, block_sz, isBasicProgram, fn
         );
         if (!complete_header) {
             if (mVerbose)
@@ -122,8 +123,8 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
                     string block_no_s = "#" + to_string(block_no);
                     string block_type_s = _BBM_BLOCK_ORDER(is_last_block, block_no);
 
-                    printf("Only correctly read %d bytes of file '%s': block %s (%s)!\n",
-                        mBlockDecoder.nReadBytes, fn.c_str(), block_no_s.c_str(), block_type_s.c_str()
+                    printf("Only correctly read %d (%d) bytes of file '%s': block %s (%s)!\n",
+                        mBlockDecoder.nReadBytes, block_sz, fn.c_str(), block_no_s.c_str(), block_type_s.c_str()
                     );
                 }
 
@@ -135,7 +136,7 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
             }
 
             last_valid_block_no = block_no;
-            last_valid_load_adr = load_adr;
+            last_valid_load_adr = file_load_adr;
             last_valid_load_adr_UB = load_adr_UB;
             last_valid_exec_adr = exec_adr;
             last_valid_block_sz = block_sz;
@@ -174,20 +175,13 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
                     first_block_found = true;
                     corrupted_block = false;
                     if (block_no != 0 && mVerbose)
-                        printf("First block of %s with non-zero block no %d and start address %.4x!\n", read_block.bbmHdr.name, block_no, load_adr);
+                        printf("First block of %s with non-zero block no %d and start address %.4x!\n", read_block.bbmHdr.name, block_no, file_load_adr);
                 }
                 first_block = false;
-                load_adr_start = load_adr;
+                load_adr_start = file_load_adr;
                 exec_adr_start = exec_adr;
                 tapeFile.validFileName = filenameFromBlockName(file_name);
                 tape_start_time = block_start_time;
-            }
-            else {
-                if (load_adr != next_load_adr && mVerbose) {
-                    printf("Load address of block #%d (0x%.4x) not a continuation of previous block (0x%.4x) as expected!\n",
-                        block_no, load_adr, next_load_adr
-                    );
-                }
             }
             if (last_block) {
 

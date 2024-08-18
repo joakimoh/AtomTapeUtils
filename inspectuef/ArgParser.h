@@ -3,7 +3,6 @@
 #include <string>
 #include <map>
 #include <vector>
-#include "../shared/TapeProperties.h"
 
 
 using namespace std;
@@ -12,20 +11,14 @@ class ArgParser
 {
 public:
 
+	string srcFileName = "";
 
-	string dstFileName;
-	string srcFileName;
-	bool verbose = false;
-	bool bbcMicro = false;
-	TapeProperties tapeTiming;
 
 private:
 
-	void printUsage(const char *);
+	void printUsage(const char*);
 
 	bool mParseSuccess = false;
-
-	
 
 public:
 

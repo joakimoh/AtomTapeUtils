@@ -16,7 +16,7 @@ using namespace std;
 #define INFO    0x0F
 #define DBG     0x1F
 
-#define DEBUG_LEVEL DBG
+#define DEBUG_LEVEL ERR
 
 #define DBG_T1 mArgParser.dbgStart
 #define DBG_T2 mArgParser.dbgEnd

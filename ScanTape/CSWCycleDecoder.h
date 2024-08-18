@@ -39,12 +39,14 @@ private:
 
 	int nextPulseLength(int& pulseLength);
 
+	
+
 public:
 
 	CSWCycleDecoder(int sampleFreq, HalfCycle firstHalfCycle, Bytes &Pulses, ArgParser & argParser, bool verbose);
 
 	// Advance n samples and record the encountered no of 1/2 cycles
-	int countHalfCycles(int nSamples, int& half_cycles);
+	int countHalfCycles(int nSamples, int& half_cycles, Frequency& lastHalfCycleFrequency);
 
 	// Consume as many 1/2 cycles of frequency f as possible
 	int consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency& lastHalfCycleFrequency);
@@ -63,12 +65,6 @@ public:
 
 	// Get last sampled cycle
 	CycleSample getCycle();
-
-	// Collect a specified no of cycles of a certain frequency
-	bool collectCycles(Frequency freq, int nRequiredCycles, CycleSample& lastValidCycleSample, int& nCollectedCycles);
-
-	// Collect a max no of cycles of a certain frequency
-	bool collectCycles(Frequency freq, CycleSample& lastValidCycleSample, int maxCycles, int& nCollectedCycles);
 
 	// Get tape time
 	double getTime();

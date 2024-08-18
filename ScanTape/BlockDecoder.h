@@ -64,6 +64,8 @@ protected:
 
 	bool getDataBit(Bit& bit);
 
+	bool getStopBit();
+
 	// Get one byte
 	bool getByte(Byte *byte, int & nCollectedCycles);
 	bool getByte(Byte* byte);

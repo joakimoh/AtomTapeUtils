@@ -14,7 +14,7 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Usage:\t" << name << " <UEF file> [-o <output file] [-v]\n";
+	cout << "Usage:\t" << name << " <UEF file> [-o <output file] [-v] [-bbm]\n";
 	cout << "<UEF file>:\n\tUEF file to decode\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.abc'.\n\n";
@@ -36,15 +36,27 @@ ArgParser::ArgParser(int argc, const char* argv[])
 
 
 	int ac = 2;
-
+	// First search for option '-bbm' to select target machine and the
+	// related default timing properties
+	tapeTiming = atomTiming;
 	while (ac < argc) {
-		if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
+		if (strcmp(argv[ac], "-bbm") == 0) {
+			bbcMicro = true;
+			tapeTiming = bbmTiming;
+		}
+		ac++;
+	}
+
+	// Now lock for remaining options
+	ac = 2;
+	while (ac < argc) {
+		if (strcmp(argv[ac], "-bbm") == 0) {
+			// Nothing to do here as already handled above
+		}
+		else if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
 
 			dstFileName = argv[ac + 1];
 			ac++;
-		}
-		else if (strcmp(argv[ac], "-bbm") == 0) {
-			bbcMicro = true;
 		}
 		else if (strcmp(argv[ac], "-v") == 0) {
 			verbose = true;

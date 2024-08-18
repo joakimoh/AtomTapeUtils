@@ -41,16 +41,52 @@ bool AtomBasicCodec::encode(TapeFile& tapeFile, string& filePath)
         return encodeAtom(tapeFile, filePath, fout);
 }
 
+bool getTapeByte(TapeFile& f, FileBlockIter& fi, BytesIter& bi, int &read_bytes, Byte &tapeByte)
+{
+    if (fi >= f.blocks.end())
+        return false;
+    while (fi < f.blocks.end() && bi >= fi->data.end()) {
+        fi++;
+        if (fi < f.blocks.end())
+            bi = fi -> data.begin();
+    }
+    if (fi >= f.blocks.end() || bi >= fi->data.end())
+        return false;
+
+    tapeByte = *bi;
+
+    bi++;
+
+    read_bytes++;
+
+    return true;
+}
+
+int tapeDataSz(TapeFile& f)
+{
+    int sz = 0;
+    for (int i = 0; i < f.blocks.size(); i++)
+        sz += f.blocks[i].data.size();
+    return sz;
+}
+
+
 bool AtomBasicCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
 {
     FileBlockIter file_block_iter = tapeFile.blocks.begin();
+    BytesIter bi = file_block_iter->data.begin();
+    int exec_adr = bytes2uint(&file_block_iter->bbmHdr.execAdr[0], 4, true);
+    int load_adr = bytes2uint(&file_block_iter->bbmHdr.loadAdr[0], 4, true);
+    int data_len = bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 2, true);;
+    string name = file_block_iter->bbmHdr.name;
 
-    if (mVerbose && !(tapeFile.isBasicProgram)) {
-        printf("File '%s' likely doesn\'t contain a BBC Micro Basic Program => BBC file generated could be unreadable...\n", file_block_iter->bbmHdr.name);
-    }
+    Byte b;
+    int read_bytes = 0;
+
+    int tape_sz = tapeDataSz(tapeFile);
 
     if (mVerbose)
-        cout << "\nEncoding program '" << tapeFile.blocks.front().bbmHdr.name << " ' as a BBC file...\n\n";
+        cout << "\nTrying to encode program '" << tapeFile.blocks.front().bbmHdr.name << " ' as a BBC file...\n\n";
 
     int line_pos = -1;
     int line_no_low = 0;
@@ -59,70 +95,56 @@ bool AtomBasicCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& f
     bool end_of_program = false;
     unsigned tape_file_sz = 0;
     unsigned n_blocks = 0;
-    while (file_block_iter < tapeFile.blocks.end()) {
-
-        //
-        // Format of BBC Micro BASIC program in memory:
-        // {<cr> <linehi> <linelo> <line len from <cr> until end of text> <text with tokenized keywords>} <cr> <ff>
-        //
-        BytesIter bi = file_block_iter->data.begin();
-        int exec_adr = bytes2uint(&file_block_iter->bbmHdr.execAdr[0],4,true);
-        int load_adr = bytes2uint(&file_block_iter->bbmHdr.loadAdr[0], 4, true);
-        int data_len = bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 2, true);;
-        string name = file_block_iter->bbmHdr.name;
-        tape_file_sz += data_len;
-        int line_len;
-
-        while (bi < file_block_iter->data.end() && !end_of_program) {
-            if (line_pos == 0) {
-                if (*bi == 0xff) {
-                    bi++;
-                    end_of_program = true;
-                    int n_non_ABC_bytes = file_block_iter->data.end() - bi;
-                    if (mVerbose && file_block_iter->data.end() - bi > 0) {
-                        printf("Program file '%s' contains %d extra bytes after end of program - skipping this data for BBC file generation!\n", name.c_str(), n_non_ABC_bytes);
-                    }
+    bool unexpected_end_of_program = false;
+    int line_len;
+    
+    while (getTapeByte(tapeFile, file_block_iter, bi, read_bytes, b) && !end_of_program) {
+        
+        if (line_pos == 0) {
+            if (b == 0xff) {
+                end_of_program = true;
+                int n_non_ABC_bytes = tape_file_sz - read_bytes;
+                if (mVerbose && n_non_ABC_bytes > 0) {
+                    unexpected_end_of_program = true;
+                    printf("Program file '%s' contains %d extra bytes after end of program - skipping this data for BBC file generation!\n", name.c_str(), n_non_ABC_bytes);
                 }
-                else {
-                    line_no_high = int(*bi++);
-                    line_pos++;
-                }
-            }
-            else if (line_pos == 1) {
-                line_no_low = int(*bi++);
-                line_len = *bi++;
-                line_pos = -1;
-                int line_no = line_no_high * 256 + line_no_low;
-                char line_no_s[7];
-                sprintf(line_no_s, "%5d", line_no);
-                fout << line_no_s;
-            }
-            else if (*bi == 0xd) {
-                line_pos = 0;
-                bi++;
-                if (!first_line) {
-                    fout << "\n";
-                }
-                first_line = false;
-
             }
             else {
-                if (mTokenDict.find(*bi) != mTokenDict.end())
-                    fout << mTokenDict[*bi++].fullT;
-                else
-                    fout << (char)*bi++;
+                line_no_high = b;
+                line_pos++;
             }
+        }
+        else if (line_pos == 1) {
+            line_no_low = b;
+            line_pos++;
+        }
+        else if (line_pos == 2) {
+            line_len = b;
+            line_pos = -1;
+            int line_no = line_no_high * 256 + line_no_low;
+            char line_no_s[7];
+            sprintf(line_no_s, "%5d", line_no);
+            fout << line_no_s;
+        }
+        else if (b == 0xd) {
+            line_pos = 0;
+            if (!first_line) {
+                fout << "\n";
+            }
+            first_line = false;
 
         }
+        else {
+            if (mTokenDict.find(b) != mTokenDict.end())
+                fout << mTokenDict[b].fullT;
+            else
+                fout << (char) b;
+        }
 
-        if (mVerbose)
-            printf("%13s %.4x %.4x %.3d\n", name.c_str(), load_adr, exec_adr, data_len);
 
-        file_block_iter++;
-        n_blocks++;
     }
 
-    if (mVerbose && !end_of_program)
+    if (mVerbose && (!end_of_program || unexpected_end_of_program))
         printf("Program '%s' didn't terminate with 0xff!\n", tapeFile.blocks.front().bbmHdr.name);
 
     if (mVerbose) {
@@ -290,7 +312,8 @@ bool AtomBasicCodec::decode(string &programFileName, TapeFile& tapeFile)
     fin.close();
 
     BytesIter data_iterator = data.begin();
-    logData(0x2900, data_iterator, data.size());
+    if (DEBUG_LEVEL == DBG)
+        logData(0x2900, data_iterator, data.size());
 
 
     // Create ATM block
@@ -344,7 +367,8 @@ bool AtomBasicCodec::decode(string &programFileName, TapeFile& tapeFile)
             BytesIter block_iterator = block.data.begin();
             tape_file_sz += data_len;
             n_blocks++;
-            logData(load_address, block_iterator, data_len);
+            if (DEBUG_LEVEL == DBG)
+                logData(load_address, block_iterator, data_len);
         }
 
 
@@ -364,7 +388,8 @@ bool AtomBasicCodec::decode(string &programFileName, TapeFile& tapeFile)
         
         tape_file_sz += data_len;
         n_blocks++;
-        logData(load_address, block_iterator, data_len);
+        if (DEBUG_LEVEL == DBG)
+            logData(load_address, block_iterator, data_len);
     }
 
     if (mVerbose) {

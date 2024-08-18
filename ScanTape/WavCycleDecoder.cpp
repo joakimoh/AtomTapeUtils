@@ -68,17 +68,22 @@ bool WavCycleDecoder::rollback()
 }
 
 // Advance n samples and record the encountered no of 1/2 cycles
-int WavCycleDecoder::countHalfCycles(int nSamples, int& half_cycles)
+int WavCycleDecoder::countHalfCycles(int nSamples, int& half_cycles, Frequency& lastHalfCycleFrequency)
 {
 	Level level_p = mLevel;
 
 	half_cycles = 0;
 	int sample_no;
+	int n_samples = 0;
+	int half_cycle_duration = 0;
 
 	for (int n = 0; n < nSamples && !mLevelDecoder.endOfSamples(); n++) {
 		if (!mLevelDecoder.getNextSample(mLevel, sample_no)) // can fail for too long level duration or end of of samples
 			return false;
+		n_samples++;
 		if (mLevel != level_p) {
+			half_cycle_duration = n_samples;
+			n_samples = 0;
 			half_cycles++;
 			level_p = mLevel;
 			if (half_cycles == 1) { // Decide phaseshift based on first 1/2 cycle's level
@@ -89,8 +94,14 @@ int WavCycleDecoder::countHalfCycles(int nSamples, int& half_cycles)
 			}
 		}
 	}
+
+	// Record the frequency of the last 1/2 cycle (but only if a 1/2 cycle was detected)
+	updateHalfCycleFreq(half_cycles, lastHalfCycleFrequency);
+
 	return true;
 }
+
+
 
 // Consume as many 1/2 cycles of frequency f as possible
 int WavCycleDecoder::consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency &lastHalfCycleFrequency)
@@ -115,12 +126,8 @@ int WavCycleDecoder::consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency 
 			stop = true;
 	}
 
-	if (half_cycle_duration >= mMinNSamplesF1HalfCycle && half_cycle_duration <= mSamplesThresholdHalfCycle)
-		lastHalfCycleFrequency = Frequency::F2;
-	else if (half_cycle_duration <= mMaxNSamplesF1Cycle)
-		lastHalfCycleFrequency = Frequency::F1;
-	else
-		lastHalfCycleFrequency = Frequency::UndefinedFrequency;
+	// Record the frequency of the last 1/2 cycle (but only if a 1/2 cycle was detected)
+	updateHalfCycleFreq(half_cycle_duration, lastHalfCycleFrequency);
 
 	return true;
 }
@@ -134,9 +141,10 @@ int WavCycleDecoder::stopOnHalfCycles(Frequency f, int nHalfCycles, double &wait
 
 	double t_start = getTime();
 	double t_end;
+	int n = 0;
 	lastHalfCycleFrequency = Frequency::UndefinedFrequency;
 
-	for (int n = 0; n < nHalfCycles;) {
+	for (; n < nHalfCycles;) {
 
 		// Get one half_cycle
 		Level initial_level = mLevel;
@@ -162,12 +170,8 @@ int WavCycleDecoder::stopOnHalfCycles(Frequency f, int nHalfCycles, double &wait
 			n = 0;
 	}
 
-		if (half_cycle_duration >= mMinNSamplesF1HalfCycle && half_cycle_duration <= mSamplesThresholdHalfCycle)
-		lastHalfCycleFrequency = Frequency::F2;
-	else if (half_cycle_duration <= mMaxNSamplesF1Cycle)
-		lastHalfCycleFrequency = Frequency::F1;
-	else
-		lastHalfCycleFrequency = Frequency::UndefinedFrequency;
+	if (n > 0)
+		lastHalfCycleFrequency = f;
 
 	return true;
 }
@@ -352,7 +356,7 @@ bool WavCycleDecoder::waitForTone(double minDuration, double& duration, double& 
 	int n_min_half_cycles = minDuration * F2_FREQ * 2;
 	int n_remaining_half_cycles;
 
-	int t_start = getTime();
+	double t_start = getTime();
 	
 	if (!stopOnHalfCycles(Frequency::F2, n_min_half_cycles, waitingTime, lastHalfCycleFrequency))
 		return false;
@@ -373,34 +377,7 @@ CycleDecoder::CycleSample WavCycleDecoder::getCycle()
 	return mCycleSample;
 }
 
-// Collect a specified no of cycles of a certain frequency
-bool WavCycleDecoder::collectCycles(Frequency freq, int nRequiredCycles, CycleSample& lastValidCycleSample, int& nCollectedCycles) {
 
-	CycleSample sample;
-	nCollectedCycles = 0;
-	for (int c = 0; c < nRequiredCycles; c++) {	
-		if (!getNextCycle(sample) || sample.freq != freq)
-			return false;
-		lastValidCycleSample = sample;
-		nCollectedCycles = c + 1;
-	}
-
-	return true;
-}
-
-// Collect a max no of cycles of a certain frequency
-bool WavCycleDecoder::collectCycles(Frequency freq, CycleSample& lastValidCycleSample, int maxCycles, int& nCollectedCycles) {
-
-	CycleSample sample;
-	nCollectedCycles = 0;
-	while (getNextCycle(sample) && sample.freq == freq && nCollectedCycles < maxCycles) {
-		lastValidCycleSample = sample;
-		nCollectedCycles++;
-	}
-
-
-	return true;
-}
 
 // Get tape time
 double WavCycleDecoder::getTime()

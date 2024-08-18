@@ -82,7 +82,7 @@ public:
 	int getPhaseShift() { return mPhaseShift;  }
 
 	// Advance n samples and record the encountered no of 1/2 cycles
-	virtual int countHalfCycles(int nSamples, int& half_cycles) = 0;
+	virtual int countHalfCycles(int nSamples, int& half_cycles, Frequency& lastHalfCycleFrequency) = 0;
 
 	// Consume as many 1/2 cycles of frequency f as possible
 	virtual int  consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency& lastHalfCycleFrequency) = 0;
@@ -105,12 +105,6 @@ public:
 	// Get last sampled cycle
 	virtual CycleSample getCycle() = 0;
 
-	// Collect a specified no of cycles of a certain frequency
-	virtual bool collectCycles(Frequency freq, int nRequiredCycles, CycleSample& lastValidCycleSample, int& nCollectedCycles) = 0;
-
-	// Collect a max no of cycles of a certain frequency
-	virtual bool collectCycles(Frequency freq, CycleSample& lastValidCycleSample, int maxCycles, int& nCollectedCycles) = 0;
-
 	// Get tape time
 	virtual double getTime() = 0;
 
@@ -120,6 +114,12 @@ public:
 	// Roll back to a previously saved cycle
 	virtual bool rollback() = 0;
 
+protected:
+	void updateHalfCycleFreq(int half_cycle_duration, Frequency& lastHalfCycleFrequency);
+
+	// Collect a max no of cycles of a certain frequency
+	bool collectCycles(Frequency freq, CycleSample& lastValidCycleSample, int maxCycles, int& nCollectedCycles);
+	bool collectCycles(Frequency freq, int nRequiredCycles, CycleSample& lastValidCycleSample, int& nCollectedCycles);
 
 };
 
