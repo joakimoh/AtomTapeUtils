@@ -93,7 +93,6 @@ bool BBMBlockDecoder::readBlock(
 	double duration, waiting_time;
 	if (!mCycleDecoder.waitForTone(leadToneDuration, duration, waiting_time, readBlock.leadToneCycles, mLastHalfCycleFrequency)) {
 		// This is not necessarily an error - it could be because the end of the tape as been reached...
-		cout << "no lead tone found at " << encodeTime(getTime()) << "\n";
 			return false;
 	}
 	leadToneDetected = true;

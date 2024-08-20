@@ -37,7 +37,7 @@ typedef struct BBMHdr_struct {
 	Byte execAdr[4];
 	Byte blockNo[2];
 	Byte blockLen[2];
-	Byte blockFlag;
+	Byte blockFlag; // b7 = last block, b6 = empty block, b0 = locked block
 	bool locked; // true if block is Locked
 } BBMHdr;
 

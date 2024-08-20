@@ -39,7 +39,11 @@ int main(int argc, const char* argv[])
         cout << "Output file is: '" << arg_parser.dstFileName << "'\n";
 
     AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, false);
+
     TapeFile TAP_file(AtomFile);
+    if (arg_parser.bbcMicro)
+        TAP_file = TapeFile(BBCMicroFile);
+
     if (!ABC_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to encode program file '%s' as WAW file '%s'\n",
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()

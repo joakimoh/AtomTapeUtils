@@ -7,9 +7,12 @@
 #include "BlockTypes.h"
 
 void copybytes(Byte* from, Byte* to, int n);
+void copybytes(Byte* from, Bytes& to, int n);
 void initbytes(Byte* bytes, Byte v, int n);
+void initbytes(Bytes &bytes, Byte v, int n);
 
 uint32_t bytes2uint(Byte* bytes, int n, bool littleEndian);
+void uint2bytes(uint32_t u, Byte* bytes, int n, bool littleEndian);
 
 // Read file name from tape block
 bool readAtomTapeFileName(BytesIter& data_iter, Bytes& data, Word& CRC, char* name);

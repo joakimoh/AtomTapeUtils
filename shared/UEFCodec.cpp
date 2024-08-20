@@ -91,8 +91,312 @@ bool UEFCodec::setTapeTiming(TapeProperties tapeTiming)
     return true;
 }
 
+bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
+{
+    FileBlockIter file_block_iter = tapeFile.blocks.begin();
+
+    int block_no = 0;
+    int n_blocks = (int)tapeFile.blocks.size();
+
+    // Default values for block timing (if mUseOriginalTiming is true the recored block timing will instead by used later on)
+    float first_block_lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;// lead tone duration of first block 
+    float other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;// lead tone duration of all other blocks (2 s expected here but Atomulator needs 4 s)
+    float last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
+
+    float lead_tone_duration = first_block_lead_tone_duration; // let first block have a longer lead tone
+
+    //
+    // Write data-dependent part of UEF file
+    //
 
 
+    while (file_block_iter < tapeFile.blocks.end()) {
+
+        // Write a lead tone for the block - including a dummy byte
+        if (mUseOriginalTiming && tapeFile.validTiming)
+            lead_tone_duration = (file_block_iter->leadToneCycles) / (2 * mBaseFrequency);
+        if (!writeCarrierChunkwithDummyByte(fout, 4, file_block_iter->leadToneCycles)) {
+            printf("Failed to write %f Hz lead tone (with dummy bye 0xaa) of duration %f s\n", mBaseFrequency, lead_tone_duration);
+        }
+
+        // Change lead tone duration for remaining blocks
+        lead_tone_duration = other_block_lead_tone_duration;
+
+        // Initialise header CRC
+
+        Word header_CRC = 0;
+
+        // --------------------- start of block header chunk ------------------------
+        //
+        // Write block header including preamble as one chunk
+        //
+        // block header: <preamble:1> <filename:1-10> <loadAdr:4> <execAdr:4> <blockNo:2> <blockLen:2> <blockFlag:1> <nextFileAdr:4>
+        // 
+        // --------------------------------------------------------------------------
+
+
+        int data_len = bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 4, true); // get data length
+
+        Bytes header_data;
+
+        // Preamble
+        header_data.push_back(0x2a);
+
+        // Filename
+        int name_len = 0;
+        for (; name_len < sizeof(file_block_iter->bbmHdr.name) && file_block_iter->bbmHdr.name[name_len] != 0; name_len++);
+        addBytes2Vector(header_data, (Byte*)file_block_iter->bbmHdr.name, name_len); // store block name
+        header_data.push_back(0x0);
+
+        // Load address, exec address, block no, block len, block flag & next file address
+        copybytes(&file_block_iter->bbmHdr.loadAdr[0], header_data, 4);
+        copybytes(&file_block_iter->bbmHdr.execAdr[0], header_data, 4);
+        copybytes(&file_block_iter->bbmHdr.blockNo[0], header_data, 2);
+        copybytes(&file_block_iter->bbmHdr.blockLen[0], header_data, 2);
+        header_data.push_back(file_block_iter->bbmHdr.blockFlag);
+        initbytes(header_data, 0x0, 4); // next file address (always 0x00000000 for a tape file)
+
+        // Write header excluding the CRC
+        if (!writeComplexDataChunk(fout, 8, 'N', -1, header_data, header_CRC)) {
+            printf("Failed to write block header data chunk%s\n", "");
+        }
+
+        // Write the header CRC chunk
+        Bytes header_CRC_bytes;
+        Word dummy_CRC = 0;
+        header_CRC_bytes.push_back(header_CRC / 256);
+        header_CRC_bytes.push_back(header_CRC % 256);
+        if (!writeSimpleDataChunk(fout, header_CRC_bytes, dummy_CRC)) {
+            printf("Failed to write header CRC data chunk%s\n", "");
+        }
+
+
+
+        // --------------------------------------------------------------------------
+        //
+        // ---------------- End of block header chunk -------------------------------
+
+
+        // --------------------- start of block data + CRC chunk ------------------------
+        //
+        // Write block data as one chunk
+        //
+        // --------------------------------------------------------------------------
+
+        // Write block data as one chunk
+        Word data_CRC = 0;
+        BytesIter bi = file_block_iter->data.begin();
+        Bytes block_data;
+        while (bi < file_block_iter->data.end())
+            block_data.push_back(*bi++);
+        if (!writeComplexDataChunk(fout, 8, 'N', -1, block_data, data_CRC)) {
+            printf("Failed to write block header data chunk%s\n", "");
+        }
+
+        // Write the data CRC
+        Bytes data_CRC_bytes;
+        data_CRC_bytes.push_back(data_CRC / 256);
+        data_CRC_bytes.push_back(data_CRC % 256);
+        if (!writeSimpleDataChunk(fout, data_CRC_bytes, dummy_CRC)) {
+            printf("Failed to write data CRC chunk%s\n", "");
+        }
+
+
+        // --------------------------------------------------------------------------
+        //
+        // ---------------- End of block data chunk -------------------------------
+
+
+
+        // For last block, add trailer carrier and gap
+        if (block_no == n_blocks - 1) {
+
+            // Write a trailer carrier
+            float trailer_tone_duration;
+            if (mUseOriginalTiming && tapeFile.validTiming)
+                trailer_tone_duration = (file_block_iter->trailerToneCycles) / (2 * mBaseFrequency);
+            if (!writeCarrierChunk(fout, trailer_tone_duration)) {
+                printf("Failed to write %f Hz lead tone (with dummy bye 0xaa) of duration %f s\n", mBaseFrequency, trailer_tone_duration);
+            }
+
+            // write a gap
+            if (mUseOriginalTiming && tapeFile.validTiming)
+                last_block_gap = file_block_iter->blockGap;
+            if (!writeFloatPrecGapChunk(fout, last_block_gap)) {
+                printf("Failed to write %f s of gap for last block\n", last_block_gap);
+            }
+        };
+        
+
+        file_block_iter++;
+
+
+        block_no++;
+
+    }
+
+    return true;
+}
+
+bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout)
+{
+    
+    FileBlockIter file_block_iter = tapeFile.blocks.begin();
+
+    int block_no = 0;
+    int n_blocks = (int)tapeFile.blocks.size();
+
+    // Default values for block timing (if mUseOriginalTiming is true the recored block timing will instead by used later on)
+    float first_block_lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;// lead tone duration of first block 
+    float other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;// lead tone duration of all other blocks (2 s expected here but Atomulator needs 4 s)
+    float data_block_micro_lead_tone_duration = mTapeTiming.nomBlockTiming.microLeadToneDuration; //  micro lead tone (separatiing block header and block data) duration
+    float block_gap = mTapeTiming.nomBlockTiming.blockGap;
+    float last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
+
+    float lead_tone_duration = first_block_lead_tone_duration; // let first block have a longer lead tone
+
+    //
+    // Write data-dependent part of UEF file
+    //
+
+
+    while (file_block_iter < tapeFile.blocks.end()) {
+
+        // Write a lead tone for the block
+        if (mUseOriginalTiming && tapeFile.validTiming)
+            lead_tone_duration = (file_block_iter->leadToneCycles) / (2 * mBaseFrequency);
+        if (!writeCarrierChunk(fout, lead_tone_duration)) {
+            printf("Failed to write %f Hz lead tone of duration %f s\n", mBaseFrequency, lead_tone_duration);
+        }
+        ;
+
+        // Change lead tone duration for remaining blocks
+        lead_tone_duration = other_block_lead_tone_duration;
+
+
+        // Initialise CRC
+
+        Word CRC = 0;
+
+        // --------------------- start of block header chunk ------------------------
+        //
+        // Write block header including preamble as one chunk
+        //
+        // block header: <flags:1> <block_no:2> <length-1:1> <exec addr:2> <load addr:2>
+        // 
+        // --------------------------------------------------------------------------
+
+
+        int data_len = file_block_iter->atomHdr.lenHigh * 256 + file_block_iter->atomHdr.lenLow;  // get data length
+
+        Byte b7 = (block_no < n_blocks - 1 ? 0x80 : 0x00);          // calculate flags
+        Byte b6 = (data_len > 0 ? 0x40 : 0x00);
+        Byte b5 = (block_no != 0 ? 0x20 : 0x00);
+
+        Bytes header_data;
+
+        Byte preamble[4] = { 0x2a, 0x2a, 0x2a, 0x2a };              // store preamble
+        addBytes2Vector(header_data, preamble, 4);
+
+        int name_len = 0;
+        for (; name_len < sizeof(file_block_iter->atomHdr.name) && file_block_iter->atomHdr.name[name_len] != 0; name_len++);
+        addBytes2Vector(header_data, (Byte*)file_block_iter->atomHdr.name, name_len); // store block name
+
+        header_data.push_back(0xd);
+
+        header_data.push_back(b7 | b6 | b5);                        // store flags
+
+        header_data.push_back((block_no >> 8) & 0xff);              // store block no
+        header_data.push_back(block_no & 0xff);
+
+        header_data.push_back((data_len > 0 ? data_len - 1 : 0));   // store length - 1
+
+        header_data.push_back(file_block_iter->atomHdr.execAdrHigh);     // store execution address
+        header_data.push_back(file_block_iter->atomHdr.execAdrLow);
+
+        header_data.push_back(file_block_iter->atomHdr.loadAdrHigh);     // store load address
+        header_data.push_back(file_block_iter->atomHdr.loadAdrLow);
+
+
+        if (!writeComplexDataChunk(fout, 8, 'N', -1, header_data, CRC)) {
+            printf("Failed to write block header data chunk%s\n", "");
+        }
+
+
+        // --------------------------------------------------------------------------
+        //
+        // ---------------- End of block header chunk -------------------------------
+
+
+        // Add micro tone between header and data
+        if (mUseOriginalTiming && tapeFile.validTiming)
+            data_block_micro_lead_tone_duration = file_block_iter->microToneCycles / (2 * mBaseFrequency);
+        if (!writeCarrierChunk(fout, data_block_micro_lead_tone_duration)) {
+            printf("Failed to write %f Hz micro lead tone of duration %f s\n", mBaseFrequency, data_block_micro_lead_tone_duration);
+        }
+
+
+        // --------------------- start of block data + CRC chunk ------------------------
+         //
+         // Write block data as one chunk
+         //
+         // --------------------------------------------------------------------------
+
+        // Write block data as one chunk
+        BytesIter bi = file_block_iter->data.begin();
+        Bytes block_data;
+        while (bi < file_block_iter->data.end())
+            block_data.push_back(*bi++);
+        if (!writeComplexDataChunk(fout, 8, 'N', -1, block_data, CRC)) {
+            printf("Failed to write block header data chunk%s\n", "");
+        }
+
+
+        //
+        // Write CRC
+        //
+
+        // Write CRC chunk header
+        Bytes CRC_data;
+        Word dummy_CRC = 0;
+        CRC_data.push_back(CRC);
+        if (!writeSimpleDataChunk(fout, CRC_data, dummy_CRC)) {
+            printf("Failed to write CRC data chunk%s\n", "");
+        }
+
+
+
+        // --------------------------------------------------------------------------
+        //
+        // ---------------- End of block data chunk -------------------------------
+
+
+
+        // Write 1 security cycle
+        /*
+        if (!writeSecurityCyclesChunk(fout, 1, 'W', 'P', { 1 })) {
+            printf("Failed to write security bytes\n");
+        }
+        */
+
+        // Write a gap at the end of the block
+        if (block_no == n_blocks - 1)
+            block_gap = last_block_gap;
+        if (mUseOriginalTiming && tapeFile.validTiming)
+            block_gap = file_block_iter->blockGap;
+        if (!writeFloatPrecGapChunk(fout, block_gap)) {
+            printf("Failed to write %f s and of block gap\n", block_gap);
+        }
+
+        file_block_iter++;
+
+
+        block_no++;
+
+    }
+
+    return true;
+}
 
 bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
 {
@@ -105,24 +409,24 @@ bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
         return false;
     }
 
+    string tapeFileName;
+
     if (mVerbose)
-        cout << "Encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as an UEF file...\n\n";
+        cout << "Encoding program '" << tapeFileName << "' as an UEF file...\n\n";
 
-   FileBlockIter ATM_block_iter = tapeFile.blocks.begin();
- 
 
-    int block_no = 0;
-    int n_blocks = (int)tapeFile.blocks.size();
-
-    
+    //
+    // Write data-independent part of UEF file
+    //
 
     /*
      * Timing parameters
      *
-     * Mostly based on observed timing in Acorn Atom tape recordings but
-     * in some cases changed as Atomulator emulator won't wok otherwise.
-     *
+     * Based on default or actually recorded timing
      */
+
+    float first_block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
+
     int baudrate = mTapeTiming.baudRate;
     if (mUseOriginalTiming && tapeFile.validTiming)
         baudrate = tapeFile.baudRate;
@@ -130,22 +434,6 @@ bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
     // Intialise base frequency and half_cycle with values from Tape Timing
     mBaseFrequency = mTapeTiming.baseFreq;
     mPhase = mTapeTiming.half_cycle;
-
-
-    // Default values for block timing (if mUseOriginalTiming is true the recored block timing will instead by used later on)
-    float first_block_lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;// lead tone duration of first block 
-    float other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;// lead tone duration of all other blocks (2 s expected here but Atomulator needs 4 s)
-    float data_block_micro_lead_tone_duration = mTapeTiming.nomBlockTiming.microLeadToneDuration; //  micro lead tone (separatiing block header and block data) duration
-    float first_block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
-    float block_gap = mTapeTiming.nomBlockTiming.blockGap;
-    float last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;  
-
-    float lead_tone_duration = first_block_lead_tone_duration; // let first block have a longer lead tone
-
-
-    //
-    // Write data-independent part of UEF file
-    //
 
 
     // Header: UEF File!
@@ -164,16 +452,16 @@ bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
         printf("Failed to write target chunk with target %s\n", _TARGET_MACHINE(mTarget));
     }
 
- 
+
     // Baudrate
     if (!writeBaudrateChunk(fout)) {
         printf("Failed to write buadrate chunk with baudrate %d.\n", baudrate);
     }
 
 
-    // HalfCycle 0
+    // Phaseshift
     if (!writePhaseChunk(fout)) {
-        printf("Failed to write half_cycle chunk with half_cycle %d degrees\n", mPhase);
+        printf("Failed to write phaseshift chunk with phase shift %d degrees\n", mPhase);
     }
 
     // Write base frequency
@@ -187,184 +475,14 @@ bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
         printf("Failed to write %f s gap\n", first_block_gap);
     }
 
-
-    //
-    // Write data-dependent part of UEF file
-    //
-
-
-    while (ATM_block_iter < tapeFile.blocks.end()) {
-
-        // Write base frequency
-        /*
-        if (!writeBaseFrequencyChunk(fout)) {
-            printf("Failed to encode base frequency %f as float\n", mBaseFrequency);
-        }
-        */
-
-        // Write a lead tone for the block
-        if (mUseOriginalTiming && tapeFile.validTiming)
-            lead_tone_duration = (ATM_block_iter->leadToneCycles) / (2 * mBaseFrequency);
-        if (!writeCarrierChunk(fout, lead_tone_duration)) {
-            printf("Failed to write %f Hz lead tone of duration %f s\n", mBaseFrequency, lead_tone_duration);
-        }
-;
-
-        // Change lead tone duration for remaining blocks
-        lead_tone_duration = other_block_lead_tone_duration;
-
-
-        // Write 1 security cycle
-        /*
-        if (!writeSecurityCyclesChunk(fout, 1, 'P', 'W', { 0 })) {
-            printf("Failed to write security bytes\n");
-        }
-        */
- 
-        // Write (again the) base frequency 
-        /*
-        if (!writeBaseFrequencyChunk(fout)) {
-            printf("Failed to encode base frequency %f as float\n", mBaseFrequency);
-        }
-        */
-
-        // Initialise CRC
-
-        Word CRC = 0;
-
-        // --------------------- start of block header chunk ------------------------
-        //
-        // Write block header including preamble as one chunk
-        //
-        // block header: <flags:1> <block_no:2> <length-1:1> <exec addr:2> <load addr:2>
-        // 
-        // --------------------------------------------------------------------------
-
-
-        int data_len = ATM_block_iter->atomHdr.lenHigh * 256 + ATM_block_iter->atomHdr.lenLow;  // get data length
-
-        Byte b7 = (block_no < n_blocks - 1 ? 0x80 : 0x00);          // calculate flags
-        Byte b6 = (data_len > 0 ? 0x40 : 0x00);
-        Byte b5 = (block_no != 0 ? 0x20 : 0x00);
-
-        Bytes header_data;
-
-        Byte preamble[4] = { 0x2a, 0x2a, 0x2a, 0x2a };              // store preamble
-        addBytes2Vector(header_data, preamble, 4);
-
-        int name_len = 0;
-        for (; name_len < sizeof(ATM_block_iter->atomHdr.name) && ATM_block_iter->atomHdr.name[name_len] != 0; name_len++);
-        addBytes2Vector(header_data, (Byte*)ATM_block_iter->atomHdr.name, name_len); // store block name
-
-        header_data.push_back(0xd);
-
-        header_data.push_back(b7 | b6 | b5);                        // store flags
-
-        header_data.push_back((block_no >> 8) & 0xff);              // store block no
-        header_data.push_back(block_no & 0xff);
-
-        header_data.push_back((data_len > 0 ? data_len - 1 : 0));   // store length - 1
-
-        header_data.push_back(ATM_block_iter->atomHdr.execAdrHigh);     // store execution address
-        header_data.push_back(ATM_block_iter->atomHdr.execAdrLow);
-
-        header_data.push_back(ATM_block_iter->atomHdr.loadAdrHigh);     // store load address
-        header_data.push_back(ATM_block_iter->atomHdr.loadAdrLow);
-
-
-        if (!writeComplexDataChunk(fout, 8, 'N', -1, header_data, CRC)) {
-            printf("Failed to write block header data chunk%s\n", "");
-        }
-        
-
-        // --------------------------------------------------------------------------
-        //
-        // ---------------- End of block header chunk -------------------------------
-
-
-        // Add micro tone between header and data
-        if (mUseOriginalTiming && tapeFile.validTiming)
-            data_block_micro_lead_tone_duration = ATM_block_iter-> microToneCycles / (2* mBaseFrequency);
-        if (!writeCarrierChunk(fout, data_block_micro_lead_tone_duration)) {
-            printf("Failed to write %f Hz micro lead tone of duration %f s\n", mBaseFrequency, data_block_micro_lead_tone_duration);
-        }
-
-
-        // Write (again the) base frequency 
-        /*
-        if (!writeBaseFrequencyChunk(fout)) {
-            printf("Failed to encode base frequency %f as float\n", base_freq);
-        }
-        */
-
-
-        // --------------------- start of block data + CRC chunk ------------------------
-         //
-         // Write block data as one chunk
-         //
-         // --------------------------------------------------------------------------
-
-        // Write block data as one chunk
-        BytesIter bi = ATM_block_iter->data.begin();
-        Bytes block_data;
-        while (bi < ATM_block_iter->data.end())
-            block_data.push_back(*bi++);
-        if (!writeComplexDataChunk(fout, 8, 'N', -1, block_data, CRC)) {
-            printf("Failed to write block header data chunk%s\n", "");
-        }
-
-
-        // Write (again the) base frequency 
-        /*
-        if (!writeBaseFrequencyChunk(fout)) {
-            printf("Failed to encode base frequency %f as float\n", base_freq);
-        }
-        */
-
-
-        //
-        // Write CRC
-        //
-
-        // Write CRC chunk header
-        Bytes CRC_data;
-        Word dummy_CRC = 0;
-        CRC_data.push_back(CRC);
-        if (!writeSimpleDataChunk(fout, CRC_data, dummy_CRC)) {
-            printf("Failed to write CRC data chunk%s\n", "");
-        }
-
-        
-
-        // --------------------------------------------------------------------------
-        //
-        // ---------------- End of block data chunk -------------------------------
-
-
-
-        // Write 1 security cycle
-        /*
-        if (!writeSecurityCyclesChunk(fout, 1, 'W', 'P', { 1 })) {
-            printf("Failed to write security bytes\n");
-        }
-        */
-        
-        // Write a gap at the end of the block
-        if (block_no == n_blocks - 1)
-            block_gap = last_block_gap;
-        if (mUseOriginalTiming && tapeFile.validTiming)
-            block_gap = ATM_block_iter->blockGap;
-        if (!writeFloatPrecGapChunk(fout, block_gap)) {
-            printf("Failed to write %f s and of block gap\n", block_gap);
-        }
-
-        ATM_block_iter++;
-
-
-        block_no++;
-
+    if (mBbcMicro) {
+        encodeBBM(tapeFile, fout);
+        tapeFileName = tapeFile.blocks[0].atomHdr.name;
+    } 
+    else {
+        encodeAtom(tapeFile, fout);
+        tapeFileName = tapeFile.blocks[0].atomHdr.name;
     }
-
 
     fout.close();
 
@@ -374,7 +492,7 @@ bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
     }
 
     if (mVerbose)
-        cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as an UEF file...\n\n";
+        cout << "\nDone encoding program '" << tapeFileName << "' as an UEF file...\n\n";
 
     return true;
 

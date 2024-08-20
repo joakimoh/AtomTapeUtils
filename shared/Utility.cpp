@@ -11,6 +11,14 @@ void initbytes(Byte* bytes, Byte v, int n)
         bytes[i] = v;
     }
 }
+
+void initbytes(Bytes& bytes, Byte v, int n)
+{
+    for (int i = 0; i < n; i++) {
+        bytes.push_back(v);
+    }
+}
+
 void copybytes(Byte* from, Byte* to, int n)
 {
     for (int i = 0; i < n; i++) {
@@ -18,6 +26,14 @@ void copybytes(Byte* from, Byte* to, int n)
         to[i] = from[i];
     }
 }
+
+void copybytes(Byte * from, Bytes &to, int n)
+{
+    for (int i = 0; i < n; i++) {
+        to.push_back(from[i]);
+    }
+}
+
 uint32_t bytes2uint(Byte* bytes, int n, bool littleEndian)
 {
     uint32_t u = 0;
@@ -28,6 +44,17 @@ uint32_t bytes2uint(Byte* bytes, int n, bool littleEndian)
             u = (u << 8) & 0xffffff00 | + *(bytes+i);
     }
     return u;
+
+}
+
+void uint2bytes(uint32_t u, Byte* bytes, int n, bool littleEndian)
+{
+    for (int i = 0; i < n && i < 4; i++) {
+        if (littleEndian)
+            bytes[i] = (u >> (i*8)) & 0xff;
+        else
+            bytes[n - 1 - i] = (u >> (i*8)) & 0xff;
+    }
 
 }
 

@@ -33,7 +33,10 @@ int main(int argc, const char* argv[])
         return -1;
 
     UEFCodec UEF_codec = UEFCodec(arg_parser.verbose, arg_parser.bbcMicro);
-    TapeFile TAP_file(AtomFile); // Set to Atom initiall, but could be changed to BBC Micro by coded!
+    TapeFile TAP_file(AtomFile);
+    if (arg_parser.bbcMicro)
+        TAP_file = TapeFile(BBCMicroFile);
+
     if (!UEF_codec.decode(arg_parser.srcFileName, TAP_file)) {
         cout << "Failed to decode UEF file '" << arg_parser.srcFileName << "'\n";
     }

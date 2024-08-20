@@ -289,6 +289,9 @@ public:
 private:
 		bool inspectFile(Bytes data); // help method to inspect above
 
+		bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout);
+		bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout);
+
 	
 
 
