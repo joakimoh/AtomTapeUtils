@@ -55,7 +55,7 @@ typedef struct BlockTiming_struct {
 	double firstBlockLeadToneDuration = 4; // lead tone duration of first block [s]
 	double otherBlockLeadToneDuration = 2; // lead tone duration of all other blocks [s]
 	double microLeadToneDuration = 0.5; //  micro lead tone (separating block header and block data For Atom block) [s]
-	double trailerLeadToneDuration = 0.83; //  trailer tone (after last BCC Micro tape block only) [s]
+	double trailerToneDuration = 0.83; //  trailer tone (after last BCC Micro tape block only) [s]
 	float firstBlockGap = 0.0; // Gap before the first block [s] - could be as low as zero in theory
 	float blockGap = 2; // Gap between each block [s]
 	float lastBlockGap = 2; // Gap after the last block [s]

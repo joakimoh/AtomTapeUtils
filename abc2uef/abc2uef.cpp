@@ -50,7 +50,7 @@ int main(int argc, const char* argv[])
 
 
 
-    UEFCodec UEF_codec = UEFCodec(false, arg_parser.verbose, false);
+    UEFCodec UEF_codec = UEFCodec(false, arg_parser.verbose, arg_parser.bbcMicro);
     UEF_codec.setTapeTiming(arg_parser.tapeTiming);
 
     if (!UEF_codec.encode(TAP_file, arg_parser.dstFileName)) {

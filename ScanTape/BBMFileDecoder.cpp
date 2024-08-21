@@ -59,7 +59,7 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
 
 
     double min_lead_tone_duration = mArgParser.tapeTiming.minBlockTiming.firstBlockLeadToneDuration;
-    double min_trailer_tone_duration = mArgParser.tapeTiming.minBlockTiming.trailerLeadToneDuration;
+    double min_trailer_tone_duration = mArgParser.tapeTiming.minBlockTiming.trailerToneDuration;
 
     // Read all blocks belonging to the same file
     unsigned n_blocks = 0;

@@ -22,8 +22,8 @@ AtomBasicCodec::AtomBasicCodec(bool verbose, bool bbcMicro) :mVerbose(verbose), 
         if (e.id1 != -1) {
             mTokenDictId[e.id1] = e;
             mTokenDictStr[e.fullT] = e;
-            int min_len = e.shortT.size() - 1;
-            for (int l = min_len; l < e.fullT.size(); l++) {
+            int min_len = e.shortT.length() - 1;
+            for (int l = min_len; l < e.fullT.length(); l++) {
                 string a = e.fullT.substr(0, l) + ".";
                 mTokenDictStr[a] = e;
             }
@@ -381,7 +381,8 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
     FileBlock block(BBCMicroBlock);
     bool new_block = true;
     int count = 0;
-    int load_address = 0x1900; // assume DFS present => load address is 0x1900 and not 0x0e00
+    int file_load_address = 0x1900; // assume DFS present => load address is 0x1900 and not 0x0e00
+    int load_address = file_load_address;
     BytesIter data_iter = data.begin();
     int block_sz;
     unsigned exec_adr = load_address;
@@ -398,20 +399,21 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
             block.data.clear();
             block.tapeStartTime = -1;
             block.tapeEndTime = -1;
-            uint2bytes(block_sz, &block.bbmHdr.loadAdr[0], 4, true);
-            uint2bytes(block_sz, &block.bbmHdr.execAdr[0], 4, true);
-            uint2bytes(block_sz, &block.bbmHdr.blockLen[0], 2, true);
-            uint2bytes(block_sz, &block.bbmHdr.blockNo[0], 2, true); 
-            uint2bytes(block_sz, &block.bbmHdr.blockLen[0], 2, true);
-            block.bbmHdr.blockFlag = 0x00; // b7 = last block, b6 = empty block, b0 = locked block
-            block.bbmHdr.locked = 0;
             for (int i = 0; i < sizeof(block.bbmHdr.name); i++) {
                 if (i < block_name.length())
                     block.bbmHdr.name[i] = block_name[i];
                 else
                     block.bbmHdr.name[i] = 0;
             }
+            uint2bytes(file_load_address, &block.bbmHdr.loadAdr[0], 4, true);
+            uint2bytes(exec_adr, &block.bbmHdr.execAdr[0], 4, true);
+            uint2bytes(n_blocks, &block.bbmHdr.blockNo[0], 2, true);
+            uint2bytes(block_sz, &block.bbmHdr.blockLen[0], 2, true); 
+            block.bbmHdr.blockFlag = 0x00; // b7 = last block, b6 = empty block, b0 = locked block
+            block.bbmHdr.locked = 0;
+
             new_block = false;
+
         }
 
 
@@ -445,6 +447,7 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
         if (mVerbose)
             printf("%10s %.8x %.8x %.8x %3d %5d\n", block_name.c_str(), load_address, load_address + data_len - 1, exec_adr, n_blocks, data_len);
         uint2bytes(block_sz, &block.bbmHdr.blockLen[0], 2, true);
+        block.bbmHdr.blockFlag = 0x80;
         tapeFile.blocks.push_back(block);
         BytesIter block_iterator = block.data.begin();
 
@@ -463,7 +466,7 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
                 load_adr, load_adr + tape_file_sz - 1, exec_adr, n_blocks, tape_file_sz
             );
         }
-        cout << "\nDone decoding BBC file '" << file_name << "'...\n\n'";
+        cout << "\nDone decoding BBC Micro Tape File '" << file_name << "'...\n\n'";
     }
 
     return true;
@@ -508,13 +511,40 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
         data.push_back(line_no / 256);
         data.push_back(line_no % 256);
 
-        if (mBbcMicro) // A BBC Micro program is encoded with a line length after the line no
-            data.push_back(code.size());
+        if (mBbcMicro) {
+            string tCode;
+            if (!tokenizeLine(code, tCode)) {
+                cout << "Failed to tokenize line '" << code << "'\n";
+                return false;
+            }
+            data.push_back((Byte) tCode.length()); // A BBC Micro program is encoded with a line length() after the line no
+            for (int i = 0; i < tCode.length(); data.push_back((Byte) tCode[i++]));
 
-        if (mBbcMicro)
-            tokenizeLine(code, data);
+            // Detokenize again to check the result
+            string dtCode = "";
+            for (int i = 0; i < tCode.length(); i++) {
+                Byte b = (Byte)tCode[i];
+                if (mTokenDictId.find(b) != mTokenDictId.end())
+                    dtCode += mTokenDictId[b].fullT;
+                else
+                    dtCode += tCode[i];
+            }
+            for (int i = 0; i < code.length() && i < dtCode.length(); i++) {
+                if (dtCode[i] != code[i]) {
+                    cout << "Tokenized code differs from source code.\n";
+                    cout << "Source code:    '" << code << "'\n";
+                    cout << "Detokenized code: '" << dtCode << "'\n";
+                    return false;
+                }
+            }
+            if (dtCode.length() != code.length()) {
+                cout << "Size of tokenized code (" << dtCode.length() << ") differs from size of source code (" << code.length() << ")!\n";
+                return false;
+            }
+
+        }
         else {
-            for (int i = 0; i < 256 && code[i] != 0x0; data.push_back(code[i++]));
+            for (int i = 0; i < code.length(); data.push_back((Byte) code[i++]));
         }
     }
     data.push_back(0x0d);
@@ -529,28 +559,27 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
 }
 
 
-bool AtomBasicCodec::tokenizeLine(string &code, Bytes& data)
+bool AtomBasicCodec::tokenizeLine(string &line, string& tCode)
 {
     string space, token;
     TokenEntry entry;
     int pos = 0;
     bool start_of_statement = true;
     bool within_string = false;
+    string code = line;
 
-
-    while (code.size() > 0) {
+    tCode = "";
+    while (code.length() > 0) {
         if (!getKeyWord(start_of_statement, within_string, code, space, token, entry)) {
 
             return false;
         }
         if (entry.fullT != "") {
-            string s = space + token;
             if (entry.id2 != -1 && start_of_statement) {
-                data.push_back(entry.id2); // start of a statement <=> potential left side of assigment => id2 applicable
+                tCode += space + (char) (entry.id2); // start of a statement <=> potential left side of assigment => id2 applicable
             } 
             else {
-                data.push_back(entry.id1);
-
+                tCode += space + (char) entry.id1;
             }
             
         }
@@ -561,9 +590,8 @@ bool AtomBasicCodec::tokenizeLine(string &code, Bytes& data)
                 start_of_statement = false;
             if (token == "\"")
                 within_string = !within_string;
-            string s = space + token;
 
-            for (int i = 0; i < s.size(); data.push_back(s[i++]));
+            tCode += space + token;
         }
 
     }
@@ -575,7 +603,7 @@ bool AtomBasicCodec::isDelimiter(char c)
 {
     const string delimiters = "'+-*/^!,<>?;[]:*{}@\"#$%&'()=~\|_£";
 
-    for (int i = 0; i < delimiters.size(); i++) {
+    for (int i = 0; i < delimiters.length(); i++) {
         if (c == delimiters[i])
             return true;
     }
@@ -587,7 +615,7 @@ bool AtomBasicCodec::nextToken(string& text, string& token)
 {
     // Check for number
     int pos = 0;
-    while (pos < text.size() && !isDelimiter(text[pos]) && text[pos] >= '0' && text[pos] <= '9')
+    while (pos < text.length() && !isDelimiter(text[pos]) && text[pos] >= '0' && text[pos] <= '9')
         pos++;
     if (pos > 0) {
         token = text.substr(0, pos);
@@ -597,7 +625,7 @@ bool AtomBasicCodec::nextToken(string& text, string& token)
     }
 
     // Check for non-number
-    while (pos < text.size() && !isDelimiter(text[pos]) && text[pos] != ' ')
+    while (pos < text.length() && !isDelimiter(text[pos]) && text[pos] != ' ')
         pos++;
     if (pos > 0) {
         token = text.substr(0, pos);
@@ -607,7 +635,7 @@ bool AtomBasicCodec::nextToken(string& text, string& token)
     }
 
     { // Most be a delimiter then
-        if (pos < text.size() && isDelimiter(text[pos])) {
+        if (pos < text.length() && isDelimiter(text[pos])) {
             pos++;
         }
         if (pos > 0) {
@@ -634,7 +662,7 @@ bool AtomBasicCodec::getKeyWord(bool startOfStatement, bool withinString, string
     
 
     // Skip initial space
-    while (pos < text.size() && text[pos] == ' ')
+    while (pos < text.length() && text[pos] == ' ')
         pos++;
     if (pos > 0) {
         space = text.substr(0, pos);
@@ -648,7 +676,7 @@ bool AtomBasicCodec::getKeyWord(bool startOfStatement, bool withinString, string
     // Get start of keyword that consists of pure upper-case letters
     int first_matched_pos = -1;
     TokenEntry first_matched_keyword = empty;
-    while (pos < text.size() && text[pos] >= 'A' && text[pos] <= 'Z') {
+    while (pos < text.length() && text[pos] >= 'A' && text[pos] <= 'Z') {
         // test against keyword
         token = text.substr(0, pos+1);
         if (pos > 0 && mTokenDictStr.find(token) != mTokenDictStr.end()) {
@@ -685,13 +713,13 @@ bool AtomBasicCodec::getKeyWord(bool startOfStatement, bool withinString, string
     }
 
     // Get first letter of potentially remaining part of keyword that consists of either '$', '(' or '$('
-    if (pos < text.size() && (text[pos] == '$' || text[pos] == '(')) pos++;
+    if (pos < text.length() && (text[pos] == '$' || text[pos] == '(')) pos++;
 
     // Get last part of keyword that potentially could be '(' (if keyword ends with '$(')
-    if (pos < text.size() && text[pos] == '(') pos++;
+    if (pos < text.length() && text[pos] == '(') pos++;
 
     // Get potentially ending '.'
-    if (pos < text.size() && text[pos] == '.') pos++;
+    if (pos < text.length() && text[pos] == '.') pos++;
 
     // Check the completed token against keyword
     token = text.substr(0, pos);

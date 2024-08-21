@@ -180,6 +180,6 @@ public:
 	bool decodeAtom(Bytes &data, TapeFile& tapeFile, string file_name, string block_name);
 	bool decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name,  string block_name);
 
-	bool tokenizeLine(string &code, Bytes &data);
+	bool tokenizeLine(string &line, string  &tCode);
 };
 

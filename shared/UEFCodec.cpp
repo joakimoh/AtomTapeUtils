@@ -76,12 +76,15 @@ bool UEFCodec::encodeFloat(float val, Byte encoded_val[4])
 
 UEFCodec::UEFCodec(bool verbose, bool mBbcMicro) : mVerbose(verbose), mBbcMicro(mBbcMicro)
 {
-
+    if (mBbcMicro)
+        mTarget = TargetMachine::BBC_MODEL_B;
 }
 
 UEFCodec::UEFCodec(bool useOriginalTiming, bool verbose, bool mBbcMicro): mVerbose(verbose), mBbcMicro(mBbcMicro)
 {
     mUseOriginalTiming = useOriginalTiming;
+    if (mBbcMicro)
+        mTarget = TargetMachine::BBC_MODEL_B;
 }
 
 
@@ -102,29 +105,38 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
     float first_block_lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;// lead tone duration of first block 
     float other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;// lead tone duration of all other blocks (2 s expected here but Atomulator needs 4 s)
     float last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
-
+    float trailer_tone_duration = mTapeTiming.nomBlockTiming.trailerToneDuration;
     float lead_tone_duration = first_block_lead_tone_duration; // let first block have a longer lead tone
 
     //
     // Write data-dependent part of UEF file
     //
 
+    if (mVerbose) {
+        cout << "Encoding data-dependent part of BBC Micro Tape File...\n";
+    }
 
     while (file_block_iter < tapeFile.blocks.end()) {
 
-        // Write a lead tone for the block - including a dummy byte
+        // Write a lead tone for the block - including a dummy byte if it is the first block
         if (mUseOriginalTiming && tapeFile.validTiming)
             lead_tone_duration = (file_block_iter->leadToneCycles) / (2 * mBaseFrequency);
-        if (!writeCarrierChunkwithDummyByte(fout, 4, file_block_iter->leadToneCycles)) {
-            printf("Failed to write %f Hz lead tone (with dummy bye 0xaa) of duration %f s\n", mBaseFrequency, lead_tone_duration);
+        if (firstBlock) {
+            if (!writeCarrierChunkwithDummyByte(fout, 4, file_block_iter->leadToneCycles)) {
+                printf("Failed to write %f Hz lead tone (with dummy bye 0xaa) of duration %f s\n", mBaseFrequency, lead_tone_duration);
+            }
         }
+        else {
+            if (!writeCarrierChunk(fout, lead_tone_duration)) {
+                printf("Failed to write %f Hz lead tone of duration %f s\n", mBaseFrequency, lead_tone_duration);
+            }
+        }
+        firstBlock = false;
 
         // Change lead tone duration for remaining blocks
         lead_tone_duration = other_block_lead_tone_duration;
 
-        // Initialise header CRC
-
-        Word header_CRC = 0;
+        
 
         // --------------------- start of block header chunk ------------------------
         //
@@ -137,10 +149,20 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
 
         int data_len = bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 4, true); // get data length
 
-        Bytes header_data;
+        
 
         // Preamble
-        header_data.push_back(0x2a);
+        Bytes preamble;
+        Word dummy_CRC;
+        preamble.push_back(0x2a);
+        if (!writeSimpleDataChunk(fout, preamble, dummy_CRC)) {
+            printf("Failed to write block preamble data chunk%s\n", "");
+        }
+
+        Bytes header_data;
+
+        // Initialise header CRC (starts from file name)
+        Word header_CRC = 0;
 
         // Filename
         int name_len = 0;
@@ -163,7 +185,7 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
 
         // Write the header CRC chunk
         Bytes header_CRC_bytes;
-        Word dummy_CRC = 0;
+        dummy_CRC = 0;
         header_CRC_bytes.push_back(header_CRC / 256);
         header_CRC_bytes.push_back(header_CRC % 256);
         if (!writeSimpleDataChunk(fout, header_CRC_bytes, dummy_CRC)) {
@@ -212,7 +234,6 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
         if (block_no == n_blocks - 1) {
 
             // Write a trailer carrier
-            float trailer_tone_duration;
             if (mUseOriginalTiming && tapeFile.validTiming)
                 trailer_tone_duration = (file_block_iter->trailerToneCycles) / (2 * mBaseFrequency);
             if (!writeCarrierChunk(fout, trailer_tone_duration)) {
@@ -505,7 +526,7 @@ bool UEFCodec::inspect(string& uefFileName)
 {
     TapeFile tape_file(FileType::NoFile);
 
-    mTarget = TargetMachine::UNKNOWN;
+    mInspect = true;
 
     return decode(uefFileName, tape_file);
 }
@@ -564,7 +585,7 @@ bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
         int chunk_id = chunk_hdr.chunkId[0] + chunk_hdr.chunkId[1] * 256;
         long chunk_sz = chunk_hdr.chunkSz[0] + (chunk_hdr.chunkSz[1] << 8) + (chunk_hdr.chunkSz[2] << 16) + (chunk_hdr.chunkSz[3] << 24);
 
-        if (mVerbose && mTarget != TargetMachine::UNKNOWN)
+        if (mVerbose && !mInspect)
             cout << "\nChunk " << _CHUNK_ID(chunk_id) << " of size " << dec << chunk_sz << " read at state " << _BLOCK_STATE(mBlockState) << "...\n";
 
         switch (chunk_id) {
@@ -582,7 +603,7 @@ bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
             }
             mTarget = (TargetMachine)chunk.targetMachine;
             if (mVerbose)
-                cout << "Target machnine chunk 0005 of size " << chunk_sz << " and specifying target " << _TARGET_MACHINE(mTarget) << ".\n";
+                cout << "Target machine chunk 0005 of size " << chunk_sz << " and specifying target " << _TARGET_MACHINE(mTarget) << ".\n";
             break;
         }
 
@@ -711,10 +732,12 @@ bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
             if (mVerbose)
                 cout << "Carrier chunk with dummy byte 0111 of size " << chunk_sz << " and specifying " << first_cycles <<
                 " cycles of carrier followed by a dummy byte 0xaa, and ending with " << following_duration << "s of carrier.\n";
-            if (!updateBlockState(CHUNK_TYPE::CARRIER_CHUNK, first_duration + following_duration)) {
+            if (!updateBlockState(CHUNK_TYPE::CARRIER_DUMMY_CHUNK, first_duration + following_duration)) {
                 cout << "Unexpected high tone chunk!\n";
                 return false;
             }
+
+            data.push_back(0xaa);
             break;
         }
 
@@ -824,7 +847,7 @@ bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
     // If the final block is not followed by a gap, then
     // it was not added to the block list. Then add it now
     // and record a zero-length block gap.
-    if (mTarget != TargetMachine::UNKNOWN && mBlockState != BLOCK_STATE::READING_GAP) {
+    if (!mInspect && mBlockState != BLOCK_STATE::READING_GAP) {
         mCurrentBlockInfo.block_gap = 0;
         mBlockInfo.push_back(mCurrentBlockInfo);
     }
@@ -837,8 +860,8 @@ bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
     }
 
     if (mVerbose) {
-        if (mTarget != TargetMachine::UNKNOWN)
-            cout << "\n\nUEF File bytes read - now to decode them as a Acorn Atom/BBC Micro Tape File\n\n";
+        if (!mInspect)
+            cout << "\n\nUEF File bytes read - now to decode them as an Acorn Atom/BBC Micro Tape File\n\n";
         else
             cout << "\n\nUEF File bytes read - now all the bytes will be output in on go!\n\n";
     }
@@ -851,7 +874,7 @@ bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
     bool success;
     if (mBbcMicro)
         success = createBBMFile(data, tapeFile);
-    else if (mTarget != TargetMachine::UNKNOWN)
+    else if (!mInspect)
         success = createAtomFile(data, tapeFile);
     else
         success = inspectFile(data);
@@ -916,6 +939,8 @@ bool UEFCodec::createBBMFile(Bytes data, TapeFile &tapeFile)
             }
             is_first_block = false;
         }
+
+        
         // Read preamble (1 x 0x2a)
         if (!check_bytes(data_iter, data, 1, hdr_CRC, 0x2a)) {
             printf("Failed to read preamble bytes for block #%d.\n", block_no);
@@ -1008,7 +1033,7 @@ bool UEFCodec::createBBMFile(Bytes data, TapeFile &tapeFile)
         tapeFile.blocks.push_back(block);
 
         if (block_no == 0)
-            tape_file_name = block.bbmHdr.name;
+            tape_file_name = block.bbmHdr.name; 
         else if (tape_file_name != block.bbmHdr.name) {
             printf("Name of block #%d '%s' not consistent with tape file name '%s'.\n", block_no, block.bbmHdr.name, tape_file_name.c_str());
             return false;
@@ -1573,7 +1598,6 @@ bool UEFCodec::updateAtomBlockState(CHUNK_TYPE chunkType, double duration)
             mCurrentBlockInfo.end = mCurrentTime; // Last block data read will give the time when the block ends
         }
         else {
-            printf("Bytes when block state was %s!\n", _BLOCK_STATE(mBlockState));
             return false;
         }
         break;
@@ -1640,6 +1664,28 @@ bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
             return false;
         break;
     }
+    case CHUNK_TYPE::CARRIER_DUMMY_CHUNK:
+        // Either a lead carrier for block (includes a dummy byte a first block) or a trailer carrier (last block)
+    {
+        if ( // A lead carrier?
+            mBlockState == BLOCK_STATE::READING_GAP // A carrier after a gap signals the end of a file and the start of a new one
+            ) {
+            if (file_being_read) { // check that there was a previous file (at start of the tape then their would be no previous file)
+                mCurrentBlockInfo.trailer_tone_cycles = duration * mBaseFrequency * 2;
+                mBlockInfo.push_back(mCurrentBlockInfo);
+            }
+            else {
+                file_being_read = true;
+            }
+            mBlockState = BLOCK_STATE::READING_CARRIER_WITH_DUMMY;
+            mCurrentBlockInfo.start = mCurrentTime;
+            mCurrentBlockInfo.lead_tone_cycles = duration * mBaseFrequency * 2;
+            firstBlock = false;
+        }
+        else
+            return false;
+        break;
+    }
     case CHUNK_TYPE::DATA_CHUNK: // Either a dummy byte in a lead carrier for the first block of a file or block header+data
     {
         if (mBlockState == BLOCK_STATE::READING_CARRIER_PRELUDE && firstBlock) {
@@ -1648,7 +1694,8 @@ bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
         }
         else if ( // Block header & data?
             mBlockState == BLOCK_STATE::READING_CARRIER_POSTLUDE ||
-            mBlockState == BLOCK_STATE::READING_CARRIER_PRELUDE
+            mBlockState == BLOCK_STATE::READING_CARRIER_PRELUDE ||
+            mBlockState == BLOCK_STATE::READING_CARRIER_WITH_DUMMY
             ) {
             mBlockState = BLOCK_STATE::READING_HDR_DATA;
         }
