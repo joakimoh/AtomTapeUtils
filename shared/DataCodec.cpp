@@ -301,7 +301,7 @@ bool DataCodec::decode(string& dataFileName, TapeFile &tapeFile)
  
     filesystem::path fin_p = dataFileName;
     string file_name = fin_p.stem().string();
-    string block_name = blockNameFromFilename(file_name);
+    string block_name = atomBlockNameFromFilename(file_name);
 
     tapeFile.blocks.clear();
     tapeFile.complete = true;

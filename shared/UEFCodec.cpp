@@ -552,7 +552,7 @@ bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
 
         tapeFile.blocks.clear();
         tapeFile.complete = true;
-        tapeFile.validFileName = blockNameFromFilename(file_name);
+        tapeFile.validFileName = atomBlockNameFromFilename(file_name);
         tapeFile.isBasicProgram = true;
 
         if (mVerbose)
@@ -987,7 +987,7 @@ bool UEFCodec::createBBMFile(Bytes data, TapeFile &tapeFile)
                 hdr.blockFlag, next_address
             );
 
-        if (DEBUG_LEVEL == DBG)
+        if (true||DEBUG_LEVEL == DBG)
             logData(0x0000, hdr_start, data_iter - hdr_start - 1);
 
         // Read header CRC
@@ -1012,7 +1012,7 @@ bool UEFCodec::createBBMFile(Bytes data, TapeFile &tapeFile)
             return false;
         }
         BytesIter bi = block.data.begin();
-        if (DEBUG_LEVEL == DBG)
+        if (true||DEBUG_LEVEL == DBG)
             logData(load_address, bi, block.data.size());
 
 
@@ -1699,8 +1699,11 @@ bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
             ) {
             mBlockState = BLOCK_STATE::READING_HDR_DATA;
         }
+        else if (mBlockState == BLOCK_STATE::READING_HDR_DATA) {
+            // Continuation of header/data - no action required
+        }
         else {
-            printf("Bytes when block state was %s!\n", _BLOCK_STATE(mBlockState));
+            printf("Unexpected data chunck for block state %s!\n", _BLOCK_STATE(mBlockState));
             return false;
         }
         break;

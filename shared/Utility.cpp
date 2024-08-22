@@ -222,13 +222,13 @@ char digitToHex(int d)
 * A filename longer than 13 characters will be truncated to 13 characters.
 * 
 */
-string blockNameFromFilename(string fn)
+string atomBlockNameFromFilename(string fn)
 {
     string s = "";
     int len = (int)fn.length();
     int p = 0;
-    int atom_file_pos = 0;
-    while (p < len && atom_file_pos < MAX_ATM_NAME_LEN) {
+    int tape_file_pos = 0;
+    while (p < len && tape_file_pos < MAX_ATM_NAME_LEN) {
         char c = fn[p];
         // Look for escape sequences __ and _hh 
         if (fn[p] == '_') {
@@ -248,9 +248,41 @@ string blockNameFromFilename(string fn)
             }
         }
         s += c;
-        atom_file_pos++;
+        tape_file_pos++;
         p++;
         
+    }
+
+    return s;
+}
+
+/*
+* Create a valid BBC Micro Tape Block Name from a DOS/Linux/MacOs filename.
+*
+* For BBC Micro a filename must start with a letter, and cannot contain spaces
+* or punctuation marks. It cannot be longer than 10 characters in total.
+* File names on cassettes can be up to ten characters long and can include any
+* character except space ( and punctuation marks for compatibilty with disc
+* file names).
+*
+*
+* A filename longer than 10 characters will be truncated to 10 characters.
+*
+*/
+string bbmBlockNameFromFilename(string fn)
+{
+    string s = "";
+    int len = (int)fn.length();
+    int p = 0;
+    int tape_file_pos = 0;
+    while (p < len && tape_file_pos < MAX_BBM_NAME_LEN) {
+        char c = fn[p];
+        if (c == ' ' || c == '.')
+            c = '_';
+        s += c;
+        tape_file_pos++;
+        p++;
+
     }
 
     return s;

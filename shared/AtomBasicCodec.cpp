@@ -381,11 +381,11 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
     FileBlock block(BBCMicroBlock);
     bool new_block = true;
     int count = 0;
-    int file_load_address = 0x1900; // assume DFS present => load address is 0x1900 and not 0x0e00
+    int file_load_address = 0xffff0e00; // assume DFS present => load address is 0x1900 and not 0x0e00
     int load_address = file_load_address;
     BytesIter data_iter = data.begin();
     int block_sz;
-    unsigned exec_adr = load_address;
+    unsigned exec_adr = file_load_address;
     unsigned tape_file_sz = 0;
     unsigned n_blocks = 0;
     while (data_iter < data.end()) {
@@ -483,7 +483,13 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
     }
     filesystem::path fin_p = fullPathFileName;
     string file_name = fin_p.stem().string();
-    string block_name = blockNameFromFilename(file_name);
+    string block_name;
+    if (mBbcMicro)
+        block_name = bbmBlockNameFromFilename(file_name);
+    else
+        block_name = atomBlockNameFromFilename(file_name);
+    cout << "file_name = '" << file_name << "'\n";
+    cout << "block_name = '" << block_name << "'\n";
 
     if (mVerbose)
         cout << "\nDecoding ABC/BBC Micro file '" << fullPathFileName << "'...\n\n";
@@ -517,7 +523,7 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
                 cout << "Failed to tokenize line '" << code << "'\n";
                 return false;
             }
-            data.push_back((Byte) tCode.length()); // A BBC Micro program is encoded with a line length() after the line no
+            data.push_back((Byte) (4+tCode.length())); // line length + "size for <CR>,line no & line no"=4
             for (int i = 0; i < tCode.length(); data.push_back((Byte) tCode[i++]));
 
             // Detokenize again to check the result
@@ -566,11 +572,12 @@ bool AtomBasicCodec::tokenizeLine(string &line, string& tCode)
     int pos = 0;
     bool start_of_statement = true;
     bool within_string = false;
+    bool fun_or_proc = false;
     string code = line;
 
     tCode = "";
     while (code.length() > 0) {
-        if (!getKeyWord(start_of_statement, within_string, code, space, token, entry)) {
+        if (!getKeyWord(fun_or_proc, start_of_statement, within_string, code, space, token, entry)) {
 
             return false;
         }
@@ -649,7 +656,7 @@ bool AtomBasicCodec::nextToken(string& text, string& token)
     return false;
 }
 
-bool AtomBasicCodec::getKeyWord(bool startOfStatement, bool withinString, string& text, string &space, string& token, TokenEntry& entry)
+bool AtomBasicCodec::getKeyWord(bool &fun_or_proc, bool startOfStatement, bool withinString, string& text, string &space, string& token, TokenEntry& entry)
 {
     int pos = 0;
 
@@ -672,6 +679,12 @@ bool AtomBasicCodec::getKeyWord(bool startOfStatement, bool withinString, string
 
     if (withinString)
         return nextToken(text, token);
+
+    if (fun_or_proc) {
+        fun_or_proc = false;
+        return nextToken(text, token);     
+    }
+
 
     // Get start of keyword that consists of pure upper-case letters
     int first_matched_pos = -1;
@@ -705,6 +718,8 @@ bool AtomBasicCodec::getKeyWord(bool startOfStatement, bool withinString, string
         token = text.substr(0, first_matched_pos+1);
         text = text.substr(first_matched_pos+1);
         entry = mTokenDictStr[token];
+        if (entry.fullT == "FN" || entry.fullT == "PROC")
+            fun_or_proc = true;
         return true;
     }
 

@@ -35,7 +35,8 @@ BlockType parseBlockFlag(AtomTapeBlockHdr hdr, int& blockLen);
 double decodeTime(string time);
 string encodeTime(double time);
 
-string blockNameFromFilename(string filename);
+string atomBlockNameFromFilename(string filename);
+string bbmBlockNameFromFilename(string fn);
 
 string filenameFromBlockName(string blockName);
 

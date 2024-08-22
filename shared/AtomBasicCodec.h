@@ -170,7 +170,7 @@ public:
 
 public:
 
-	bool AtomBasicCodec::getKeyWord(bool startOfStatement, bool withinString, string& text, string &space, string &token, TokenEntry& entry);
+	bool AtomBasicCodec::getKeyWord(bool& fun_or_proc, bool startOfStatement, bool withinString, string& text, string &space, string &token, TokenEntry& entry);
 	bool isDelimiter(char);
 	bool nextToken(string& text, string& token);
 
