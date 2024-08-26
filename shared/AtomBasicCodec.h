@@ -102,7 +102,7 @@ private:
 		{"OPENIN",		"OP.",		{0x8E,-1 }},
 		{"OPENOUT",		"OPENO.",	{0xAE,-1 }},
 		{"OPENUP",		"OPENUP",	{0xAD,-1 }},
-		{"OPT",			"OPT",		{-1,-1 }},
+		//{"OPT",			"OPT",		{-1,-1 }}, // This keyword is not tokenized!
 		{"OR",			"OR",		{0x84,-1 }},
 		{"OSCLI",		"OSC.",		{0xFF,-1 }},
 		{"PAGE",		"PA.",		{0x90,0xD0}},	//right,left
@@ -181,5 +181,7 @@ public:
 	bool decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name,  string block_name);
 
 	bool tokenizeLine(string &line, string  &tCode);
+
+	bool matchAgainstKeyword(string& text, int pos, string& token, TokenEntry& entry);
 };
 

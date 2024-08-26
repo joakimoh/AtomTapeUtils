@@ -488,8 +488,6 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
         block_name = bbmBlockNameFromFilename(file_name);
     else
         block_name = atomBlockNameFromFilename(file_name);
-    cout << "file_name = '" << file_name << "'\n";
-    cout << "block_name = '" << block_name << "'\n";
 
     if (mVerbose)
         cout << "\nDecoding ABC/BBC Micro file '" << fullPathFileName << "'...\n\n";
@@ -511,7 +509,12 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
         istringstream sin(line);
         sin >> line_no;
 
-        getline(sin, code);
+        if (sin.eof())
+            code = "";
+        else
+            getline(sin, code);
+
+        //cout << " LINE '" << line << "(" << code << ")" << "'\n";
 
         data.push_back(0xd);
         data.push_back(line_no / 256);
@@ -520,33 +523,11 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
         if (mBbcMicro) {
             string tCode;
             if (!tokenizeLine(code, tCode)) {
-                cout << "Failed to tokenize line '" << code << "'\n";
+                cout << "Failed to tokenize line '" << code << "' ('" << tCode << "')\n";
                 return false;
             }
             data.push_back((Byte) (4+tCode.length())); // line length + "size for <CR>,line no & line no"=4
             for (int i = 0; i < tCode.length(); data.push_back((Byte) tCode[i++]));
-
-            // Detokenize again to check the result
-            string dtCode = "";
-            for (int i = 0; i < tCode.length(); i++) {
-                Byte b = (Byte)tCode[i];
-                if (mTokenDictId.find(b) != mTokenDictId.end())
-                    dtCode += mTokenDictId[b].fullT;
-                else
-                    dtCode += tCode[i];
-            }
-            for (int i = 0; i < code.length() && i < dtCode.length(); i++) {
-                if (dtCode[i] != code[i]) {
-                    cout << "Tokenized code differs from source code.\n";
-                    cout << "Source code:    '" << code << "'\n";
-                    cout << "Detokenized code: '" << dtCode << "'\n";
-                    return false;
-                }
-            }
-            if (dtCode.length() != code.length()) {
-                cout << "Size of tokenized code (" << dtCode.length() << ") differs from size of source code (" << code.length() << ")!\n";
-                return false;
-            }
 
         }
         else {
@@ -578,7 +559,6 @@ bool AtomBasicCodec::tokenizeLine(string &line, string& tCode)
     tCode = "";
     while (code.length() > 0) {
         if (!getKeyWord(fun_or_proc, start_of_statement, within_string, code, space, token, entry)) {
-
             return false;
         }
         if (entry.fullT != "") {
@@ -620,6 +600,12 @@ bool AtomBasicCodec::isDelimiter(char c)
 // Advance one token
 bool AtomBasicCodec::nextToken(string& text, string& token)
 {
+    // Check for end of line
+    if (text.length() == 0) {
+        token = "";
+        return true;
+    }
+    // 
     // Check for number
     int pos = 0;
     while (pos < text.length() && !isDelimiter(text[pos]) && text[pos] >= '0' && text[pos] <= '9')
@@ -690,7 +676,6 @@ bool AtomBasicCodec::getKeyWord(bool &fun_or_proc, bool startOfStatement, bool w
     int first_matched_pos = -1;
     TokenEntry first_matched_keyword = empty;
     while (pos < text.length() && text[pos] >= 'A' && text[pos] <= 'Z') {
-        // test against keyword
         token = text.substr(0, pos+1);
         if (pos > 0 && mTokenDictStr.find(token) != mTokenDictStr.end()) {
             // Some full keywords could be a sub string of another one:
@@ -715,9 +700,7 @@ bool AtomBasicCodec::getKeyWord(bool &fun_or_proc, bool startOfStatement, bool w
 
     // If a complete keyword was matched previously, then use it!
     if (first_matched_pos != -1) {
-        token = text.substr(0, first_matched_pos+1);
-        text = text.substr(first_matched_pos+1);
-        entry = mTokenDictStr[token];
+        (void) matchAgainstKeyword(text, first_matched_pos + 1, token, entry);
         if (entry.fullT == "FN" || entry.fullT == "PROC")
             fun_or_proc = true;
         return true;
@@ -730,22 +713,37 @@ bool AtomBasicCodec::getKeyWord(bool &fun_or_proc, bool startOfStatement, bool w
     // Get first letter of potentially remaining part of keyword that consists of either '$', '(' or '$('
     if (pos < text.length() && (text[pos] == '$' || text[pos] == '(')) pos++;
 
+    // Check for match [A-Z]+('$'|'(')
+    if (matchAgainstKeyword(text, pos, token, entry))
+        return true;
+
     // Get last part of keyword that potentially could be '(' (if keyword ends with '$(')
     if (pos < text.length() && text[pos] == '(') pos++;
+
+    // Check for match [A-Z]+'$('
+    if (matchAgainstKeyword(text, pos, token, entry))
+        return true;
 
     // Get potentially ending '.'
     if (pos < text.length() && text[pos] == '.') pos++;
 
     // Check the completed token against keyword
-    token = text.substr(0, pos);
-    if (mTokenDictStr.find(token) != mTokenDictStr.end()) {     
-        text = text.substr(pos);
-        entry = mTokenDictStr[token];
-    }
-    else {
+    if (matchAgainstKeyword(text, pos, token, entry))
+        return true;
+    else
         return nextToken(text, token);
-    }
+
 
     return true;
 
+}
+
+bool AtomBasicCodec::matchAgainstKeyword(string& text, int pos, string& token, TokenEntry& entry) {
+    token = text.substr(0, pos);
+    if (mTokenDictStr.find(token) != mTokenDictStr.end()) {
+        text = text.substr(pos);
+        entry = mTokenDictStr[token];
+        return true;
+    }
+    return false;
 }
