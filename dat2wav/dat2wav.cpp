@@ -43,7 +43,7 @@ int main(int argc, const char* argv[])
     if (arg_parser.bbcMicro)
         TAP_file = TapeFile(BBCMicroFile);
 
-    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file)) {
+    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file, arg_parser.bbcMicro)) {
         printf("Failed to encode DATA file '%s' as WAW file '%s'\n",
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );

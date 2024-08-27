@@ -7,11 +7,9 @@
 #include <filesystem>
 
 #include <math.h>
-
 #include "../shared/CommonTypes.h"
 #include "ArgParser.h"
 #include "../shared/AtomBasicCodec.h"
-#include "../shared/DataCodec.h"
 #include "../shared/Debug.h"
 
 using namespace std;
@@ -21,7 +19,7 @@ using namespace std::filesystem;
 
 /*
  *
- * Create DATA file from Acorn Atom BASIC (ABC) program
+ * Create UEF from Acorn Atom BASIC (ABC) program
  * *
  */
 int main(int argc, const char* argv[])
@@ -36,25 +34,35 @@ int main(int argc, const char* argv[])
     if (arg_parser.verbose)
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
+    // Open the input file
+    ifstream fin(arg_parser.srcFileName, ios::in | ios::binary | ios::ate);
+    if (!fin) {
+        cout << "can't open file " << arg_parser.dstFileName << "\n";
+        return false;
+    }
+
+    // Create vector the same size as the file
+    auto fin_sz = fin.tellg();
+    vector<uint8_t> data(fin_sz);
+
+
+    // Fill the vector with the file content
+    uint8_t* data_p = &data.front();
+    fin.seekg(0);
+    fin.read((char*)data_p, (streamsize)fin_sz);
+    fin.close();
+
+
     AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.bbcMicro);
 
     TapeFile TAP_file(AtomFile);
     if (arg_parser.bbcMicro)
         TAP_file = TapeFile(BBCMicroFile);
 
-    if (!ABC_codec.decode(arg_parser.srcFileName, TAP_file)) {
-        printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
+    if (!ABC_codec.decode(data, arg_parser.dstFileName)) {
+        printf("Failed to decode binary program file '%s' into a readable program text file\n", arg_parser.dstFileName.c_str());
     }
 
-   
-
-    DataCodec DATA_codec = DataCodec(arg_parser.verbose);
-
-    if (!DATA_codec.encode(TAP_file, arg_parser.dstFileName)) {
-        printf("Failed to encode program file '%s' as DATA file '%s'\n",
-            arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
-        );
-    }
 
     return 0;
 }

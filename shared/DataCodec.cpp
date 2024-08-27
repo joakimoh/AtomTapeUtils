@@ -52,26 +52,19 @@ bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
 
     int c = 0;
     bool new_line = true;
-    unsigned tape_file_sz = 0;
+    int tape_file_sz = 0;
     while (file_block_iter < tapeFile.blocks.end()) {
 
         BytesIter bi = file_block_iter->data.begin();
-        int exec_adr = bytes2uint(&file_block_iter->bbmHdr.execAdr[0], 4, true);
-        int file_load_adr = bytes2uint(&file_block_iter->bbmHdr.loadAdr[0], 4, true);
-        int data_len = bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 2, true);
-        int block_no = bytes2uint(&file_block_iter->bbmHdr.blockNo[0], 2, true);
-        int flag = file_block_iter->bbmHdr.blockFlag;
-        int locked = file_block_iter->bbmHdr.locked;
-        string name = file_block_iter->bbmHdr.name;
+        uint32_t file_load_adr = bytes2uint(&file_block_iter->bbmHdr.loadAdr[0], 4, true);
+        int block_sz = bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 2, true);
         char s[64];
 
         int load_adr = file_load_adr + tape_file_sz;
-        tape_file_sz += data_len;
+        tape_file_sz += block_sz;
 
         if (mVerbose) {
-            printf("%10s %.8x %.8x %.8x %.4x %.4x %.2x\n", name.c_str(),
-                file_load_adr, load_adr + data_len - 1, exec_adr, block_no, data_len, flag
-            );
+            logTAPBlockHdr(*file_block_iter, tape_file_sz);
         }
 
         
@@ -120,14 +113,7 @@ bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
     fout.close();
 
     if (mVerbose) {
-        int exec_adr = bytes2uint(&tapeFile.blocks[0].bbmHdr.execAdr[0], 4, true);
-        int file_load_adr = bytes2uint(&tapeFile.blocks[0].bbmHdr.loadAdr[0], 4, true);
-        int data_len = bytes2uint(&tapeFile.blocks[0].bbmHdr.blockLen[0], 2, true);
-        int block_no = bytes2uint(&tapeFile.blocks[0].bbmHdr.blockNo[0], 2, true);
-        string name = tapeFile.blocks[0].bbmHdr.name;
-        printf("\n%10s %.8x %.8x %.8x %.4x %.4x\n", name.c_str(),
-            file_load_adr, file_load_adr + tape_file_sz - 1, exec_adr, block_no, tape_file_sz
-        );
+        logTAPFileHdr(tapeFile);
         cout << "\nDone encoding program '" << tapeFile.blocks[0].bbmHdr.name << "' as a DATA file...\n\n";
     }
 
@@ -148,8 +134,8 @@ bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
 
     int c = 0;
     bool new_line = true;
-    unsigned block_no = 0;
-    unsigned tape_file_sz = 0;
+    int block_no = 0;
+    int tape_file_sz = 0;
     while (file_block_iter < tapeFile.blocks.end()) {
 
         BytesIter bi = file_block_iter->data.begin();
@@ -238,7 +224,7 @@ bool DataCodec::decode2Bytes(string& dataFileName, int &startAdress, Bytes &data
     filesystem::path fin_p = dataFileName;
 
     string line;
-    int address;
+    uint32_t address;
 
     fin.seekg(0);
     string values;
@@ -286,41 +272,49 @@ bool DataCodec::decode2Bytes(string& dataFileName, int &startAdress, Bytes &data
 /*
  * Decode DATA file as TAP File structure
  */
-bool DataCodec::decode(string& dataFileName, TapeFile &tapeFile)
+bool DataCodec::decode(string& dataFileName, TapeFile &tapeFile, bool bbcMicro)
 {
     Bytes data;
-    int load_address;
+    int load_adr;
 
-    if (!decode2Bytes(dataFileName, load_address, data)) {
+    if (!decode2Bytes(dataFileName, load_adr, data)) {
         printf("Failed to decode bytes for file '%s'\n", dataFileName.c_str());
         return false;
     }
 
     if (mVerbose)
-        cout << "\nDecoding DATA file '" << dataFileName << "'...\n\n";
+        cout << "\nDecoding DATA file '" << dataFileName << "' with " << data.size() << " bytes of data...\n\n";
  
     filesystem::path fin_p = dataFileName;
     string file_name = fin_p.stem().string();
-    string block_name = atomBlockNameFromFilename(file_name);
+
+    string block_name;
+    if (bbcMicro)
+        block_name = bbmBlockNameFromFilename(file_name);
+    else
+        block_name = atomBlockNameFromFilename(file_name);
 
     tapeFile.blocks.clear();
     tapeFile.complete = true;
     tapeFile.validFileName = file_name;
     tapeFile.isBasicProgram = true;
 
-
-    BytesIter data_iterator = data.begin();
-
-
-    // Create ATM blocks
     FileBlock block(AtomBlock);
+    int exec_adr = 0xc2b2;
+    int file_load_adr = 0x2900;
+    if (bbcMicro) {
+        block.blockType = FileBlockType::BBCMicroBlock;
+        file_load_adr = 0xffff0e00;
+        exec_adr = load_adr;
+    }
+
     int block_no = 0;
     bool new_block = true;
     int count = 0;
     BytesIter data_iter = data.begin();
     int block_sz;
-    unsigned exec_adr = 0xc2b2;
-    unsigned tape_file_sz = 0;
+    int tape_file_sz = 0;
+
     while (data_iter < data.end()) {
 
         if (new_block) {
@@ -330,76 +324,45 @@ bool DataCodec::decode(string& dataFileName, TapeFile &tapeFile)
             else
                 block_sz = 256;
             tape_file_sz += block_sz;
-            block.data.clear();
-            block.tapeStartTime = -1;
-            block.tapeEndTime = -1;
-            block.atomHdr.execAdrHigh = (exec_adr >> 8) & 0xff;
-            block.atomHdr.execAdrLow = exec_adr & 0xff;
-            block.atomHdr.loadAdrHigh = (load_address >> 8) & 0xff;;
-            block.atomHdr.loadAdrLow = load_address & 0xff;
-            for (int i = 0; i < sizeof(block.atomHdr.name); i++) {
-                if (i < block_name.length())
-                    block.atomHdr.name[i] = block_name[i];
-                else
-                    block.atomHdr.name[i] = 0;
+
+            
+            if (!encodeTAPHdr(block, block_name, file_load_adr, load_adr, exec_adr, block_no, block_sz)) {
+                cout << "Failed to encode TAP file header for file '" << dataFileName << "'!\n";
+                return false;
             }
             new_block = false;
+
         }
-
-
-
 
         if (count < block_sz) {
             block.data.push_back(*data_iter++);
             count++;
         }
-        else {
-            block.atomHdr.lenHigh = 1;
-            block.atomHdr.lenLow = 0;
+        if (count == block_sz) {
+
+            if (mVerbose)
+                logTAPBlockHdr(block, tape_file_sz);
+
             tapeFile.blocks.push_back(block);
             new_block = true;
-            if (mVerbose) {
-                printf("%13s %4x %4x %4x %2d %5d\n", block_name.c_str(),
-                    load_address, load_address + block_sz - 1, exec_adr, block_no, block_sz
-                );
-            }
-            load_address += count;
+            
+            load_adr += count;
             block_no++;
-            BytesIter block_iterator = block.data.begin();
+            //BytesIter block_iterator = block.data.begin();
             // if (DEBUG_LEVEL == DBG) logData(load_address, block_iterator, block.data.size());
         }
 
 
     }
 
-    // Catch last block
-    block.atomHdr.lenHigh = count / 256;
-    block.atomHdr.lenLow = count % 256;
-    tapeFile.blocks.push_back(block);
 
-    if (data.end() - data_iter < 256)
-        block_sz = data.end() - data_iter;
-    else
-        block_sz = 256;
-    tape_file_sz += block_sz;
-    if (mVerbose) {
-        printf("%13s %4x %4x %4x %2d %5d\n", block_name.c_str(),
-            load_address, load_address + block_sz - 1, exec_adr, block_no, block_sz
-        );
-    }
     //if (DEBUG_LEVEL == DBG) logData(load_address, block_iterator, block.data.size());
 
-    if (mVerbose) {
-        unsigned exec_adr = tapeFile.blocks[0].atomHdr.execAdrHigh * 256 + tapeFile.blocks[0].atomHdr.execAdrLow;
-        unsigned load_adr = tapeFile.blocks[0].atomHdr.loadAdrHigh * 256 + tapeFile.blocks[0].atomHdr.loadAdrLow;
-        string atom_filename = tapeFile.blocks[0].atomHdr.name;
-        if (mVerbose) {
-            printf("\n%13s %4x %4x %4x %2d %5d\n", atom_filename.c_str(),
-                load_adr, load_adr + tape_file_sz - 1, exec_adr, block_no, tape_file_sz
-            );
-        }
-        cout << "\nDone decoding DATA file '" << dataFileName << "'...\n\n";
-    }
+    if (mVerbose)
+        logTAPFileHdr(tapeFile);
 
+    if (mVerbose)
+        cout << "\nDone decoding DATA file '" << dataFileName << "'...\n\n";
+ 
     return true;
 }

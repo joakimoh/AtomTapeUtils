@@ -51,7 +51,7 @@ int main(int argc, const char* argv[])
 
     DataCodec DATA_codec = DataCodec(arg_parser.verbose);
     TapeFile TAP_file(AtomFile);
-    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file)) {
+    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file, arg_parser.bbcMicro)) {
         printf("Failed to decode DATA file '%s'\n", arg_parser.srcFileName.c_str());
     }
 

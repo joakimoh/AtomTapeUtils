@@ -42,14 +42,14 @@ int main(int argc, const char* argv[])
     if (arg_parser.bbcMicro)
         TAP_file = TapeFile(BBCMicroFile);
 
-    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file)) {
+    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file, arg_parser.bbcMicro)) {
         printf("Failed to decode DATA file '%s'\n", arg_parser.srcFileName.c_str());
     }
 
 
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, false);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.bbcMicro);
     if (!ABC_codec.encode(TAP_file, arg_parser.dstFileName)) {
-        printf("Failed to encode DATA file '%s' as ABC file '%s'\n",
+        printf("Failed to encode DATA file '%s' as ABC/BBC file '%s'\n",
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );
     }

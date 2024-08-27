@@ -28,7 +28,7 @@ public:
 	/*
 	 * Decode DATA file as TAP File structure
 	 */
-	bool decode(string& tapFileName, TapeFile &tapFile);
+	bool decode(string& tapFileName, TapeFile &tapFile, bool bbcMicro);
 
 private:
 

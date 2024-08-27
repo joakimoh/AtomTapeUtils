@@ -167,6 +167,8 @@ public:
 	 * Decode Atom Basic program file as TAP File Structure
 	 */
 	bool decode(string &fullPathFileName, TapeFile& tapFile);
+	bool decode(Bytes& data, string& filePath);
+
 
 public:
 

@@ -3,6 +3,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include "../shared/TapeProperties.h"
 
 
 using namespace std;
@@ -14,6 +15,7 @@ public:
 
 	string dstFileName;
 	string srcFileName;
+	TapeProperties tapeTiming;
 	bool verbose = false;
 	bool bbcMicro = false;
 
@@ -23,7 +25,7 @@ private:
 
 	bool mParseSuccess = false;
 
-	
+
 
 public:
 

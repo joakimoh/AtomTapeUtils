@@ -6,6 +6,13 @@
 #include "CommonTypes.h"
 #include "BlockTypes.h"
 
+void logTAPFileHdr(TapeFile& tapeFile);
+void logTAPFileHdr(ostream* fout, TapeFile& tapeFile);
+void logTAPBlockHdr(FileBlock& block, uint32_t adr_offset);
+void logTAPBlockHdr(ostream *fout, FileBlock& block, uint32_t adr_offset);
+
+bool encodeTAPHdr(FileBlock& block, string tapefileName, uint32_t fileLoadAdr, uint32_t loadAdr, uint32_t execAdr, uint32_t blockNo, uint32_t BlockSz);
+
 void copybytes(Byte* from, Byte* to, int n);
 void copybytes(Byte* from, Bytes& to, int n);
 void initbytes(Byte* bytes, Byte v, int n);

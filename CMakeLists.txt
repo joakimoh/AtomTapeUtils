@@ -53,6 +53,12 @@ add_executable (
 target_link_libraries(dat2bin PUBLIC shared )
 
 add_executable ( 
+	bin2abc  "bin2abc/bin2abc.cpp"
+	"bin2abc/ArgParser.h"  "bin2abc/ArgParser.cpp"
+)
+target_link_libraries(bin2abc PUBLIC shared )
+
+add_executable ( 
 	dat2tap  "dat2tap/dat2tap.cpp"
 	"dat2tap/ArgParser.h"  "dat2tap/ArgParser.cpp"
 )
