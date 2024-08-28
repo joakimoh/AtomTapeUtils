@@ -169,6 +169,12 @@ add_executable(
 target_link_libraries(ScanTAP PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
 
 add_executable(
+	ScanUEF "ScanUEF/ScanUEF.cpp"
+	"ScanUEF/ArgParser.h" "ScanUEF/ArgParser.cpp"
+)
+target_link_libraries(ScanUEF PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
+
+add_executable(
 	abc2all "abc2all/abc2all.cpp"
 	"abc2all/ArgParser.h" "abc2all/ArgParser.cpp"
 )

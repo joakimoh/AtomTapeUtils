@@ -252,8 +252,8 @@ private:
 	bool read_block_name(BytesIter& data_iter, Bytes& data, Word& CRC, char *name);
 
 	// Methods to create Tape File from extracted data stream
-	bool createAtomFile(Bytes data, TapeFile& tapeFile);
-	bool createBBMFile(Bytes data, TapeFile& tapeFile);
+	bool createAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
+	bool createBBMFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
 
 	void updateCRC(Word& CRC, Byte byte);
 
@@ -288,6 +288,9 @@ public:
 	 * Decode UEF file but only print it's content rather than converting a Tape File 
 	 */
 	bool inspect(string& uefFileName);
+
+	bool decodeMultipleFiles(string& fileName, vector<TapeFile>& tapeFiles, bool bbcMicro);
+	
 	
 private:
 		bool inspectFile(Bytes data); // help method to inspect above
@@ -295,6 +298,9 @@ private:
 		bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout);
 		bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout);
 
+		bool getUEFdata(string& uefFileName, Bytes& data);
+
+		bool UEFCodec::decodeFile(string uefFilename, Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
 	
 
 

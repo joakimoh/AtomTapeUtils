@@ -10,6 +10,7 @@
 
 #include "ArgParser.h"
 #include "../shared/DataCodec.h"
+#include "../shared/TAPCodec.h"
 #include "../shared/Debug.h"
 
 using namespace std;
@@ -37,7 +38,7 @@ int main(int argc, const char* argv[])
     DataCodec DATA_codec = DataCodec(arg_parser.verbose);
     int load_address;
     Bytes data;
-    if (!DATA_codec.decode2Bytes(arg_parser.srcFileName, load_address, data)) {
+    if (!DATA_codec.data2Bytes(arg_parser.srcFileName, load_address, data)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
         return false;
     }

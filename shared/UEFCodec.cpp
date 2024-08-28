@@ -15,6 +15,37 @@
 
 using namespace std;
 
+bool UEFCodec::decodeMultipleFiles(string& uefFileName, vector<TapeFile>& tapeFiles, bool bbcMicro)
+{
+    // Get data for all tape files
+    Bytes data;
+    if (!getUEFdata(uefFileName, data)) {
+        cout << "Failed to parse UEF file '" << uefFileName << "'!\n";
+        return false;
+    }
+
+    // Decode each of them
+    BytesIter data_iter = data.begin();
+    TapeFile tape_file(FileType::AtomFile);
+    while (data_iter < data.end()) {
+        if (!decodeFile(uefFileName, data, tape_file, data_iter)) {
+            cout << "Failed to create Tape file '" << uefFileName << "'!\n";
+            return false;
+        }
+        if (mVerbose) {
+            cout << "Successfully decoded tape file '" << tape_file.blocks[0].blockName() << "' with #" <<
+                tape_file.blocks.size() << " blocks!\n";
+        }
+        tapeFiles.push_back(tape_file);
+    }
+
+    if (mVerbose)
+        cout << "\nDone decoding TAP file '" << uefFileName << "'...\n\n";
+
+    return true;
+}
+
+
 void UEFCodec::updateCRC(Word& CRC, Byte byte)
 {
     if (mBbcMicro)
@@ -531,10 +562,12 @@ bool UEFCodec::inspect(string& uefFileName)
     return decode(uefFileName, tape_file);
 }
 
-bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
+bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
 {
     igzstream fin(uefFileName.c_str());
     file_being_read = false;
+
+    mBlockInfo.clear();
 
     if (!fin.good()) {
 
@@ -550,17 +583,12 @@ bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
 
     if (mTarget != TargetMachine::UNKNOWN) {
 
-        tapeFile.blocks.clear();
-        tapeFile.complete = true;
-        tapeFile.validFileName = atomBlockNameFromFilename(file_name);
-        tapeFile.isBasicProgram = true;
-
         if (mVerbose)
             cout << "Initial block reading state is " << _BLOCK_STATE(mBlockState) << "...\n";
 
     }
 
-    Bytes data;
+
 
     UefHdr hdr;
 
@@ -865,21 +893,60 @@ bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
         else
             cout << "\n\nUEF File bytes read - now all the bytes will be output in on go!\n\n";
     }
+}
 
+bool UEFCodec::decodeFile(string uefFilename, Bytes &data, TapeFile& tapeFile, BytesIter& data_iter)
+{
+    // Clear Tape File
+    if (!mInspect) {
+        tapeFile.blocks.clear();
+        tapeFile.complete = true;
+        tapeFile.isBasicProgram = false;
+        tapeFile.validTiming = false;
+    }
 
-
-    //
-    // Iterate over the collected data and create an Atom File with ATM blocks from it
-    //
     bool success;
-    if (mBbcMicro)
-        success = createBBMFile(data, tapeFile);
-    else if (!mInspect)
-        success = createAtomFile(data, tapeFile);
+    if (mBbcMicro) {     
+        success = createBBMFile(data, tapeFile, data_iter);
+        if (success)
+            tapeFile.validFileName = tapeFile.blocks[0].blockName();
+    } 
+    else if (!mInspect) {
+        success = createAtomFile(data, tapeFile, data_iter);
+        if (success)
+            tapeFile.validFileName = tapeFile.blocks[0].blockName();
+    }
     else
         success = inspectFile(data);
-    
-    fin.close();
+
+    // Remove timing information (in mBlockInfo) saved for the decoded file
+    // in case another file would follow. This will ensure
+    // that the timing information saved reflect the next file.
+    if (!mInspect && tapeFile.blocks.size() > 0) {
+        int n = tapeFile.blocks.size();
+        if (mBlockInfo.size() < n)
+            n = mBlockInfo.size();
+        mBlockInfo.erase(mBlockInfo.begin(), mBlockInfo.begin() + n);
+    }
+
+    return success;
+}
+
+bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
+{
+    Bytes data;
+    if (!getUEFdata(uefFileName, data)) {
+        cout << "Failed to parse UEF file '" << uefFileName << "'!\n";
+        return false;
+    }
+
+    BytesIter data_iter = data.begin();
+
+
+    //
+    // Iterate over the collected data and create an Tape File with blocks from it
+    //
+    bool success = decodeFile(uefFileName, data, tapeFile, data_iter);
 
     if (mVerbose)
         cout << "\nDone decoding UEF file '" << uefFileName << "'...\n\n";
@@ -898,14 +965,14 @@ bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
  * being explictly inserted as a 0x0100 data chunk (of size 1) between two 0x0110 carrier chunks
  * 
  */
-bool UEFCodec::createBBMFile(Bytes data, TapeFile &tapeFile)
+bool UEFCodec::createBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_iter)
 {
     int block_no = 0;
-    BytesIter data_iter = data.begin();
     bool is_last_block = false;
     bool is_first_block = true;
     string tape_file_name;
     tapeFile.fileType = FileType::BBCMicroFile;
+    tapeFile.blocks.clear();
 
     while (data_iter < data.end() && !is_last_block) {
 
@@ -928,6 +995,7 @@ bool UEFCodec::createBBMFile(Bytes data, TapeFile &tapeFile)
         block.tapeStartTime = mBlockInfo[block_no].start;
         block.tapeEndTime = mBlockInfo[block_no].end;
         */
+
 
         // Skip dummy byte if it is the first block
         if (is_first_block) {
@@ -987,7 +1055,7 @@ bool UEFCodec::createBBMFile(Bytes data, TapeFile &tapeFile)
                 hdr.blockFlag, next_address
             );
 
-        if (true||DEBUG_LEVEL == DBG)
+        if (DEBUG_LEVEL == DBG)
             logData(0x0000, hdr_start, data_iter - hdr_start - 1);
 
         // Read header CRC
@@ -1012,7 +1080,7 @@ bool UEFCodec::createBBMFile(Bytes data, TapeFile &tapeFile)
             return false;
         }
         BytesIter bi = block.data.begin();
-        if (true||DEBUG_LEVEL == DBG)
+        if (DEBUG_LEVEL == DBG)
             logData(load_address, bi, block.data.size());
 
 
@@ -1050,13 +1118,13 @@ bool UEFCodec::createBBMFile(Bytes data, TapeFile &tapeFile)
     return true;
 }
 
-bool UEFCodec::createAtomFile(Bytes data, TapeFile& tapeFile)
+bool UEFCodec::createAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter)
 {
-    BytesIter data_iter = data.begin();
     BlockType block_type = BlockType::Unknown;
     string tape_file_name;
     int block_no = 0;
     tapeFile.fileType = FileType::AtomFile;
+    tapeFile.blocks.clear();
 
     while (data_iter < data.end() && !(block_type & BlockType::Last)) {
 
@@ -1670,7 +1738,7 @@ bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
         if ( // A lead carrier?
             mBlockState == BLOCK_STATE::READING_GAP // A carrier after a gap signals the end of a file and the start of a new one
             ) {
-            if (file_being_read) { // check that there was a previous file (at start of the tape then their would be no previous file)
+            if (file_being_read) { // check that there was a previous file (at start of the tape there would be no previous file)
                 mCurrentBlockInfo.trailer_tone_cycles = duration * mBaseFrequency * 2;
                 mBlockInfo.push_back(mCurrentBlockInfo);
             }

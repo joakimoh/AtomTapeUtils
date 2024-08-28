@@ -20,6 +20,62 @@ DataCodec::DataCodec(bool verbose): mVerbose(verbose)
 
 }
 
+bool DataCodec::data2Bytes(string& dataFileName, int& startAdress, Bytes& data)
+{
+    ifstream fin(dataFileName);
+
+    if (!fin) {
+        cout << "Failed to open file '" << dataFileName << "'\n";
+        return false;
+    }
+    filesystem::path fin_p = dataFileName;
+
+    string line;
+    uint32_t address;
+
+    fin.seekg(0);
+    string values;
+
+    // Store data as a byte vector
+    bool first_line = true;
+    while (getline(fin, line)) {
+
+        istringstream sin(line);
+        sin >> hex >> address;
+
+        getline(sin, values);
+
+        if (first_line) {
+            startAdress = address;
+            first_line = false;
+        }
+        // Determine the #values on the row (16 on all but the last one possibly)
+        istringstream v_stream(values);
+        char c;
+        int n_space = 0;
+        char pc = ' ';
+        int n_values = 0;
+        while ((v_stream >> std::noskipws >> c) && n_space < 2) {
+            if ((char)c == (char)' ')
+                n_space++;
+            if (c != ' ' && pc == ' ') {
+                n_values++;
+                n_space = 0;
+            }
+            pc = c;
+        }
+        int val;
+        v_stream = istringstream(values);
+        int n = 0;
+        while (v_stream >> hex >> val && n++ < n_values)
+            data.push_back(val);
+
+    }
+    fin.close();
+
+    return true;
+}
+
 bool DataCodec::encode(TapeFile& tapeFile, string& filePath)
 {
     if (tapeFile.blocks.empty()) {
@@ -122,7 +178,7 @@ bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
 
 
 /*
- * Encode Acron Atom TAP File structure as DATA file
+ * Encode Acorn Atom TAP File structure as DATA file
  */
 bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
 {
@@ -213,61 +269,9 @@ bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
     return true;
 }
 
-bool DataCodec::decode2Bytes(string& dataFileName, int &startAdress, Bytes &data)
-{
-    ifstream fin(dataFileName);
 
-    if (!fin) {
-        cout << "Failed to open file '" << dataFileName << "'\n";
-        return false;
-    }
-    filesystem::path fin_p = dataFileName;
 
-    string line;
-    uint32_t address;
 
-    fin.seekg(0);
-    string values;
-
-    // Store data as a byte vector
-    bool first_line = true;
-    while (getline(fin, line)) {
-
-        istringstream sin(line);
-        sin >> hex >> address;
-
-        getline(sin, values);
-
-        if (first_line) {
-            startAdress = address;
-            first_line = false;
-        }
-        // Determine the #values on the row (16 on all but the last one possibly)
-        istringstream v_stream(values);
-        char c;
-        int n_space = 0;
-        char pc = ' ';
-        int n_values = 0;
-        while ((v_stream >> std::noskipws >> c) && n_space < 2) {
-            if ((char)c == (char)' ')
-                n_space++;
-            if (c != ' ' && pc == ' ') {
-                n_values++;
-                n_space = 0;
-            }
-            pc = c;
-        }
-        int val;
-        v_stream = istringstream(values);
-        int n = 0;
-        while (v_stream >> hex >> val && n++ < n_values)
-            data.push_back(val);
-
-    }
-    fin.close();
-
-    return true;
-}
 
 /*
  * Decode DATA file as TAP File structure
@@ -277,7 +281,7 @@ bool DataCodec::decode(string& dataFileName, TapeFile &tapeFile, bool bbcMicro)
     Bytes data;
     int load_adr;
 
-    if (!decode2Bytes(dataFileName, load_adr, data)) {
+    if (!data2Bytes(dataFileName, load_adr, data)) {
         printf("Failed to decode bytes for file '%s'\n", dataFileName.c_str());
         return false;
     }

@@ -17,7 +17,77 @@ TAPCodec::TAPCodec(bool verbose) : mVerbose(verbose)
 {
 
 }
+bool TAPCodec::bytes2TAP(Bytes& data, bool bbcMicro, string tapeFileName, uint32_t fileLoadAdr, uint32_t execAdr, TapeFile& tapeFile)
+{
+    if (bbcMicro) {
+        tapeFile.fileType = FileType::BBCMicroFile;
+        tapeFile.baudRate = 1200;
 
+    }
+    else {
+        tapeFile.fileType = FileType::AtomFile;
+        tapeFile.baudRate = 300;
+    }
+    tapeFile.isBasicProgram = false;
+    tapeFile.complete = true;
+    tapeFile.validFileName = filenameFromBlockName(tapeFileName);
+    tapeFile.validTiming = false;
+    
+
+    BytesIter data_iter = data.begin();
+    int count = 0;
+    uint32_t load_adr = fileLoadAdr;
+    uint32_t block_no = 0;
+    FileBlock block(AtomBlock);
+    uint32_t block_sz;
+    while (data_iter < data.end()) {
+        if (count == 0) { // new block        
+            block_sz = 256;
+            if (bbcMicro)
+                block.blockType = FileBlockType::BBCMicroBlock;
+            if (data.end() - data_iter < 256)
+                block_sz = data.end() - data_iter;
+            if (!encodeTAPHdr(block, tapeFileName, fileLoadAdr, load_adr, execAdr, block_no, block_sz)) {
+                cout << "Failed to create Tape Block for Tape File " << tapeFileName << "\n";
+                return false;
+            }
+            tapeFile.blocks.push_back(block);
+        }
+        else {
+            block.data.push_back(*data_iter++);
+            count++;
+        }
+        if (count == block_sz) {
+            tapeFile.blocks.push_back(block);
+            count = 0;
+        }
+    }
+
+    return true;
+}
+
+
+bool TAPCodec::tap2Bytes(TapeFile& tapeFile, uint32_t& loadAdress, Bytes& data)
+{
+    FileBlockIter block_iter = tapeFile.blocks.begin();
+
+    if (tapeFile.blocks.size() == 0)
+        return false;
+
+    if (tapeFile.fileType == FileType::AtomFile)
+        loadAdress = block_iter->atomHdr.execAdrHigh * 256 + block_iter->atomHdr.execAdrLow;
+    else
+        loadAdress = bytes2uint(&block_iter->bbmHdr.loadAdr[0], 4, true);
+
+    while (block_iter < tapeFile.blocks.end()) {
+        Bytes &block = block_iter->data;
+        BytesIter data_iter = block.begin();
+        while (data_iter < block.end())
+            data.push_back(*data_iter++);
+        block_iter++;
+    }
+    return true;
+}
 
 
 /*

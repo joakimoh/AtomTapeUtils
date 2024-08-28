@@ -21,18 +21,19 @@ public:
 	bool encode(TapeFile &tapFile, string& filePath);
 	bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout);
 	bool DataCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& fout);
-
-	// Used by decode() below as a first decode step
-	bool decode2Bytes(string& dataFileName, int& startAdress, Bytes& data);
-
+	
 	/*
 	 * Decode DATA file as TAP File structure
 	 */
 	bool decode(string& tapFileName, TapeFile &tapFile, bool bbcMicro);
 
+	bool data2Bytes(string& dataFileName, int& startAdress, Bytes& data);
+
 private:
 
 	bool mVerbose = false;
+
+	
 };
 
 #endif
