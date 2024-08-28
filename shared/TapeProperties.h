@@ -63,7 +63,7 @@ typedef struct BlockTiming_struct {
 
 typedef struct TapeProperties_struct  {
 	float baseFreq; // Hz
-	int half_cycle; // Degrees [0-360]
+	int phaseShift; // Degrees [0-360]
 	int baudRate;
 	BlockTiming minBlockTiming;
 	BlockTiming nomBlockTiming;

@@ -242,6 +242,10 @@ bool BBMBlockDecoder::readBlock(
 			return false;
 		}
 
+		if (mVerbose)
+			cout << duration << "s trailer tone detected at " << encodeTime(getTime()) << "\n";
+
+
 		// Detect gap to next file by waiting for 100 cycles of the next files's first block's lead tone
 		// After detection, there will be a roll back to the end of the block
 		// so that the next block detection will not miss the lead tone.

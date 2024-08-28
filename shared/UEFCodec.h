@@ -114,10 +114,10 @@ private:
 		Byte baudRate[2]; // Baudrate, .e.g., 300 = {44, 1} <=> 1 * 256 + 44 = 300
 	} BaudRateChunk;
 
-	// UEF half_cycle chunk
+	// UEF pahse shift chunk
 	typedef struct PhaseChunk_struct {
 		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(PHASE_CHUNK), {2, 0, 0, 0}};
-		Byte half_cycle[2] = { 0, 0 }; // zero degrees phase_shift
+		Byte phase_shift[2] = { 0, 0 }; // zero degrees phase_shift
 	} PhaseChunk;
 
 	
@@ -226,7 +226,7 @@ private:
 		int micro_tone_cycles;
 		int trailer_tone_cycles; // Only for BBC Micro
 		double block_gap;
-		int half_cycle = 180;
+		int phase_shift = 180;
 		double start;
 		double end;
 	} BLOCK_INFO;
@@ -301,6 +301,10 @@ private:
 		bool getUEFdata(string& uefFileName, Bytes& data);
 
 		bool UEFCodec::decodeFile(string uefFilename, Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
+
+		void resetCurrentBlockInfo();
+		void pushCurrentBlock();
+		void pullCurrentBlock();
 	
 
 

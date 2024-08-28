@@ -483,9 +483,9 @@ bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
     if (mUseOriginalTiming && tapeFile.validTiming)
         baudrate = tapeFile.baudRate;
 
-    // Intialise base frequency and half_cycle with values from Tape Timing
+    // Intialise base frequency and phase shift with values from Tape Timing
     mBaseFrequency = mTapeTiming.baseFreq;
-    mPhase = mTapeTiming.half_cycle;
+    mPhase = mTapeTiming.phaseShift;
 
 
     // Header: UEF File!
@@ -562,12 +562,37 @@ bool UEFCodec::inspect(string& uefFileName)
     return decode(uefFileName, tape_file);
 }
 
+void UEFCodec::resetCurrentBlockInfo()
+{
+    mCurrentBlockInfo.block_gap = -1;
+    mCurrentBlockInfo.lead_tone_cycles = -1;
+    mCurrentBlockInfo.micro_tone_cycles = -1;
+    mCurrentBlockInfo.trailer_tone_cycles = -1;
+    mCurrentBlockInfo.start = -1;
+    mCurrentBlockInfo.end = -1;
+    mCurrentBlockInfo.phase_shift = -1;
+}
+
+void UEFCodec::pullCurrentBlock()
+{
+    mCurrentBlockInfo = mBlockInfo.back();
+    mBlockInfo.pop_back();
+}
+
+void UEFCodec::pushCurrentBlock()
+{
+    mBlockInfo.push_back(mCurrentBlockInfo);
+
+    resetCurrentBlockInfo();
+}
+
 bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
 {
     igzstream fin(uefFileName.c_str());
-    file_being_read = false;
 
     mBlockInfo.clear();
+
+    resetCurrentBlockInfo();
 
     if (!fin.good()) {
 
@@ -688,20 +713,20 @@ bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
 
             break;
         }
-        case PHASE_CHUNK: // HalfCycle Change Chunk 0115: half_cycle = value
+        case PHASE_CHUNK: // Phase Shift Change Chunk 0115: phase shift = value
         {
             if (chunk_sz != 2) {
-                printf("Size of HalfCycle change chunk 0115 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 2);
+                printf("Size of Phase Shift change chunk 0115 has an incorrect chunk size %ld (should have been %d)\n", chunk_sz, 2);
                 return false;
             }
             PhaseChunk phase_chunk;
             phase_chunk.chunkHdr = chunk_hdr;
-            fin.read((char*)phase_chunk.half_cycle, sizeof(phase_chunk.half_cycle));
-            mPhase = (phase_chunk.half_cycle[0] + (phase_chunk.half_cycle[1] << 8));
+            fin.read((char*)phase_chunk.phase_shift, sizeof(phase_chunk.phase_shift));
+            mPhase = (phase_chunk.phase_shift[0] + (phase_chunk.phase_shift[1] << 8));
             if (mVerbose)
-                cout << "HalfCycle change chunk 0115 of size " << chunk_sz << " and specifying a half_cycle of " << mPhase << " degrees.\n";
+                cout << "Phase change chunk 0115 of size " << chunk_sz << " and specifying a 1/2 cycle of " << mPhase << " degrees.\n";
 
-            mCurrentBlockInfo.half_cycle = mPhase;
+            mCurrentBlockInfo.phase_shift = mPhase;
             break;
         }
 
@@ -877,7 +902,7 @@ bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
     // and record a zero-length block gap.
     if (!mInspect && mBlockState != BLOCK_STATE::READING_GAP) {
         mCurrentBlockInfo.block_gap = 0;
-        mBlockInfo.push_back(mCurrentBlockInfo);
+        pushCurrentBlock();
     }
 
     fin.close();
@@ -987,15 +1012,15 @@ bool UEFCodec::createBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
         Word hdr_CRC;
         BytesIter hdr_start = data_iter;
 
-        /*
+        // Get timing data related to the block (recorded previously during reading of the UEF chunks)
         block.blockGap = mBlockInfo[block_no].block_gap;
         block.leadToneCycles = mBlockInfo[block_no].lead_tone_cycles;
-        block.microToneCycles = mBlockInfo[block_no].micro_tone_cycles;
-        block.phaseShift = mBlockInfo[block_no].half_cycle;
+        block.trailerToneCycles = mBlockInfo[block_no].trailer_tone_cycles;
+        block.phaseShift = mBlockInfo[block_no].phase_shift;
         block.tapeStartTime = mBlockInfo[block_no].start;
         block.tapeEndTime = mBlockInfo[block_no].end;
-        */
 
+        
 
         // Skip dummy byte if it is the first block
         if (is_first_block) {
@@ -1111,7 +1136,7 @@ bool UEFCodec::createBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
     }
 
     if (!is_last_block) {
-        printf("Missing last block for Atom File '%s'.\n", tape_file_name.c_str());
+        printf("Missing last block for BBC Micro File '%s'.\n", tape_file_name.c_str());
         return false;
     }
 
@@ -1139,7 +1164,7 @@ bool UEFCodec::createAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_i
         block.blockGap = mBlockInfo[block_no].block_gap;
         block.leadToneCycles = mBlockInfo[block_no].lead_tone_cycles;
         block.microToneCycles = mBlockInfo[block_no].micro_tone_cycles;
-        block.phaseShift = mBlockInfo[block_no].half_cycle;
+        block.phaseShift = mBlockInfo[block_no].phase_shift;
         block.tapeStartTime = mBlockInfo[block_no].start;
         block.tapeEndTime = mBlockInfo[block_no].end;
 
@@ -1483,17 +1508,17 @@ bool UEFCodec::writeBaudrateChunk(ogzstream&fout)
     return true;
 }
 
-// Write half_cycle chunk
+// Write phase_shift chunk
 bool UEFCodec::writePhaseChunk(ogzstream &fout)
 {
     
     PhaseChunk chunk;
-    chunk.half_cycle[0] = mPhase & 0xff;
-    chunk.half_cycle[1] = mPhase >> 8;
+    chunk.phase_shift[0] = mPhase & 0xff;
+    chunk.phase_shift[1] = mPhase >> 8;
     fout.write((char*)&chunk, sizeof(chunk));
 
     if (mVerbose)
-        printf("HalfCycle chunk 0115 specifying a half_cycle of %d degrees written.\n", mPhase);
+        printf("Phase chunk 0115 specifying a phase_shift of %d degrees written.\n", mPhase);
     return true;
 }
 
@@ -1619,10 +1644,11 @@ bool UEFCodec::updateAtomBlockState(CHUNK_TYPE chunkType, double duration)
         ) {
             if (!firstBlock) { // gap between blocks are saved as an attribute of the previous block
                 mCurrentBlockInfo.block_gap = duration;
-                mBlockInfo.push_back(mCurrentBlockInfo);
+                pushCurrentBlock();
             }
-            else
-                firstBlock = false;
+            else {
+                firstBlock = false;              
+            }
             mBlockState = BLOCK_STATE::READING_GAP;
         }
         else
@@ -1694,9 +1720,15 @@ bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
             mBlockState == BLOCK_STATE::READING_CARRIER_PRELUDE || // A gap comes after reading the last block only
             mBlockState == BLOCK_STATE::READING_CARRIER // For a carrier tone including a dummy byte or a trailer carrier 
         ) {
+            // Regret pushing the current block info for the last block before the trailer carrier
+            // The lead tone cycles recorded were actually trailer tone cycles
+            int trailer_tone_cycles = mCurrentBlockInfo.lead_tone_cycles;
+            pullCurrentBlock();
+            mCurrentBlockInfo.trailer_tone_cycles = trailer_tone_cycles;
             mCurrentBlockInfo.block_gap = duration;
             firstBlock = true;   
             mBlockState = BLOCK_STATE::READING_GAP;
+            pushCurrentBlock(); 
         }
         else
             return false;
@@ -1709,19 +1741,13 @@ bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
         if ( // A lead carrier?
             mBlockState == BLOCK_STATE::READING_GAP // A carrier after a gap signals the end of a file and the start of a new one
             ) {
-            if (file_being_read) { // check that there was a previous file (at start of the tape then their would be no previous file)
-                mCurrentBlockInfo.trailer_tone_cycles = duration * mBaseFrequency * 2;
-                mBlockInfo.push_back(mCurrentBlockInfo);
-            }
-            else {            
-                file_being_read = true;
-            }
             mBlockState = BLOCK_STATE::READING_CARRIER_PRELUDE;
             mCurrentBlockInfo.start = mCurrentTime;
             firstBlock = true;
-        } else if (mBlockState == BLOCK_STATE::READING_HDR_DATA) { // A tone separates blocks
-            if (!firstBlock)
-                mBlockInfo.push_back(mCurrentBlockInfo); // save previous block's info
+        } else if (mBlockState == BLOCK_STATE::READING_HDR_DATA) { // A tone signals start of next block (except for last block) 
+            if (!firstBlock) {
+                pushCurrentBlock(); // save previous block's info (if it was the last block this pushing will be reverted when a gap is detected)
+            }
             mCurrentBlockInfo.lead_tone_cycles = duration * mBaseFrequency * 2;
             mBlockState = BLOCK_STATE::READING_CARRIER_PRELUDE;     
         } else if (mBlockState == BLOCK_STATE::READING_DUMMY_BYTE) { // A tone follows after a dummy byte for the first block
@@ -1738,14 +1764,7 @@ bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
         if ( // A lead carrier?
             mBlockState == BLOCK_STATE::READING_GAP // A carrier after a gap signals the end of a file and the start of a new one
             ) {
-            if (file_being_read) { // check that there was a previous file (at start of the tape there would be no previous file)
-                mCurrentBlockInfo.trailer_tone_cycles = duration * mBaseFrequency * 2;
-                mBlockInfo.push_back(mCurrentBlockInfo);
-            }
-            else {
-                file_being_read = true;
-            }
-            mBlockState = BLOCK_STATE::READING_CARRIER_WITH_DUMMY;
+             mBlockState = BLOCK_STATE::READING_CARRIER_WITH_DUMMY;
             mCurrentBlockInfo.start = mCurrentTime;
             mCurrentBlockInfo.lead_tone_cycles = duration * mBaseFrequency * 2;
             firstBlock = false;
