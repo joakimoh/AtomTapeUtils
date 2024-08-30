@@ -35,22 +35,10 @@ BlockDecoder::BlockDecoder(
 
 	mTracing = argParser.tracing;
 
-	if (mArgParser.tapeTiming.baudRate == 300) {
-		mStartBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
-		mLowDataBitCycles = 4; // Data bit length in cycles of F1 frequency carrier
-		mHighDataBitCycles = 8; // Data bit length in cycles of F2 frequency carrier
-		mStopBitCycles = 9; // Stop bit length in cycles of F2 frequency carrier
-	}
-	else if (mArgParser.tapeTiming.baudRate == 1200) {
-		mStartBitCycles = 1; // Start bit length in cycles of F1 frequency carrier
-		mLowDataBitCycles = 1; // Data bit length in cycles of F1 frequency carrier
-		mHighDataBitCycles = 2; // Data bit length in cycles of F2 frequency carrier
-		if (argParser.bbcMicro)
-			mStopBitCycles = 2; // Stop bit length in cycles of F2 frequency carrier
-		else
-			mStopBitCycles = 3;
-	}
-	else {
+	if (!setBitTiming(mArgParser.tapeTiming.baudRate, argParser.bbcMicro, mStartBitCycles,
+		mLowDataBitCycles, mHighDataBitCycles, mStopBitCycles)
+	) {
+
 		throw invalid_argument("Unsupported baud rate " + mArgParser.tapeTiming.baudRate);
 	}
 	mDataBitSamples = round(mCycleDecoder.getF2Duration() * mHighDataBitCycles); // No of samples for a data bit

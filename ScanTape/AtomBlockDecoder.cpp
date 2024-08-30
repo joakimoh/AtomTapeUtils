@@ -112,22 +112,10 @@ bool AtomBlockDecoder::readBlock(
 		updateCRC(CRC, *hdr++);
 	}
 
+	int load_address, exec_adr, len;
+	if (!decodeAtomTapeHdr(mAtomTapeBlockHdr, readBlock, load_address, exec_adr, len, blockNo, block_type))
+		return false;
 
-	// Extract address information and update ATM block with it
-	readBlock.atomHdr.execAdrHigh = mAtomTapeBlockHdr.execAdrHigh;
-	readBlock.atomHdr.execAdrLow = mAtomTapeBlockHdr.execAdrLow;
-	readBlock.atomHdr.loadAdrHigh = mAtomTapeBlockHdr.loadAdrHigh;
-	readBlock.atomHdr.loadAdrLow = mAtomTapeBlockHdr.loadAdrLow;
-
-	// Extract block no (returned to caller of readBlock)
-	blockNo = mAtomTapeBlockHdr.blockNoHigh * 256 + mAtomTapeBlockHdr.blockNoLow;
-
-
-	// Extract data length information and update ATM block with it
-	int len;
-	block_type = parseBlockFlag(mAtomTapeBlockHdr, len);
-	readBlock.atomHdr.lenHigh = len / 256;
-	readBlock.atomHdr.lenLow = len % 256;
 
 	if (mVerbose)
 		cout << "Header " << mTapeFileName << " " << hex << mAtomTapeBlockHdr.loadAdrHigh * 256 + mAtomTapeBlockHdr.loadAdrLow << " " << mAtomTapeBlockHdr.dataLenM1 + 1 << " " << blockNo << " read at " << encodeTime(getTime()) << dec << "\n";
@@ -212,7 +200,7 @@ bool AtomBlockDecoder::readBlock(
 }
 
 
-bool AtomBlockDecoder::getFileName(char name[ATM_MMC_HDR_NAM_SZ], uint16_t &CRC, int &len) {
+bool AtomBlockDecoder::getFileName(char name[ATM_HDR_NAM_SZ], uint16_t &CRC, int &len) {
 	int i = 0;
 	Byte byte;
 	bool failed = false;
@@ -227,10 +215,10 @@ bool AtomBlockDecoder::getFileName(char name[ATM_MMC_HDR_NAM_SZ], uint16_t &CRC,
 			len = i;
 		i++;
 		updateCRC(CRC, byte);
-	} while (!failed && byte != 0xd && i <= MAX_ATM_NAME_LEN);
+	} while (!failed && byte != 0xd && i <= ATOM_TAPE_NAME_LEN);
 
 	// Add zero-padding
-	for (int j = len; j < ATM_MMC_HDR_NAM_SZ; j++)
+	for (int j = len; j < ATM_HDR_NAM_SZ; j++)
 		name[j] = '\0';
 
 	return true;

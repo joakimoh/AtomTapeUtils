@@ -4,6 +4,46 @@
 #include <sstream>
 #include "Debug.h"
 #include <filesystem>
+#include "WaveSampleTypes.h"
+
+bool setBitTiming(int baudRate, bool bbcMicro, int & startBitCycles, int & lowDataBitCycles, int & highDataBitCycles, int & stopBitCycles)
+{
+    if (baudRate == 300) {
+        startBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
+        lowDataBitCycles = 4; // Data bit length in cycles of F1 frequency carrier
+        highDataBitCycles = 8; // Data bit length in cycles of F2 frequency carrier
+        if (bbcMicro)
+            stopBitCycles = 8; // Stop bit length in cycles of F2 frequency carrier
+        else
+            stopBitCycles = 9;
+    }
+    else if (baudRate == 1200) {
+        startBitCycles = 1; // Start bit length in cycles of F1 frequency carrier
+        lowDataBitCycles = 1; // Data bit length in cycles of F1 frequency carrier
+        highDataBitCycles = 2; // Data bit length in cycles of F2 frequency carrier
+        if (bbcMicro)
+            stopBitCycles = 2; // Stop bit length in cycles of F2 frequency carrier
+        else
+            stopBitCycles = 3;
+    }
+    else {
+        cout << "Invalid baud rate " << baudRate << "!\n";
+        return false;
+    }
+
+    return true;
+}
+
+string roundedPD(string prefix, double d, string suffix)
+{
+    ostringstream s;
+    if (d > 0)
+        s << setw(4) << setprecision(2) << d << setw(1) << "s";
+    else
+        s << setw(5) << "-";
+
+    return prefix + s.str()  + suffix;
+}
 
 void logTAPFileHdr(TapeFile& tapeFile)
 {
@@ -20,18 +60,16 @@ void logTAPFileHdr(ostream* fout, TapeFile& tapeFile)
     if (tapeFile.fileType == FileType::AtomFile) {    
         uint32_t exec_adr = block.atomHdr.execAdrHigh * 256 + block.atomHdr.execAdrLow;
         uint32_t load_adr = block.atomHdr.loadAdrHigh * 256 + block.atomHdr.loadAdrLow;
-        uint32_t block_sz = block.atomHdr.lenHigh * 256 + block.atomHdr.execAdrLow;
         uint32_t n_blocks = tapeFile.blocks.size();
         uint32_t file_sz = 0;
         for (int i = 0; i < n_blocks; i++)
             file_sz += tapeFile.blocks[i].atomHdr.lenHigh * 256 + tapeFile.blocks[i].atomHdr.lenLow;
         *fout << "\n" << setw(13) << block.atomHdr.name << " " << hex << setw(4) << load_adr << " " <<
-            load_adr + file_sz - 1 << " " << exec_adr << " " << block_sz << "\n";
+            load_adr + file_sz - 1 << " " << exec_adr << " " << n_blocks << "\n";
     }
     else {
         uint32_t exec_adr = bytes2uint(&block.bbmHdr.execAdr[0], 4, true);
         uint32_t load_adr = bytes2uint(&block.bbmHdr.loadAdr[0], 4, true);
-        uint32_t block_sz = bytes2uint(&block.bbmHdr.blockLen[0], 2, true);
         uint32_t block_no = bytes2uint(&block.bbmHdr.blockNo[0], 2, true);
         uint32_t file_sz = 0;
         uint32_t n_blocks = tapeFile.blocks.size();
@@ -43,12 +81,12 @@ void logTAPFileHdr(ostream* fout, TapeFile& tapeFile)
     }
 }
 
-void logTAPBlockHdr(FileBlock& block, uint32_t adr_offset)
+void logTAPBlockHdr(FileBlock& block, uint32_t adr_offset, uint32_t blockNo)
 {
     logTAPBlockHdr(&cout, block, adr_offset);
 }
 
-void logTAPBlockHdr(ostream *fout, FileBlock& block, uint32_t adr_offset)
+void logTAPBlockHdr(ostream* fout, FileBlock& block, uint32_t adr_offset, uint32_t blockNo /* Atom only*/)
 {
     if (fout == NULL)
         return;
@@ -56,28 +94,100 @@ void logTAPBlockHdr(ostream *fout, FileBlock& block, uint32_t adr_offset)
     if (block.blockType == FileBlockType::AtomBlock) {
         uint32_t exec_adr = block.atomHdr.execAdrHigh * 256 + block.atomHdr.execAdrLow;
         uint32_t load_adr = block.atomHdr.loadAdrHigh * 256 + block.atomHdr.loadAdrLow;
-        uint32_t block_sz = block.atomHdr.lenHigh * 256 + block.atomHdr.execAdrLow;
+        uint32_t block_sz = block.atomHdr.lenHigh * 256 + block.atomHdr.lenLow;
         *fout << setw(13) << setfill(' ') << block.atomHdr.name << " " <<
             hex << setfill('0') << setw(4) << load_adr << " " <<
+            hex << setfill('0') << setw(4) << load_adr + block_sz - 1 << " " <<
             hex << setfill('0') << setw(4) << exec_adr << " " <<
-            hex << setfill('0') << setw(4) << block_sz << "\n" << setfill(' ');
+            dec << setfill(' ') << setw(4) << dec << blockNo << " " <<
+            hex << setfill('0') << setw(4) << block_sz << " " << setfill(' ') <<
+            roundedPD(" LEAD TONE ", (double)block.leadToneCycles / F2_FREQ, ": ") <<
+            roundedPD("MICRO TONE ", (double)block.microToneCycles / F2_FREQ, ": ") <<
+            roundedPD("GAP ", block.blockGap, "") <<
+            "\n";
     }
     else {
         uint32_t exec_adr = bytes2uint(&block.bbmHdr.execAdr[0], 4, true);
-        uint32_t load_adr = bytes2uint(&block.bbmHdr.loadAdr[0], 4, true) + adr_offset;
+        uint32_t file_load_adr = bytes2uint(&block.bbmHdr.loadAdr[0], 4, true);
         uint32_t block_sz = bytes2uint(&block.bbmHdr.blockLen[0], 2, true);
         uint32_t block_no = bytes2uint(&block.bbmHdr.blockNo[0], 2, true);
         Byte flag = block.bbmHdr.blockFlag;
         *fout << setw(10) << setfill(' ') << block.bbmHdr.name << " " <<
-            hex << setfill('0') << setw(8) << load_adr << " " <<
-            hex << setfill('0') << setw(8) << load_adr + block_sz - 1 << " " <<
+            hex << setfill('0') << setw(8) << file_load_adr + adr_offset << " " <<
+            hex << setfill('0') << setw(8) << file_load_adr + adr_offset + block_sz - 1 << " " <<
             hex << setfill('0') << setw(8) << exec_adr << " " <<
             dec << setfill(' ') << setw(4) << dec << block_no << " " <<
             hex << setfill('0') << setw(4) << block_sz << " " <<
-            hex << setfill('0') << setw(2) << hex << (int) flag << "\n" << setfill(' ');
-       }
+            hex << setfill('0') << setw(2) << hex << (int)flag << setfill(' ') <<
+            roundedPD(" LEAD TONE ", (double)block.leadToneCycles / F2_FREQ, ": ") <<
+            roundedPD(" TRAILER TONE ", (double)block.trailerToneCycles / F2_FREQ, ": ") <<
+            roundedPD("GAP ", block.blockGap, "") <<
+            "\n";
+    }
 
 }
+
+
+
+void logAtomTapeHdr(AtomTapeBlockHdr &hdr, char blockName[])
+{
+    return logAtomTapeHdr(&cout, hdr, blockName);
+}
+
+void logBBMTapeHdr(BBMTapeBlockHdr& hdr, char blockName[])
+{
+    return logBBMTapeHdr(&cout, hdr, blockName);
+}
+
+void logBBMTapeHdr(ostream* fout, BBMTapeBlockHdr& hdr, char blockName[])
+{
+    uint32_t exec_adr = bytes2uint(&hdr.execAdr[0], 4, true);
+    uint32_t load_adr = bytes2uint(&hdr.loadAdr[0], 4, true);
+    uint32_t block_sz = bytes2uint(&hdr.blockLen[0], 2, true);
+    uint32_t block_no = bytes2uint(&hdr.blockNo[0], 2, true);
+    string block_name;
+    BlockType block_type = BlockType::Other;
+    if (hdr.blockFlag & 0x80) {
+        if (block_no == 0)
+            block_type = BlockType::Single;
+        else
+            block_type = BlockType::Last;
+    }
+    else if (block_no == 0)
+        block_type = BlockType::First;
+    else
+        block_type = BlockType::Other;
+
+    for (int i = 0; i < 13 && blockName[i] != 0x0; block_name += blockName[i++]);
+    *fout << setfill(' ') << setw(10) << block_name << " " <<
+        hex << setfill('0') << setw(8) << load_adr << " " <<
+        hex << setfill('0') << setw(8) << load_adr + block_sz - 1 << " " <<
+        hex << setfill('0') << setw(8) << exec_adr << " " <<
+        dec << setfill(' ') << setw(4) << dec << block_no << " " <<
+        hex << setfill('0') << setw(4) << block_sz << " " <<
+        hex << setfill(' ') << setw(8) << _BLOCK_ORDER(block_type) << " " <<
+        "\n";
+}
+void logAtomTapeHdr(ostream* fout, AtomTapeBlockHdr &hdr, char blockName[])
+{
+    uint32_t exec_adr = hdr.execAdrHigh * 256 + hdr.execAdrLow;
+    uint32_t load_adr = hdr.loadAdrHigh * 256 + hdr.loadAdrLow;
+    int block_sz;
+    uint32_t block_no = hdr.blockNoHigh * 256 + hdr.blockNoLow;
+    string block_name;
+    int len;
+    BlockType block_type = parseAtomTapeBlockFlag(hdr, block_sz);
+    for (int i = 0; i < 13 && blockName[i] != 0xd; block_name += blockName[i++]);
+    *fout << setfill(' ') << setw(13)  << block_name << " " <<
+        hex << setfill('0') << setw(4) << load_adr << " " <<
+        hex << setfill('0') << setw(4) << load_adr + block_sz - 1 << " " <<
+        hex << setfill('0') << setw(4) << exec_adr << " " <<
+        dec << setfill(' ') << setw(4) << dec << block_no << " " <<
+        hex << setfill('0') << setw(4) << block_sz << " " <<
+        hex << setfill(' ') << setw(8) << _BLOCK_ORDER(block_type) << " " <<
+        "\n";
+}
+
 
 bool encodeTAPHdr(FileBlock &block, string tapefileName, uint32_t fileLoadAdr, uint32_t loadAdr, uint32_t execAdr, uint32_t blockNo, uint32_t BlockSz)
 {
@@ -175,12 +285,12 @@ bool readAtomTapeFileName(BytesIter& data_iter, Bytes& data, Word& CRC, char *na
 {
     int i = 0;
 
-    for (i = 0; i < ATM_MMC_HDR_NAM_SZ && *data_iter != 0xd && data_iter < data.end(); data_iter++) {
+    for (i = 0; i < ATM_HDR_NAM_SZ && *data_iter != 0xd && data_iter < data.end(); data_iter++) {
         name[i] = *data_iter;
         updateAtomCRC(CRC, *data_iter);
         i++;
     }
-    for (int j = i; j < ATM_MMC_HDR_NAM_SZ; name[j++] = '\0');
+    for (int j = i; j < ATM_HDR_NAM_SZ; name[j++] = '\0');
 
     if (*data_iter != 0xd)
         return false;
@@ -194,12 +304,12 @@ bool readBBMTapeFileName(BytesIter& data_iter, Bytes& data, Word& CRC, char *nam
 {
     int i = 0;
 
-    for (i = 0; i < BBM_MMC_HDR_NAM_SZ && *data_iter != 0x0 && data_iter < data.end(); data_iter++) {
+    for (i = 0; i < BTM_HDR_NAM_SZ && *data_iter != 0x0 && data_iter < data.end(); data_iter++) {
         name[i] = *data_iter;
         updateBBMCRC(CRC, *data_iter);
         i++;
     }
-    for (int j = i; j < BBM_MMC_HDR_NAM_SZ; name[j++] = '\0');
+    for (int j = i; j < BTM_HDR_NAM_SZ; name[j++] = '\0');
 
     if (*data_iter != 0x0)
         return false;
@@ -341,7 +451,7 @@ string atomBlockNameFromFilename(string fn)
     int len = (int)fn.length();
     int p = 0;
     int tape_file_pos = 0;
-    while (p < len && tape_file_pos < MAX_ATM_NAME_LEN) {
+    while (p < len && tape_file_pos < ATOM_TAPE_NAME_LEN) {
         char c = fn[p];
         // Look for escape sequences __ and _hh 
         if (fn[p] == '_') {
@@ -388,7 +498,7 @@ string bbmBlockNameFromFilename(string fn)
     int len = (int)fn.length();
     int p = 0;
     int tape_file_pos = 0;
-    while (p < len && tape_file_pos < MAX_BBM_NAME_LEN) {
+    while (p < len && tape_file_pos < BBM_TAPE_NAME_LEN) {
         char c = fn[p];
         if (c == ' ' || c == '.')
             c = '_';
@@ -477,7 +587,7 @@ void logData(int address, BytesIter &data_iter, int data_sz) {
     printf("\n");
 }
 
-BlockType parseBlockFlag(AtomTapeBlockHdr hdr, int& blockLen) {
+BlockType parseAtomTapeBlockFlag(AtomTapeBlockHdr hdr, int& blockLen) {
 
     BlockType type;
 
@@ -505,20 +615,7 @@ BlockType parseBlockFlag(AtomTapeBlockHdr hdr, int& blockLen) {
 
 }
 
-bool extractBBMBlockPars(
-    FileBlock block, bool is_last_block, int nReadChars,
-    int& loadAdr, int& loadAdrUB, int& execAdr, int& blockSz,
-    bool& isBasicProgram, string& fileName
-) {
-    loadAdr = bytes2uint(&block.bbmHdr.loadAdr[0], 4, true);  
-    execAdr = bytes2uint(&block.bbmHdr.execAdr[0], 4, true);
-    blockSz = bytes2uint(&block.bbmHdr.blockLen[0], 2, true);
-    loadAdrUB = loadAdr + blockSz;
-    isBasicProgram = false;
-    fileName = block.bbmHdr.name;
 
-    return true;
-}
 
 //
 // Extract parameters from the read block's header.
@@ -549,7 +646,7 @@ bool extractBBMBlockPars(
 // follows from the block sequence itself as blocks are numbered 0, 1, 2, ..., n-1
 // where n = no of blocks..
 //
-bool extractBlockPars(
+bool decodeATMBlockHdr(
     FileBlock block, BlockType blockType, int nReadChars,
     int& loadAdr, int& loadAdrUB, int& execAdr, int& blockSz,
     bool& isBasicProgram, string& fileName
@@ -596,4 +693,122 @@ bool extractBlockPars(
         isBasicProgram = true;
 
     return (nReadChars >= sizeof(AtomTapeBlockHdr) + offset);
+}
+
+bool decodeBTMBlockHdr(
+    FileBlock block, bool is_last_block, int nReadChars,
+    int& loadAdr, int& execAdr, int& blockSz,
+    bool& isBasicProgram, string& fileName
+) {
+    loadAdr = bytes2uint(&block.bbmHdr.loadAdr[0], 4, true);
+    execAdr = bytes2uint(&block.bbmHdr.execAdr[0], 4, true);
+    blockSz = bytes2uint(&block.bbmHdr.blockLen[0], 2, true);
+    isBasicProgram = false;
+    fileName = block.bbmHdr.name;
+
+    return true;
+}
+
+bool decodeBBMTapeHdr(BBMTapeBlockHdr& hdr, FileBlock& block,
+    uint32_t&loadAdr, uint32_t&execAdr, uint32_t &blockLen, int &blockNo, uint32_t &nextAdr, bool &isLastBlock
+)
+{
+    // Extract heaader information and update BBM block with it
+    loadAdr = bytes2uint(&hdr.loadAdr[0], 4, true);
+    execAdr = bytes2uint(&hdr.execAdr[0], 4, true);
+    blockLen = bytes2uint(&hdr.blockLen[0], 2, true);
+    blockNo = bytes2uint(&hdr.blockNo[0], 2, true);
+    nextAdr = bytes2uint(&hdr.nextFileAdr[0], 4, true);
+    isLastBlock = (hdr.blockFlag & 0x80) != 0; // b7 = last block
+    copybytes(&hdr.loadAdr[0], &block.bbmHdr.loadAdr[0], 4);
+    copybytes(&hdr.execAdr[0], &block.bbmHdr.execAdr[0], 4);
+    copybytes(&hdr.blockNo[0], &block.bbmHdr.blockNo[0], 2);
+    copybytes(&hdr.blockLen[0], &block.bbmHdr.blockLen[0], 2);
+    block.bbmHdr.locked = (hdr.blockFlag & 0x1) != 0; // b0 = locked block
+    block.bbmHdr.blockFlag = hdr.blockFlag;
+
+    return true;
+}
+
+bool decodeAtomTapeHdr(AtomTapeBlockHdr& hdr, FileBlock& block,
+    int &loadAdr, int &execAdr, int &blockLen, int& blockNo, BlockType &blockType
+)
+{
+    loadAdr = hdr.loadAdrHigh * 256 + hdr.loadAdrLow;
+    execAdr = hdr.execAdrHigh * 256 + hdr.execAdrLow;
+    blockType = parseAtomTapeBlockFlag(hdr, blockLen);
+    blockNo = hdr.blockNoHigh * 256 + hdr.blockNoLow;
+
+    block.atomHdr.execAdrHigh = hdr.execAdrHigh;
+    block.atomHdr.execAdrLow = hdr.execAdrLow;
+    block.atomHdr.lenHigh = blockLen / 256;
+    block.atomHdr.lenLow = blockLen % 256;
+    block.atomHdr.loadAdrHigh = hdr.loadAdrHigh;
+    block.atomHdr.loadAdrLow = hdr.loadAdrLow;
+
+    return true;
+}
+
+bool encodeTapeHdr(FileBlock& block, int block_no, int n_blocks, Bytes& hdr)
+{
+    if (block.blockType == FileBlockType::AtomBlock)
+        return encodeAtomTapeHdr(block, block_no, n_blocks, hdr);
+    else
+        return encodeBBMTapeHdr(block, hdr);
+}
+
+//
+// <name:1-10> <load adr:4> <exec adr:4> <block no:2> <block len:2> <block flag:1> <next adr:4>
+//
+bool encodeBBMTapeHdr(FileBlock& block, Bytes& hdr)
+{
+    // store block name
+    int name_len = 0;
+    for (; name_len < sizeof(block.bbmHdr.name) && block.bbmHdr.name[name_len] != 0; name_len++);
+    for (int i = 0; i < name_len; i++)
+        hdr.push_back(block.bbmHdr.name[i]);
+    hdr.push_back(0x0);
+
+    copybytes(block.bbmHdr.loadAdr, hdr, 4); // load address
+    copybytes(block.bbmHdr.execAdr, hdr, 4); // exec address
+    copybytes(block.bbmHdr.blockNo, hdr, 2); // block no
+    copybytes(block.bbmHdr.blockLen, hdr, 2); // block len
+    hdr.push_back(block.bbmHdr.blockFlag); // block flag
+    initbytes(hdr, 0, 4); // next address
+
+    return true;
+}
+
+//
+// header = <name:2 - 14> <flag:1> <block no:2> <block len -1:1> <exec adr:2> <load adr:2>
+//
+bool encodeAtomTapeHdr(FileBlock& block, int block_no, int n_blocks, Bytes &hdr)
+{
+    int data_len = block.atomHdr.lenHigh * 256 + block.atomHdr.lenLow;  // get data length
+
+    Byte b7 = (block_no < n_blocks - 1 ? 0x80 : 0x00);          // calculate flags
+    Byte b6 = (data_len > 0 ? 0x40 : 0x00);
+    Byte b5 = (block_no != 0 ? 0x20 : 0x00);
+
+    // store block name
+    int name_len = 0;
+    for (; name_len < sizeof(block.atomHdr.name) && block.atomHdr.name[name_len] != 0; name_len++);
+    for (int i = 0; i < name_len; i++)
+        hdr.push_back(block.atomHdr.name[i]);
+    hdr.push_back(0xd);
+
+    hdr.push_back(b7 | b6 | b5);                        // store flags
+
+    hdr.push_back((block_no >> 8) & 0xff);              // store block no
+    hdr.push_back(block_no & 0xff);
+
+    hdr.push_back((data_len > 0 ? data_len - 1 : 0));   // store length - 1
+
+    hdr.push_back(block.atomHdr.execAdrHigh);     // store execution address
+    hdr.push_back(block.atomHdr.execAdrLow);
+
+    hdr.push_back(block.atomHdr.loadAdrHigh);     // store load address
+    hdr.push_back(block.atomHdr.loadAdrLow);
+
+    return true;
 }

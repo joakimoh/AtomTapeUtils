@@ -18,12 +18,12 @@
 using namespace std;
 
 
-CSWCodec::CSWCodec(bool verbose) : mVerbose(verbose)
+CSWCodec::CSWCodec(bool verbose, bool bbcMicro) : mVerbose(verbose), mBbcMicro(bbcMicro)
 {
 
 }
 
-CSWCodec::CSWCodec(bool useOriginalTiming, bool verbose): mVerbose(verbose)
+CSWCodec::CSWCodec(bool useOriginalTiming, bool verbose, bool bbcMicro): mVerbose(verbose), mBbcMicro(bbcMicro)
 {
     mUseOriginalTiming = useOriginalTiming;
 }
@@ -40,19 +40,10 @@ bool CSWCodec::encode(TapeFile& tapeFile, string &filePath, int sampleFreq)
 {
 
     mFS = sampleFreq;
-    if (mTapeTiming.baudRate == 300) {
-        mStartBitCycles = 4; // Start bit length in cycles of F1 frequency carrier
-        mLowDataBitCycles = 4; // Data bit length in cycles of F1 frequency carrier
-        mHighDataBitCycles = 8; // Data bit length in cycles of F2 frequency carrier
-        mStopBitCycles = 9; // Stop bit length in cycles of F2 frequency carrier
-    }
-    else if (mTapeTiming.baudRate == 1200) {
-        mStartBitCycles = 1; // Start bit length in cycles of F1 frequency carrier
-        mLowDataBitCycles = 1; // Data bit length in cycles of F1 frequency carrier
-        mHighDataBitCycles = 2; // Data bit length in cycles of F2 frequency carrier
-        mStopBitCycles = 3; // Stop bit length in cycles of F2 frequency carrier
-    }
-    else {
+    if (!setBitTiming(mTapeTiming.baudRate, mBbcMicro, mStartBitCycles,
+        mLowDataBitCycles, mHighDataBitCycles, mStopBitCycles)
+        ) {
+
         throw invalid_argument("Unsupported baud rate " + mTapeTiming.baudRate);
     }
     mHighSamples = (double)mFS / F2_FREQ;

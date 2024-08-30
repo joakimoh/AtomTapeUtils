@@ -26,7 +26,7 @@
 	 * eadr = execution address (big endian)
 	 * ladr = load address (big endian)
 	 */
-#define MAX_ATM_NAME_LEN 13
+#define ATOM_TAPE_NAME_LEN 13
 typedef struct {
 	// uint8_t preamble[4]; // synchronisation bytes: 4 x 0x2a
 	// char name[14]; // file name - up to 13 characters terminated with 0xd - not included as of varying size
@@ -53,9 +53,9 @@ typedef enum { First = 0x1, Last = 0x2, Other = 0x4, Single = 0x3, Unknown = 0x4
 //	 Conforms to the ATM header format specified by Wouter Ras.
 //
 //
-#define ATM_MMC_HDR_NAM_SZ 16
+#define ATM_HDR_NAM_SZ 16
 typedef struct ATMHdr_struct {
-	char name[ATM_MMC_HDR_NAM_SZ]; // zero-padded with '\0' at the end
+	char name[ATM_HDR_NAM_SZ]; // zero-padded with '\0' at the end
 	Byte loadAdrLow; //
 	Byte loadAdrHigh; // Load address (normally 0x2900 for BASIC programs)
 	Byte execAdrLow; //

@@ -69,6 +69,8 @@ bool BBMBlockDecoder::readBlock(
 )
 {
 	uint16_t calc_hdr_CRC, calc_data_CRC;
+	uint32_t load_adr, exec_adr, next_adr, block_len;
+
 	nReadBytes = 0;
 	mTapeFileName = "???";
 
@@ -87,29 +89,37 @@ bool BBMBlockDecoder::readBlock(
 	initbytes(&readBlock.bbmHdr.blockLen[0], 0xff, 2);
 	readBlock.bbmHdr.locked = false;
 	readBlock.bbmHdr.name[0] = 0xff;
+	readBlock.leadToneCycles = -1;
+	readBlock.blockGap = -1;
+	readBlock.trailerToneCycles = -1;
+	readBlock.tapeStartTime = -1;
+	readBlock.tapeEndTime = -1;
 
 
 	// Wait for lead tone of a min duration but still 'consume' the complete tone
 	double duration, waiting_time;
-	if (!mCycleDecoder.waitForTone(leadToneDuration, duration, waiting_time, readBlock.leadToneCycles, mLastHalfCycleFrequency)) {
-		// This is not necessarily an error - it could be because the end of the tape as been reached...
-			return false;
-	}
-	leadToneDetected = true;
-	if (mVerbose) {
-		if (firstBlock)
-			cout << duration << "s prelude lead tone detected at " << encodeTime(getTime()) << "\n";
-		else
-			cout << duration << "s lead tone detected at " << encodeTime(getTime()) << "\n";
-	}
+	
+	
 
 	if (firstBlock) {
+
+		double prelude_tone_duration = 4 / F2_FREQ;
+		if (!mCycleDecoder.waitForTone(prelude_tone_duration, duration, waiting_time, readBlock.leadToneCycles, mLastHalfCycleFrequency)) {
+			// This is not necessarily an error - it could be because the end of the tape as been reached...
+			return false;
+		}
+		if (mVerbose)
+			cout << duration << "s prelude lead tone detected at " << encodeTime(getTime()) << "\n";
+
 		// Skip dummy byte
 		if (!checkBytes(0xaa, 1)) {
 			if (mTracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to read dummy byte (0xaa byte)%s\n", "");
 			//return false;
 		}
+		if (mVerbose)
+			cout << "dummy byte 0xaa (as part of lead carrier) detected at " << encodeTime(getTime()) << "\n";
+
 		// Get postlude part of lead tone
 		int lead_tone_prelude_cycles = readBlock.leadToneCycles;
 		if (!mCycleDecoder.waitForTone(leadToneDuration, duration, waiting_time, readBlock.leadToneCycles, mLastHalfCycleFrequency)) {
@@ -120,6 +130,15 @@ bool BBMBlockDecoder::readBlock(
 		if (mVerbose)
 			cout << duration << "s postlude lead tone detected at " << encodeTime(getTime()) << "\n";
 	}
+	else {
+		if (!mCycleDecoder.waitForTone(leadToneDuration, duration, waiting_time, readBlock.leadToneCycles, mLastHalfCycleFrequency)) {
+			// This is not necessarily an error - it could be because the end of the tape as been reached...
+			return false;
+		}
+		if (mVerbose)
+			cout << duration << "s lead tone detected at " << encodeTime(getTime()) << "\n";
+	}
+	leadToneDetected = true;
 
 	// Read block header's preamble (i.e., synhronisation byte)
 	if (!checkBytes(0x2a, 1)) {
@@ -158,25 +177,15 @@ bool BBMBlockDecoder::readBlock(
 		updateCRC(calc_hdr_CRC, *hdr++);
 	}
 
-	// Extract heaader information and update BBM block with it
-	int load_adr = bytes2uint(&mBBMTapeBlockHdr.loadAdr[0], 4, true);
-	int exec_adr = bytes2uint(&mBBMTapeBlockHdr.execAdr[0], 4, true);
-	int block_len = bytes2uint(&mBBMTapeBlockHdr.blockLen[0], 2, true);
-	blockNo = bytes2uint(&mBBMTapeBlockHdr.blockNo[0], 2, true);
-	int next_adr = bytes2uint(&mBBMTapeBlockHdr.nextFileAdr[0], 4, true);
-	isLastBlock = (mBBMTapeBlockHdr.blockFlag & 0x80) != 0;
-	copybytes(&mBBMTapeBlockHdr.loadAdr[0], &readBlock.bbmHdr.loadAdr[0], 4);
-	copybytes(&mBBMTapeBlockHdr.execAdr[0], &readBlock.bbmHdr.execAdr[0], 4);
-	copybytes(&mBBMTapeBlockHdr.blockNo[0], &readBlock.bbmHdr.blockNo[0], 2);
-	copybytes(&mBBMTapeBlockHdr.blockLen[0], &readBlock.bbmHdr.blockLen[0], 2);
-	readBlock.bbmHdr.locked = (mBBMTapeBlockHdr.blockFlag & 0x1) != 0;
-	readBlock.bbmHdr.blockFlag = mBBMTapeBlockHdr.blockFlag;
+	// Extract header information and update BBM block with it
+	if (!decodeBBMTapeHdr(mBBMTapeBlockHdr, readBlock, load_adr, exec_adr, block_len, blockNo, next_adr, isLastBlock))
+		return false;
 
 
-	if (mVerbose)
-		cout << "Header " << mTapeFileName << " " << hex << load_adr << " " <<
-		exec_adr << " " << block_len << " " << blockNo << " " << (int) mBBMTapeBlockHdr.blockFlag <<
-		" " << next_adr << "  read at " << encodeTime(getTime()) << dec << "\n";
+	if (mVerbose) {
+		cout << "Header read at " << encodeTime(getTime()) << ": ";
+		logTAPBlockHdr(readBlock, 0x0);
+	}
 
 	// Get header CRC
 	Word hdr_CRC;
@@ -208,6 +217,10 @@ bool BBMBlockDecoder::readBlock(
 		}
 	}
 
+	if (mVerbose)
+		cout << dec << block_len << " bytes of data read at " << encodeTime(getTime()) << "\n";
+
+
 	if (DEBUG_LEVEL == DBG)
 		logData(load_adr, &readBlock.data[0], block_len);
 
@@ -218,7 +231,6 @@ bool BBMBlockDecoder::readBlock(
 			DEBUG_PRINT(getTime(), ERR, "Failed to read data block CRC for file '%s'\n", readBlock.bbmHdr.name);
 		return false;
 	}
-
 	
 	// Check calc_hdr_CRC
 	if (data_CRC != calc_data_CRC) {
@@ -230,9 +242,9 @@ bool BBMBlockDecoder::readBlock(
 	if (mVerbose)
 		cout << "A correct data CRC 0x" << hex << data_CRC << " read at " << encodeTime(getTime()) << "\n";
 
-	if (mVerbose) {
-		cout << dec << block_len << " bytes data block + CRC read at " << encodeTime(getTime()) << "\n";
-	}
+
+	if (mVerbose)
+		cout << "A correct data CRC 0x" << hex << data_CRC << " read at " << encodeTime(getTime()) << "\n";
 
 	// Skip trailer tone that only exists for the last block of a file
 	if (isLastBlock) {
@@ -264,7 +276,7 @@ bool BBMBlockDecoder::readBlock(
 }
 
 
-bool BBMBlockDecoder::getFileName(char name[MAX_BBM_NAME_LEN], uint16_t& calc_hdr_CRC, int& len) {
+bool BBMBlockDecoder::getFileName(char name[BTM_HDR_NAM_SZ], uint16_t& calc_hdr_CRC, int& len) {
 	int i = 0;
 	Byte byte;
 	bool failed = false;
@@ -279,10 +291,10 @@ bool BBMBlockDecoder::getFileName(char name[MAX_BBM_NAME_LEN], uint16_t& calc_hd
 			len = i;
 		i++;
 		updateCRC(calc_hdr_CRC,byte);
-	} while (!failed && byte != 0x0 && i <= MAX_BBM_NAME_LEN);
+	} while (!failed && byte != 0x0 && i <= BBM_TAPE_NAME_LEN);
 
 	// Add zero-padding
-	for (int j = len; j < MAX_BBM_NAME_LEN; j++)
+	for (int j = len; j < BBM_TAPE_NAME_LEN; j++)
 		name[j] = '\0';
 
 	return true;

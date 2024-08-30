@@ -96,14 +96,15 @@ private:
 	bool mUseOriginalTiming = false;
 
 	bool mVerbose = false;
+	bool mBbcMicro = false;
 
 public:
 
 	// Default constructor
-	CSWCodec(bool verbose);
+	CSWCodec(bool verbose, bool bbcMicro);
 
 	// Constructor
-	CSWCodec(bool useOriginalTiming, bool verbose);
+	CSWCodec(bool useOriginalTiming, bool verbose, bool bbcMicro);
 
 	// Reinitialise codec with a new tape timing
 	bool setTapeTiming(TapeProperties tapeTiming);

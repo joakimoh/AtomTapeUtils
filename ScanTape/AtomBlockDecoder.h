@@ -32,7 +32,7 @@ public:
 
 private:
 
-	bool getFileName(char name[ATM_MMC_HDR_NAM_SZ], uint16_t& CRC, int& len);
+	bool getFileName(char name[ATM_HDR_NAM_SZ], uint16_t& CRC, int& len);
 
 	void updateCRC(uint16_t &CRC, Byte data);
 

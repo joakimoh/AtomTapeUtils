@@ -29,6 +29,7 @@ public:
 
 	bool data2Bytes(string& dataFileName, int& startAdress, Bytes& data);
 
+
 private:
 
 	bool mVerbose = false;

@@ -43,9 +43,10 @@ int main(int argc, const char* argv[])
 
     if (!UEF_codec.decode(arg_parser.srcFileName, TAP_file)) {
         cout << "Failed to decode UEF file '" << arg_parser.srcFileName << "'\n";
+        return -1;
     }
 
-    WavEncoder WAV_encoder = WavEncoder(arg_parser.mPreserveOriginalTiming, arg_parser.mSampleFreq, arg_parser.verbose);
+    WavEncoder WAV_encoder = WavEncoder(arg_parser.mPreserveOriginalTiming, arg_parser.mSampleFreq, arg_parser.verbose, arg_parser.bbcMicro);
     WAV_encoder.setTapeTiming(arg_parser.tapeTiming);
     if (!WAV_encoder.encode(TAP_file, arg_parser.dstFileName)) {
         cout << "Failed to encode program file '" << arg_parser.srcFileName << "' as WAV file '" << arg_parser.dstFileName << "'\n";

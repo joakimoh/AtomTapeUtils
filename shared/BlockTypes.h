@@ -28,7 +28,7 @@ public:
 
 	union {
 		ATMHdr atomHdr;
-		BBMHdr bbmHdr;
+		BTMHdr bbmHdr;
 	};
 
 	vector<Byte> data;

@@ -32,18 +32,20 @@ private:
 	int mHighDataBitCycles;	//#cycles for HIGH "1" data bit - for F1 frequency
 	int mStopBitCycles;		// #cycles for stop bit - should be 1 1/2 "bit"
 
-	Byte mCRC;
+	Word mCRC;
 
 	int mPhase = 180;
 
 	bool mVerbose = false;
 
+	bool mBbcMicro = false;
+
 public:
 
 
-	WavEncoder(int sampleFreq, bool verbose);
+	WavEncoder(int sampleFreq, bool verbose, bool bbcMicro);
 
-	WavEncoder(bool useOriginalTiming, int sampleFreq, bool verbose);
+	WavEncoder(bool useOriginalTiming, int sampleFreq, bool verbose, bool bbcMicro);
 
 	bool setTapeTiming(TapeProperties tapeTiming);
 
@@ -59,13 +61,17 @@ public:
 	/*
 	 * Encode TAP File structure as WAV file
 	 */
-	bool encode(TapeFile& tapFile, string& filePath);
+	bool encode(TapeFile& tapeFile, string& filePath);
+	bool encodeAtom(TapeFile& tapeFile, string& filePath);
+	bool encodeBBM(TapeFile& tapeFile, string& filePath);
 
 
 
 private:
 
 	bool init();
+
+	void updateCRC(Word& CRC, Byte byte);
 	
 };
 

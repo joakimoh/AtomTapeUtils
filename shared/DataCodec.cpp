@@ -116,13 +116,13 @@ bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
         int block_sz = bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 2, true);
         char s[64];
 
-        int load_adr = file_load_adr + tape_file_sz;
-        tape_file_sz += block_sz;
+        int load_adr = file_load_adr + tape_file_sz; 
 
         if (mVerbose) {
             logTAPBlockHdr(*file_block_iter, tape_file_sz);
         }
 
+        tape_file_sz += block_sz;
         
         BytesIter li;
         int line_sz = 16;
@@ -201,11 +201,8 @@ bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
         string name = file_block_iter->atomHdr.name;
         char s[64];
 
-        if (mVerbose) {
-            printf("%13s %4x %4x %4x %2d %5d\n", name.c_str(),
-                load_adr, load_adr + data_len - 1, exec_adr, block_no, data_len
-            );
-        }
+        if (mVerbose)
+            logTAPBlockHdr(*file_block_iter, 0x0, block_no);
         
         block_no++;
         tape_file_sz += data_len;
@@ -256,13 +253,7 @@ bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
     fout.close();
 
     if (mVerbose) {
-        int exec_adr = tapeFile.blocks[0].atomHdr.execAdrHigh * 256 + tapeFile.blocks[0].atomHdr.execAdrLow;
-        int load_adr = tapeFile.blocks[0].atomHdr.loadAdrHigh * 256 + tapeFile.blocks[0].atomHdr.loadAdrLow;
-        int data_len = tapeFile.blocks[0].atomHdr.lenHigh * 256 + tapeFile.blocks[0].atomHdr.lenLow;
-        string name = tapeFile.blocks[0].atomHdr.name;
-        printf("\n%13s %4x %4x %4x %2d %5d\n", name.c_str(),
-            load_adr, load_adr + tape_file_sz - 1, exec_adr, block_no, tape_file_sz
-        );
+        logTAPFileHdr(tapeFile);
         cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a DATA file...\n\n";
     }
 

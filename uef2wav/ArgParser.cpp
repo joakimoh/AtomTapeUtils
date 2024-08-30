@@ -74,7 +74,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		else if (strcmp(argv[ac], "-f") == 0) {
 			long freq = strtol(argv[ac + 1], NULL, 10);
 			if (freq < 0)
-				cout << "-b without a valid baud rate\n";
+				cout << "-f without a valid sample frequency\n";
 			else {
 				mSampleFreq = stoi(argv[ac + 1]);
 				ac++;

@@ -38,7 +38,7 @@ int main(int argc, const char* argv[])
     if (arg_parser.verbose)
         cout << "Output file is: '" << arg_parser.dstFileName << "'\n";
 
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, false);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.bbcMicro);
 
     TapeFile TAP_file(AtomFile);
     if (arg_parser.bbcMicro)

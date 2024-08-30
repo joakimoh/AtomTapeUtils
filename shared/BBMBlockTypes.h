@@ -13,7 +13,9 @@
 //
 // BBC Micro Tape Block Format
 // 
-#define MAX_BBM_NAME_LEN 10
+// <name:1-10> <load adr:4> <exec adr:4> <block no:2> <block len:2> <block flag:1> <next adr:4>
+//
+#define BBM_TAPE_NAME_LEN 10
 typedef struct {
 	// uint8_t preamble; // synchronisation byte: 0x2a
 	// char name[10]; // file name - up to 10 characters terminated with 0x0 - not included as of varying size
@@ -21,25 +23,25 @@ typedef struct {
 	Byte execAdr[4];
 	Byte blockNo[2];
 	Byte blockLen[2];
-	Byte blockFlag;
+	Byte blockFlag; // b7 = last block, b6 = empty block, b0 = locked block
 	Byte nextFileAdr[4]; // always 0x0000 for tape files (only used for paged ROMs) - therefore not  saved to BBM Block
 } BBMTapeBlockHdr;
 
 //
 // BBC Micro File structure
 // 
-// One block of such a file is referred to as a BBM Block (from BBc Micro)
+// One block of such a file is referred to as a BTM Block (from Bbc micro Tape Module)
 // 
-#define BBM_MMC_HDR_NAM_SZ 10
-typedef struct BBMHdr_struct {
-	char name[BBM_MMC_HDR_NAM_SZ];
+#define BTM_HDR_NAM_SZ 10
+typedef struct BTMHdr_struct {
+	char name[BTM_HDR_NAM_SZ];
 	Byte loadAdr[4];
 	Byte execAdr[4];
 	Byte blockNo[2];
 	Byte blockLen[2];
 	Byte blockFlag; // b7 = last block, b6 = empty block, b0 = locked block
 	bool locked; // true if block is Locked
-} BBMHdr;
+} BTMHdr;
 
 
 #endif

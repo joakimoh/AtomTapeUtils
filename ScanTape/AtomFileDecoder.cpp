@@ -32,7 +32,7 @@ bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
 
     double tape_start_time = -1, tape_end_time = -1;
     bool failed = false;
-    char s[256];
+    //char s[256];
     int file_sz = 0;
 
     tapFile.blocks.clear();
@@ -66,6 +66,7 @@ bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
 
     // Read all blocks belonging to the same file
     unsigned n_blocks = 0;
+    uint32_t adr_offset = 0;
     while (!last_block) {
 
         FileBlock read_block(AtomBlock);
@@ -91,7 +92,7 @@ bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
         }
 
         // Extract ATM header parameters
-        bool complete_header = extractBlockPars(
+        bool complete_header = decodeATMBlockHdr(
             read_block, block_type, mBlockDecoder.nReadBytes,
             load_adr, load_adr_UB, exec_adr, block_sz, isBasicProgram, fn
         );
@@ -209,15 +210,11 @@ bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
 
             last_block_no = block_no;
 
-            
-            sprintf(
-                s, "%15s %4x %4x %4x %2d %6s %3d %32s %32s\n", file_name.c_str(),
-                last_valid_load_adr, last_valid_load_adr_UB, last_valid_exec_adr, last_valid_block_no, _BLOCK_ORDER(last_valid_block_type), last_valid_block_sz,
-                timeToStr(last_valid_block_start_time).c_str(), timeToStr(last_valid_block_end_time).c_str()
-            );
-            logFile <<  s;
+            logTAPBlockHdr(&logFile, read_block, 0x0, last_valid_block_no);
             if (mArgParser.verbose)
-                cout << s;
+                logTAPBlockHdr(read_block, adr_offset, last_valid_block_no);
+
+            adr_offset += block_sz;
             
         }
 
@@ -261,13 +258,9 @@ bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
 
         tapFile.baudRate = mArgParser.tapeTiming.baudRate;
  
-        sprintf(s, "\n%15s %4x %4x %4x %2d %5d %32s %32s\n\n", file_name.c_str(),
-            load_adr_start, load_adr_end, exec_adr_start, last_block_no+1, file_sz,
-            timeToStr(tape_start_time).c_str(), timeToStr(tape_end_time).c_str()
-        );
-        logFile << s;
+        logTAPFileHdr(&logFile, tapFile);
         if (mArgParser.verbose)
-            cout << s;
+            logTAPFileHdr(tapFile);
 
 
         return true;

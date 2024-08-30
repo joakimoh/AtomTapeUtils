@@ -50,7 +50,7 @@ bool MMCCodec::encode(TapeFile &tapeFile, string& filePath)
     for (l = 0; l < sizeof(ATM_block_iter->atomHdr.name) && ATM_block_iter->atomHdr.name[l] != 0; l++)
         fout.write((char*)&(ATM_block_iter->atomHdr.name[l]), 1);
     char c = 0x0;
-    for (int k = 0; k < ATM_MMC_HDR_NAM_SZ - l; k++)
+    for (int k = 0; k < ATM_HDR_NAM_SZ - l; k++)
         fout.write((char*)&c, 1);
 
     // Load address
@@ -79,9 +79,10 @@ bool MMCCodec::encode(TapeFile &tapeFile, string& filePath)
     
     string atom_filename = ATM_block_iter->atomHdr.name;
 
-    if (mVerbose)
-        printf("%s %.4x %4.x %.4x\n", atom_filename.c_str(), load_addr, exec_addr, atom_file_sz);
-    
+    if (mVerbose) {
+        logTAPFileHdr(tapeFile);
+
+    }
 
     int block_no = 0;
     atom_file_sz = 0;
@@ -110,7 +111,7 @@ bool MMCCodec::encode(TapeFile &tapeFile, string& filePath)
         int block_exec_addr = ATM_block_iter->atomHdr.execAdrHigh * 256 + ATM_block_iter->atomHdr.execAdrLow;
 
         if (mVerbose)
-            printf("%s %.4x %.4x %.4x %.3x\n", block_name.c_str(), block_load_addr, block_exec_addr, block_no, block_sz);
+            logTAPBlockHdr(*ATM_block_iter, block_load_addr, block_no);
 
         block_no++;
 
@@ -141,7 +142,7 @@ bool MMCCodec::decode(string& mmcFileName, TapeFile& tapeFile)
 
     // Get Atom file name
     string atom_filename = "";
-    for(int i = 0; i < ATM_MMC_HDR_NAM_SZ; i++) {
+    for(int i = 0; i < ATM_HDR_NAM_SZ; i++) {
         char c;
         fin.read((char*)&c, 1);
         if (c != 0x0)

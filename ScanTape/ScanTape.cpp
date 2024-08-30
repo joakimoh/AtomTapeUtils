@@ -53,7 +53,7 @@ int main(int argc, const char* argv[])
     if (CSWCodec::isCSWFile(arg_parser.wavFile)) {
         if (arg_parser.verbose)
             cout << "CSW file detected - scanning it...\n";
-        CSWCodec CSW_codec = CSWCodec(arg_parser.verbose);
+        CSWCodec CSW_codec = CSWCodec(arg_parser.verbose, arg_parser.bbcMicro);
         HalfCycle first_half_cycle;
         if (!CSW_codec.decode(arg_parser.wavFile, pulses, sample_freq, first_half_cycle)) {
             cout << "Couldn't decode CSW Wave file '" << arg_parser.wavFile << "'\n";
@@ -172,23 +172,34 @@ int main(int argc, const char* argv[])
                     //return -1;
                 }
 
-                if (false && tapFile->complete) {
+                if (tapFile->complete) { // Only generate files if the Tape file was completed (without missing blocks)
 
-                    // Only generate TAP & UEF files if the Tape file was completed (without missing blocks)
-
-                    TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
-                    string TAP_file_name = crEncodedFileNamefromDir(arg_parser.genDir, *tapFile, "");
-                    if (!TAP_codec.encode(*tapFile, TAP_file_name)) {
-                        cout << "Failed to write the TAP file!\n";
-                        //return -1;
+                    // Create TAP file (Acorn Atom only)
+                    if (!arg_parser.bbcMicro) {
+                        TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
+                        string TAP_file_name = crEncodedFileNamefromDir(arg_parser.genDir, *tapFile, "tap");
+                        if (!TAP_codec.encode(*tapFile, TAP_file_name)) {
+                            cout << "Failed to write the TAP file!\n";
+                            //return -1;
+                        }
                     }
 
+                    // Create UEF file
                     UEFCodec UEF_codec = UEFCodec(arg_parser.tapeTiming.preserve, arg_parser.verbose, arg_parser.bbcMicro);
                     string UEF_file_name = crEncodedFileNamefromDir(arg_parser.genDir, *tapFile, "uef");
                     if (!UEF_codec.encode(*tapFile, UEF_file_name)) {
                         cout << "Failed to write the UEF file!\n";
                         //return -1;
                     }
+
+                    // Create binary file
+                    string BIN_file_name = crEncodedFileNamefromDir(arg_parser.genDir, *tapFile, "");
+                    if (!TAPCodec::data2Binary(*tapFile, BIN_file_name)) {
+                        cout << "can't create Binary file " << BIN_file_name << "\n";
+                        //return -1;
+                    }
+
+
                 }
 
                 

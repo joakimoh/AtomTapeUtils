@@ -15,6 +15,7 @@ public:
 	string dstDir;
 	string srcFileName;
 	bool verbose = false;
+	bool bbcMicro = false;
 
 
 private:

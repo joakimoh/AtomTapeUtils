@@ -129,7 +129,7 @@ bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
     block.atomHdr.loadAdrLow = load_adr & 0xff;
     block.atomHdr.lenHigh = (atom_file_sz >> 8) & 0xff;
     block.atomHdr.lenLow = atom_file_sz & 0xff;
-    strncpy(block.atomHdr.name, atom_filename.c_str(), ATM_MMC_HDR_NAM_SZ);
+    strncpy(block.atomHdr.name, atom_filename.c_str(), ATM_HDR_NAM_SZ);
     fout.write((char*)&block.atomHdr, sizeof(block.atomHdr));
 
     // Write TAP ATM blocks
@@ -145,9 +145,8 @@ bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
             unsigned exec_adr_start = ATM_block_iter->atomHdr.execAdrHigh * 256 + ATM_block_iter->atomHdr.execAdrLow;
             unsigned load_adr_end = load_adr_start + data_sz - 1;
 
-            printf("%13s %4x %4x %4x %3d %5d\n", atom_filename.c_str(),
-                load_adr_start, load_adr_end, exec_adr_start, block_no, data_sz
-            );
+            logTAPBlockHdr(*ATM_block_iter, load_adr_start, block_no);
+
 
         }
         ATM_block_iter++;
@@ -158,13 +157,7 @@ bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
     fout.close();
 
     if (mVerbose) {
-
-        if (mVerbose) {
-            printf("\n%13s %4x %4x %4x %3d %5d\n", atom_filename.c_str(),
-                load_adr, load_adr + atom_file_sz - 1, exec_adr, block_no, atom_file_sz
-            );
-        }
-
+        logTAPFileHdr(tapeFile);
         cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a TAP file...\n\n";
     }
 
@@ -284,11 +277,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TapeFile &tap
         FileBlock block(AtomBlock);
         if (fin.tellg() <= file_size - expected_block_sz && read_bytes < atom_file_sz) {
 
-            if (mVerbose) {
-                printf("%13s %4x %4x %4x %3d %5d\n", atom_filename.c_str(),
-                    block_load_adr, block_load_adr + expected_block_sz - 1, exec_adr, block_no, expected_block_sz
-                );
-            }
+            
 
             // Fill block atomHdr based on TAP header data
             block.atomHdr.execAdrHigh = (exec_adr >> 8) & 0xff;
@@ -297,8 +286,11 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TapeFile &tap
             block.atomHdr.loadAdrLow = block_load_adr & 0xff;
             block.atomHdr.lenHigh = (expected_block_sz >> 8) & 0xff;
             block.atomHdr.lenLow = expected_block_sz & 0xff;
-            strncpy(block.atomHdr.name, atom_filename.c_str(), ATM_MMC_HDR_NAM_SZ);
+            strncpy(block.atomHdr.name, atom_filename.c_str(), ATM_HDR_NAM_SZ);
 
+            if (mVerbose)
+                logTAPBlockHdr(block, block_load_adr, block_no);
+ 
 
             // Read block data
             block.data.resize(expected_block_sz);
@@ -327,12 +319,49 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TapeFile &tap
     }
 
     if (mVerbose) {
-        printf("\n%13s %4x %4x %4x %2d %5d\n", atom_filename.c_str(),
-            load_adr, load_adr + atom_file_sz - 1, exec_adr, block_no, atom_file_sz
-        );
-        cout << "\nDone decoding TAP file...\n";
+        logTAPFileHdr(tapFile);
+         cout << "\nDone decoding TAP file...\n";
     }
 
+
+    return true;
+}
+
+
+
+
+
+/*
+ * Decode TAP File structure and store as Binary data
+ */
+bool TAPCodec::data2Binary(TapeFile& tapeFile, string& binFileName)
+{
+
+    if (tapeFile.blocks.size() == 0)
+        return false;
+
+    FileBlockIter file_block_iter = tapeFile.blocks.begin();
+    int sz = 0;
+    for (; file_block_iter < tapeFile.blocks.end(); sz += (*file_block_iter++).data.size());
+    if (sz == 0)
+        return false;
+
+    // Create the output file
+    ofstream fout(binFileName, ios::out | ios::binary | ios::ate);
+    if (!fout) {
+        cout << "can't write to file " << binFileName << "\n";
+        return false;
+    }
+
+    // Write all block data to the file
+    file_block_iter = tapeFile.blocks.begin();
+    while (file_block_iter < tapeFile.blocks.end()) {
+        BytesIter data_iter = file_block_iter->data.begin();
+        while (data_iter < file_block_iter->data.end())
+            fout << *data_iter++;
+        file_block_iter++;
+    }
+    fout.close();
 
     return true;
 }

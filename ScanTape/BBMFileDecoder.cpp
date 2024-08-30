@@ -63,12 +63,13 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
 
     // Read all blocks belonging to the same file
     unsigned n_blocks = 0;
+    uint32_t adr_offset = 0;
     while (!last_block) {
 
         FileBlock read_block(BBCMicroBlock);
         int block_sz;
         bool isBasicProgram;
-        int exec_adr, file_load_adr, load_adr_UB;
+        int exec_adr, file_load_adr, load_adr_UB = -1;
         string fn;
 
         // Read tape block as BBM block
@@ -87,10 +88,12 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
         }
 
         // Extract BBM header parameters
-        bool complete_header = extractBBMBlockPars(
+        bool complete_header = decodeBTMBlockHdr(
             read_block, is_last_block, mBlockDecoder.nReadBytes,
-            file_load_adr, load_adr_UB, exec_adr, block_sz, isBasicProgram, fn
+            file_load_adr, exec_adr, block_sz, isBasicProgram, fn
         );
+        load_adr_UB = file_load_adr + adr_offset + block_sz - 1;
+
         if (!complete_header) {
             if (mVerbose)
                 printf("Incomplete BBC Micro Tape Block '%s' - failed to extract all block parameters\n", fn.c_str());
@@ -198,16 +201,9 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
 
             last_block_no = block_no;
 
-
-            sprintf(
-                s, "%15s %4x %4x %4x %2d %6s %3d %32s %32s\n", file_name.c_str(),
-                last_valid_load_adr, last_valid_load_adr_UB, last_valid_exec_adr, last_valid_block_no, 
-                _BBM_BLOCK_ORDER(last_valid_last_block_status, last_valid_block_no), last_valid_block_sz,
-                timeToStr(last_valid_block_start_time).c_str(), timeToStr(last_valid_block_end_time).c_str()
-            );
-            logFile << s;
+            logTAPBlockHdr(&logFile, read_block, adr_offset);
             if (mArgParser.verbose)
-                cout << s;
+                logTAPBlockHdr(read_block, adr_offset);
 
         }
 
@@ -251,13 +247,10 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
 
         tapeFile.baudRate = mArgParser.tapeTiming.baudRate;
 
-        sprintf(s, "\n%15s %4x %4x %4x %2d %5d %32s %32s\n\n", file_name.c_str(),
-            load_adr_start, load_adr_end, exec_adr_start, last_block_no + 1, file_sz,
-            timeToStr(tape_start_time).c_str(), timeToStr(tape_end_time).c_str()
-        );
-        logFile << s;
+        logTAPFileHdr(&logFile, tapeFile);
+
         if (mArgParser.verbose)
-            cout << s;
+            logTAPFileHdr(tapeFile);
 
 
         return true;

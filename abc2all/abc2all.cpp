@@ -42,7 +42,7 @@ int main(int argc, const char* argv[])
 
     // Decode ABC file
     TapeFile TAP_file(AtomFile);
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, false);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.bbcMicro);
     if (!ABC_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
     }
@@ -63,10 +63,12 @@ int main(int argc, const char* argv[])
     }
 
     // Generate TAP file
-    TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
-    string TAP_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "");
-    if (!TAP_codec.encode(TAP_file, TAP_file_name)) {
-        cout << "Failed to write the TAP file!\n";
+    if (!arg_parser.bbcMicro) {
+        TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
+        string TAP_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "tap");
+        if (!TAP_codec.encode(TAP_file, TAP_file_name)) {
+            cout << "Failed to write the TAP file!\n";
+        }
     }
 
     // generate UEF file
@@ -74,6 +76,12 @@ int main(int argc, const char* argv[])
     string UEF_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "uef");
     if (!UEF_codec.encode(TAP_file, UEF_file_name)) {
         cout << "Failed to write the UEF file!\n";
+    }
+
+    // Create binary file
+    string BIN_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "");
+    if (!TAPCodec::data2Binary(TAP_file, BIN_file_name)) {
+        cout << "can't create Binary file " << BIN_file_name << "\n";
     }
 
     return 0;

@@ -206,6 +206,7 @@ bool AtomBasicCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& 
         //
         
             if (line_pos == 0) {
+
                 if (b == 0xff) {
                     end_of_program = true;
                     int n_non_ABC_bytes = tape_file_sz - read_bytes;
@@ -239,8 +240,7 @@ bool AtomBasicCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& 
             }
 
 
-        if (mVerbose)
-            printf("%13s %.4x %.4x %.3d\n", name.c_str(), load_adr, exec_adr, data_len);
+            
 
     }
 
@@ -248,14 +248,7 @@ bool AtomBasicCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& 
         printf("Program '%s' didn't terminate with 0xff!\n", tapeFile.blocks.front().atomHdr.name);
 
     if (mVerbose) {
-        int exec_adr = tapeFile.blocks[0].atomHdr.execAdrHigh * 256 + tapeFile.blocks[0].atomHdr.execAdrLow;
-        int load_adr = tapeFile.blocks[0].atomHdr.loadAdrHigh * 256 + tapeFile.blocks[0].atomHdr.loadAdrLow;
-        string tape_filename = tapeFile.blocks[0].atomHdr.name;
-        if (mVerbose) {
-            printf("\n%13s %4x %4x %4x %2d %5d\n", tape_filename.c_str(),
-                load_adr, load_adr + tape_file_sz - 1, exec_adr, n_blocks, tape_file_sz
-            );
-        }
+        logTAPFileHdr(tapeFile);
         cout << "\nDone encoding program '" << tapeFile.blocks.front().atomHdr.name << " ' as an ABC file...\n\n";
     }
 
@@ -314,7 +307,7 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
         else {
             int data_len = block.data.size();
             if (mVerbose)
-                printf("%13s %.4x %.4x %.4x %3d %5d\n", block_name.c_str(), load_address, load_address + data_len - 1, exec_adr, n_blocks, data_len);
+                logTAPBlockHdr(block, load_address, n_blocks);
             block.atomHdr.lenHigh = 1;
             block.atomHdr.lenLow = 0;
             tapeFile.blocks.push_back(block);
@@ -336,7 +329,7 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
     {
         int data_len = block.data.size();
         if (mVerbose)
-            printf("%13s %.4x %.4x %.4x %3d %5d\n", block_name.c_str(), load_address, load_address + data_len - 1, exec_adr, n_blocks, data_len);
+            logTAPBlockHdr(block, load_address, n_blocks);
         block.atomHdr.lenHigh = count / 256;
         block.atomHdr.lenLow = count % 256;
         tapeFile.blocks.push_back(block);
@@ -352,11 +345,8 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
         int exec_adr = tapeFile.blocks[0].atomHdr.execAdrHigh * 256 + tapeFile.blocks[0].atomHdr.execAdrLow;
         int load_adr = tapeFile.blocks[0].atomHdr.loadAdrHigh * 256 + tapeFile.blocks[0].atomHdr.loadAdrLow;
         string tape_filename = tapeFile.blocks[0].atomHdr.name;
-        if (mVerbose) {
-            printf("\n%13s %4x %4x %4x %3d %5d\n", tape_filename.c_str(),
-                load_adr, load_adr + tape_file_sz - 1, exec_adr, n_blocks, tape_file_sz
-            );
-        }
+        if (mVerbose) 
+            logTAPFileHdr(tapeFile);
         cout << "\nDone decoding ABC file '" << file_name << "'...\n\n'";
     }
 

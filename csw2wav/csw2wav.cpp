@@ -61,7 +61,7 @@ int main(int argc, const char* argv[])
         cout << "Output file is: '" << arg_parser.dstFileName << "'\n";
 
     // Decode CSW file into pulse vector
-    CSWCodec CSW_decoder = CSWCodec(arg_parser.verbose);
+    CSWCodec CSW_decoder = CSWCodec(arg_parser.verbose, false);
     Bytes pulses;
     int sample_freq;
     HalfCycle half_cycle;

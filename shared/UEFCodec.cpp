@@ -33,7 +33,7 @@ bool UEFCodec::decodeMultipleFiles(string& uefFileName, vector<TapeFile>& tapeFi
             return false;
         }
         if (mVerbose) {
-            cout << "Successfully decoded tape file '" << tape_file.blocks[0].blockName() << "' with #" <<
+            cout << "Successfully decoded tape file '" << tape_file.blocks[0].blockName() << "' with #" << dec <<
                 tape_file.blocks.size() << " blocks!\n";
         }
         tapeFiles.push_back(tape_file);
@@ -195,19 +195,11 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
         // Initialise header CRC (starts from file name)
         Word header_CRC = 0;
 
-        // Filename
-        int name_len = 0;
-        for (; name_len < sizeof(file_block_iter->bbmHdr.name) && file_block_iter->bbmHdr.name[name_len] != 0; name_len++);
-        addBytes2Vector(header_data, (Byte*)file_block_iter->bbmHdr.name, name_len); // store block name
-        header_data.push_back(0x0);
-
-        // Load address, exec address, block no, block len, block flag & next file address
-        copybytes(&file_block_iter->bbmHdr.loadAdr[0], header_data, 4);
-        copybytes(&file_block_iter->bbmHdr.execAdr[0], header_data, 4);
-        copybytes(&file_block_iter->bbmHdr.blockNo[0], header_data, 2);
-        copybytes(&file_block_iter->bbmHdr.blockLen[0], header_data, 2);
-        header_data.push_back(file_block_iter->bbmHdr.blockFlag);
-        initbytes(header_data, 0x0, 4); // next file address (always 0x00000000 for a tape file)
+        // Store header bytes
+        if (!encodeTapeHdr(*file_block_iter, block_no, n_blocks, header_data)) {
+            cout << "Failed to encode header for block #" << block_no << "\n";
+            return false;
+        }
 
         // Write header excluding the CRC
         if (!writeComplexDataChunk(fout, 8, 'N', -1, header_data, header_CRC)) {
@@ -932,12 +924,12 @@ bool UEFCodec::decodeFile(string uefFilename, Bytes &data, TapeFile& tapeFile, B
 
     bool success;
     if (mBbcMicro) {     
-        success = createBBMFile(data, tapeFile, data_iter);
+        success = decodeBBMFile(data, tapeFile, data_iter);
         if (success)
             tapeFile.validFileName = tapeFile.blocks[0].blockName();
     } 
     else if (!mInspect) {
-        success = createAtomFile(data, tapeFile, data_iter);
+        success = decodeAtomFile(data, tapeFile, data_iter);
         if (success)
             tapeFile.validFileName = tapeFile.blocks[0].blockName();
     }
@@ -990,7 +982,7 @@ bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
  * being explictly inserted as a 0x0100 data chunk (of size 1) between two 0x0110 carrier chunks
  * 
  */
-bool UEFCodec::createBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_iter)
+bool UEFCodec::decodeBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_iter)
 {
     int block_no = 0;
     bool is_last_block = false;
@@ -998,6 +990,7 @@ bool UEFCodec::createBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
     string tape_file_name;
     tapeFile.fileType = FileType::BBCMicroFile;
     tapeFile.blocks.clear();
+    uint32_t adr_offset = 0;
 
     while (data_iter < data.end() && !is_last_block) {
 
@@ -1037,7 +1030,7 @@ bool UEFCodec::createBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
         // Read preamble (1 x 0x2a)
         if (!check_bytes(data_iter, data, 1, hdr_CRC, 0x2a)) {
             printf("Failed to read preamble bytes for block #%d.\n", block_no);
-            return false;
+            //return false;
         }
 
         hdr_CRC = 0;
@@ -1057,28 +1050,17 @@ bool UEFCodec::createBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
         }
 
         // Fill the Tape File Block with it
-        int data_len = bytes2uint(&hdr.blockLen[0], 2, true);
-        uint32_t load_address = bytes2uint(&hdr.loadAdr[0], 4, true);
-        uint32_t exec_address = bytes2uint(&hdr.execAdr[0], 4, true);
-        block_no = bytes2uint(&hdr.blockNo[0], 2, true);
-        block.bbmHdr.blockFlag = hdr.blockFlag;
-        uint32_t next_address = bytes2uint(&hdr.nextFileAdr[0], 4, true);
-        for(int i = 0; i < 4; i++) {
-            block.bbmHdr.execAdr[i] = hdr.execAdr[i];
-            block.bbmHdr.loadAdr[i] = hdr.loadAdr[i];
+        // Extract header information and update BBM block with it
+        uint32_t exec_adr, next_adr, load_adr, data_len;
+        if (!decodeBBMTapeHdr(hdr, block, load_adr, exec_adr, data_len, block_no, next_adr, is_last_block)) {
+            cout << "Failed to decode BBC Micro Tape Header!\n";
+            return false;
         }
-        for (int i = 0; i < 2; i++) {
-            block.bbmHdr.blockLen[i] = hdr.blockLen[i];
-            block.bbmHdr.blockNo[i] = hdr.blockNo[i];
-        }  
-        block.bbmHdr.locked = (hdr.blockFlag & 0x40) != 0;
-        is_last_block = (hdr.blockFlag & 0x80) != 0;
 
         if (mVerbose)
-            printf("%s %.8x %.8x %.4x %.4x %.4x %.8x\n", block.bbmHdr.name, load_address,
-                exec_address, block_no, data_len,
-                hdr.blockFlag, next_address
-            );
+            logTAPBlockHdr(block, adr_offset);
+ 
+
 
         if (DEBUG_LEVEL == DBG)
             logData(0x0000, hdr_start, data_iter - hdr_start - 1);
@@ -1106,7 +1088,7 @@ bool UEFCodec::createBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
         }
         BytesIter bi = block.data.begin();
         if (DEBUG_LEVEL == DBG)
-            logData(load_address, bi, block.data.size());
+            logData(load_adr, bi, block.data.size());
 
 
         // Read data CRC
@@ -1123,6 +1105,8 @@ bool UEFCodec::createBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
             return false;
         }
 
+        adr_offset += block.data.size();
+
         tapeFile.blocks.push_back(block);
 
         if (block_no == 0)
@@ -1133,6 +1117,8 @@ bool UEFCodec::createBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
         }
 
         block_no++; // predict next block no
+
+        
     }
 
     if (!is_last_block) {
@@ -1143,7 +1129,7 @@ bool UEFCodec::createBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
     return true;
 }
 
-bool UEFCodec::createAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter)
+bool UEFCodec::decodeAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter)
 {
     BlockType block_type = BlockType::Unknown;
     string tape_file_name;
@@ -1189,25 +1175,14 @@ bool UEFCodec::createAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_i
             return false;
         }
 
-
-        int data_len;
-        block_type = parseBlockFlag(hdr, data_len);
-        block_no = hdr.blockNoHigh * 256 + hdr.blockNoLow;
-
-        block.atomHdr.execAdrHigh = hdr.execAdrHigh;
-        block.atomHdr.execAdrLow = hdr.execAdrLow;
-        block.atomHdr.lenHigh = data_len / 256;
-        block.atomHdr.lenLow = data_len % 256;
-        block.atomHdr.loadAdrHigh = hdr.loadAdrHigh;
-        block.atomHdr.loadAdrLow = hdr.loadAdrLow;
+        int load_address, exec_adr, data_len;
+        if (!decodeAtomTapeHdr(hdr, block, load_address, exec_adr, data_len, block_no, block_type))
+            return false;
         
 
         if (mVerbose)
-            printf("%s %.4x %.4x %.4x %.2x %.2x %.7s\n", block.atomHdr.name, hdr.loadAdrHigh * 256 + hdr.loadAdrLow,
-                hdr.execAdrHigh * 256 + hdr.execAdrLow, hdr.blockNoHigh * 256 + hdr.blockNoLow, hdr.dataLenM1,
-                hdr.flags, _BLOCK_ORDER(block_type)
-            );
-
+            logAtomTapeHdr(hdr, block.atomHdr.name);
+ 
         if (DEBUG_LEVEL == DBG)
             logData(0x0000, hdr_start, data_iter - hdr_start - 1);
 
@@ -1217,7 +1192,6 @@ bool UEFCodec::createAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_i
             return false;
         }
         BytesIter bi = block.data.begin();
-        int load_address = hdr.loadAdrHigh * 256 + hdr.loadAdrLow;
         if (DEBUG_LEVEL == DBG)
             logData(load_address, bi, block.data.size());
 

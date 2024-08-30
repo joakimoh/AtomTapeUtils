@@ -252,8 +252,8 @@ private:
 	bool read_block_name(BytesIter& data_iter, Bytes& data, Word& CRC, char *name);
 
 	// Methods to create Tape File from extracted data stream
-	bool createAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
-	bool createBBMFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
+	bool decodeAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
+	bool decodeBBMFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
 
 	void updateCRC(Word& CRC, Byte byte);
 

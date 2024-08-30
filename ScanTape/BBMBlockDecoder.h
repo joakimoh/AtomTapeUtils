@@ -32,7 +32,7 @@ public:
 
 private:
 
-	bool getFileName(char name[MAX_BBM_NAME_LEN], uint16_t& calc_hdr_CRC, int& len);
+	bool getFileName(char name[BTM_HDR_NAM_SZ], uint16_t& calc_hdr_CRC, int& len);
 
 	void updateCRC(uint16_t &CRC, Byte data);
 

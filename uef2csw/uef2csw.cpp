@@ -46,7 +46,7 @@ int main(int argc, const char* argv[])
 
 
 
-    CSWCodec CSW_codec = CSWCodec(arg_parser.mPreserveOriginalTiming, arg_parser.verbose);
+    CSWCodec CSW_codec = CSWCodec(arg_parser.mPreserveOriginalTiming, arg_parser.verbose, arg_parser.bbcMicro);
 
     if (!CSW_codec.encode(TAP_file, arg_parser.dstFileName, arg_parser.mSampleFreq)) {
         
