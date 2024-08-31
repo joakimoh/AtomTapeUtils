@@ -39,13 +39,13 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		return;
 	}
 	srcFileName = argv[1];
-	dstFileName = crDefaultOutFileName(srcFileName, "dat");
+	dstFileName = Utility::crDefaultOutFileName(srcFileName, "dat");
 
 	int ac = 2;
 
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {
-			bbcMicro = true;
+			targetMachine = BBC_MODEL_B;
 		}
 		else if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
 			dstFileName = argv[ac + 1];

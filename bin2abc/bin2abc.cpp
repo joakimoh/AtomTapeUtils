@@ -53,11 +53,10 @@ int main(int argc, const char* argv[])
     fin.close();
 
 
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.bbcMicro);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.targetMachine);
 
-    TapeFile TAP_file(AtomFile);
-    if (arg_parser.bbcMicro)
-        TAP_file = TapeFile(BBCMicroFile);
+    TapeFile TAP_file(arg_parser.targetMachine);
+
 
     if (!ABC_codec.decode(data, arg_parser.dstFileName)) {
         printf("Failed to decode binary program file '%s' into a readable program text file\n", arg_parser.dstFileName.c_str());

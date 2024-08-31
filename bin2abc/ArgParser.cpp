@@ -39,7 +39,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		return;
 	}
 	srcFileName = argv[1];
-	dstFileName = crDefaultOutFileName(srcFileName, "abc");
+	dstFileName = Utility::crDefaultOutFileName(srcFileName, "abc");
 
 	int ac = 2;
 	// First search for option '-bbm' to select target machine and the
@@ -47,13 +47,13 @@ ArgParser::ArgParser(int argc, const char* argv[])
 
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {
-			bbcMicro = true;
+			targetMachine = BBC_MODEL_B;
 		}
 		ac++;
 	}
 
-	if (bbcMicro)
-		dstFileName = crDefaultOutFileName(srcFileName, "bbc");
+	if (targetMachine)
+		dstFileName = Utility::crDefaultOutFileName(srcFileName, "bbc");
 
 	// Now lock for remaining options
 	ac = 2;

@@ -57,7 +57,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	wavFile = argv[1];	
 
 	// Create default output file name based on input file name
-	outputFileName = crDefaultOutFileName(wavFile);
+	outputFileName = Utility::crDefaultOutFileName(wavFile);
 
 
 	// Check for options

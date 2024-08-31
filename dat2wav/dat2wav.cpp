@@ -39,18 +39,16 @@ int main(int argc, const char* argv[])
 
     DataCodec DATA_codec = DataCodec(arg_parser.verbose);
 
-    TapeFile TAP_file(AtomFile);
-    if (arg_parser.bbcMicro)
-        TAP_file = TapeFile(BBCMicroFile);
+    TapeFile TAP_file(arg_parser.targetMachine);
 
-    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file, arg_parser.bbcMicro)) {
+    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file, arg_parser.targetMachine)) {
         printf("Failed to encode DATA file '%s' as WAW file '%s'\n",
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );
     }
 
 
-    WavEncoder WAV_encoder = WavEncoder(false, 44100, arg_parser.verbose);
+    WavEncoder WAV_encoder = WavEncoder(44100, arg_parser.verbose, arg_parser.targetMachine);
     WAV_encoder.setTapeTiming(arg_parser.tapeTiming);
     if (!WAV_encoder.encode(TAP_file, arg_parser.dstFileName)) {
         cout << "Failed to encode DATA file '" << arg_parser.srcFileName << "' as WAV file '" << arg_parser.dstFileName << "'\n";

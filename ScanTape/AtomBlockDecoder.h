@@ -34,8 +34,6 @@ private:
 
 	bool getFileName(char name[ATM_HDR_NAM_SZ], uint16_t& CRC, int& len);
 
-	void updateCRC(uint16_t &CRC, Byte data);
-
 	string atomTapeBlockHdrFieldName(int offset);
 
 

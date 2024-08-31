@@ -41,7 +41,7 @@ public:
 	static bool tap2Bytes(TapeFile& tapeFile, uint32_t& loadAdress, Bytes& data);
 	
 
-	bool bytes2TAP(Bytes& data, bool bbcMicro, string tapeFileNam, uint32_t loadAdr, uint32_t exceAdr, TapeFile& tapeFile);
+	bool bytes2TAP(Bytes& data, TargetMachine targetMachine, string tapeFileNam, uint32_t loadAdr, uint32_t exceAdr, TapeFile& tapeFile);
 
 
 	static bool data2Binary(TapeFile& tapFile, string& binFileName);

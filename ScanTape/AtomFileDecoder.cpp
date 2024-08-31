@@ -25,6 +25,7 @@ AtomFileDecoder::AtomFileDecoder(
 
 bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
 {
+    TargetMachine file_block_type = ACORN_ATOM;
     bool last_block = false;
     bool first_block = true;
     int load_adr_start = 0, load_adr_end = 0, exec_adr_start = 0, next_load_adr = 0;
@@ -69,7 +70,7 @@ bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
     uint32_t adr_offset = 0;
     while (!last_block) {
 
-        FileBlock read_block(AtomBlock);
+        FileBlock read_block(ACORN_ATOM);
         BlockType block_type;
         int block_sz;
         bool isBasicProgram;
@@ -92,10 +93,11 @@ bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
         }
 
         // Extract ATM header parameters
-        bool complete_header = decodeATMBlockHdr(
-            read_block, block_type, mBlockDecoder.nReadBytes,
-            load_adr, load_adr_UB, exec_adr, block_sz, isBasicProgram, fn
+        bool complete_header = Utility::decodeFileBlockHdr(
+            file_block_type, read_block, mBlockDecoder.nReadBytes,
+            load_adr, exec_adr, block_sz, isBasicProgram, fn
         );
+        load_adr_UB = load_adr + block_sz - 1;
         if (!complete_header) {
             if (mVerbose)
                 printf("Incomplete Atom Tape Block '%s' - failed to extract all block parameters\n", fn.c_str());
@@ -185,7 +187,7 @@ bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
                 first_block = false;
                 load_adr_start = load_adr;
                 exec_adr_start = exec_adr;
-                tapFile.validFileName = filenameFromBlockName(file_name);
+                tapFile.validFileName = Utility::filenameFromBlockName(file_name);
                 tape_start_time = block_start_time;
             }
             else {
@@ -210,9 +212,9 @@ bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
 
             last_block_no = block_no;
 
-            logTAPBlockHdr(&logFile, read_block, 0x0, last_valid_block_no);
+            Utility::logTAPBlockHdr(&logFile, read_block, 0x0, last_valid_block_no);
             if (mArgParser.verbose)
-                logTAPBlockHdr(read_block, adr_offset, last_valid_block_no);
+                Utility::logTAPBlockHdr(read_block, adr_offset, last_valid_block_no);
 
             adr_offset += block_sz;
             
@@ -242,11 +244,11 @@ bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
             printf(
                 "At least one block missing or corrupted for file '%s' [%s,%s]\n",
                 tapFile.validFileName.c_str(),
-                encodeTime(tapFile.blocks[0].tapeStartTime).c_str(),
-                encodeTime(tapFile.blocks[n_blocks-1].tapeEndTime).c_str()
+                Utility::encodeTime(tapFile.blocks[0].tapeStartTime).c_str(),
+                Utility::encodeTime(tapFile.blocks[n_blocks-1].tapeEndTime).c_str()
             );
             logFile << "*** ERR *** At least one block missing or corrupted for file '" << tapFile.validFileName << "' [";
-            logFile << encodeTime(tapFile.blocks[0].tapeStartTime) << "," << encodeTime(tapFile.blocks[n_blocks - 1].tapeEndTime) << "]\n";
+            logFile << Utility::encodeTime(tapFile.blocks[0].tapeStartTime) << "," << Utility::encodeTime(tapFile.blocks[n_blocks - 1].tapeEndTime) << "]\n";
         }
         else
             tapFile.complete = true;
@@ -258,9 +260,9 @@ bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
 
         tapFile.baudRate = mArgParser.tapeTiming.baudRate;
  
-        logTAPFileHdr(&logFile, tapFile);
+        Utility::logTAPFileHdr(&logFile, tapFile);
         if (mArgParser.verbose)
-            logTAPFileHdr(tapFile);
+            Utility::logTAPFileHdr(tapFile);
 
 
         return true;

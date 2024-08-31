@@ -315,7 +315,7 @@ bool CSWCycleDecoder::getNextCycle(CycleSample& cycleSample)
 		else { // mCycleSample.freq == Frequency::NoCarrierFrequency
 			/*
 			if (mTracing)
-				printf("%s: Invalid transitional cycle of duration % d detected for a previous cycle of type% s\n", encodeTime(getTime()).c_str(), n_samples, _FREQUENCY(mCycleSample.freq));
+				printf("%s: Invalid transitional cycle of duration % d detected for a previous cycle of type% s\n", Utility::encodeTime(getTime()).c_str(), n_samples, _FREQUENCY(mCycleSample.freq));
 			*/
 			return false;
 		}
@@ -323,8 +323,8 @@ bool CSWCycleDecoder::getNextCycle(CycleSample& cycleSample)
 	else {
 		/*
 		if (mTracing) {
-			printf("%s: Invalid cycle of duration %d detected for a previous cycle type of %s\n", encodeTime(getTime()).c_str(), n_samples, _FREQUENCY(mCycleSample.freq));
-			printf("%s: [%d,%d, %d]\n", encodeTime(getTime()).c_str(), mMinNSamplesF12Cycle, n_samples, mMaxNSamplesF12Cycle);
+			printf("%s: Invalid cycle of duration %d detected for a previous cycle type of %s\n", Utility::encodeTime(getTime()).c_str(), n_samples, _FREQUENCY(mCycleSample.freq));
+			printf("%s: [%d,%d, %d]\n", Utility::encodeTime(getTime()).c_str(), mMinNSamplesF12Cycle, n_samples, mMaxNSamplesF12Cycle);
 		}
 		*/
 		return false;

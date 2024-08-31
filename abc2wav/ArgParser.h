@@ -7,6 +7,7 @@
 #include <map>
 #include <vector>
 #include "../shared/TapeProperties.h"
+#include "BlockTypes.h"
 
 
 using namespace std;
@@ -20,7 +21,7 @@ public:
 	string srcFileName;
 	TapeProperties tapeTiming;
 	bool verbose = false;
-	bool bbcMicro = false;
+	TargetMachine targetMachine = ACORN_ATOM;
 
 
 

@@ -17,20 +17,24 @@ TAPCodec::TAPCodec(bool verbose) : mVerbose(verbose)
 {
 
 }
-bool TAPCodec::bytes2TAP(Bytes& data, bool bbcMicro, string tapeFileName, uint32_t fileLoadAdr, uint32_t execAdr, TapeFile& tapeFile)
+bool TAPCodec::bytes2TAP(Bytes& data, TargetMachine targetMachine, string tapeFileName, uint32_t fileLoadAdr, uint32_t execAdr, TapeFile& tapeFile)
 {
-    if (bbcMicro) {
-        tapeFile.fileType = FileType::BBCMicroFile;
-        tapeFile.baudRate = 1200;
 
+    TargetMachine block_type;
+    if (targetMachine) {
+        tapeFile.fileType = BBC_MODEL_B;
+        tapeFile.baudRate = 1200;
+        block_type = BBC_MODEL_B;
     }
     else {
-        tapeFile.fileType = FileType::AtomFile;
+        tapeFile.fileType = ACORN_ATOM;
         tapeFile.baudRate = 300;
+        block_type = ACORN_ATOM;
     }
+
     tapeFile.isBasicProgram = false;
     tapeFile.complete = true;
-    tapeFile.validFileName = filenameFromBlockName(tapeFileName);
+    tapeFile.validFileName = Utility::filenameFromBlockName(tapeFileName);
     tapeFile.validTiming = false;
     
 
@@ -38,16 +42,16 @@ bool TAPCodec::bytes2TAP(Bytes& data, bool bbcMicro, string tapeFileName, uint32
     int count = 0;
     uint32_t load_adr = fileLoadAdr;
     uint32_t block_no = 0;
-    FileBlock block(AtomBlock);
+    FileBlock block(ACORN_ATOM);
     uint32_t block_sz;
     while (data_iter < data.end()) {
         if (count == 0) { // new block        
             block_sz = 256;
-            if (bbcMicro)
-                block.blockType = FileBlockType::BBCMicroBlock;
             if (data.end() - data_iter < 256)
                 block_sz = data.end() - data_iter;
-            if (!encodeTAPHdr(block, tapeFileName, fileLoadAdr, load_adr, execAdr, block_no, block_sz)) {
+            if (!Utility::initTAPBlock(block_type, block))
+                return false;
+            if (!Utility::encodeTAPHdr(block, tapeFileName, fileLoadAdr, load_adr, execAdr, block_no, block_sz)) {
                 cout << "Failed to create Tape Block for Tape File " << tapeFileName << "\n";
                 return false;
             }
@@ -74,10 +78,10 @@ bool TAPCodec::tap2Bytes(TapeFile& tapeFile, uint32_t& loadAdress, Bytes& data)
     if (tapeFile.blocks.size() == 0)
         return false;
 
-    if (tapeFile.fileType == FileType::AtomFile)
+    if (tapeFile.fileType == ACORN_ATOM)
         loadAdress = block_iter->atomHdr.execAdrHigh * 256 + block_iter->atomHdr.execAdrLow;
     else
-        loadAdress = bytes2uint(&block_iter->bbmHdr.loadAdr[0], 4, true);
+        loadAdress = Utility::bytes2uint(&block_iter->bbmHdr.loadAdr[0], 4, true);
 
     while (block_iter < tapeFile.blocks.end()) {
         Bytes &block = block_iter->data;
@@ -122,7 +126,7 @@ bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
     }
 
     // Write TAP header
-    FileBlock block(AtomBlock);
+    FileBlock block(ACORN_ATOM);
     block.atomHdr.execAdrHigh = (exec_adr >> 8) & 0xff;
     block.atomHdr.execAdrLow = exec_adr & 0xff;
     block.atomHdr.loadAdrHigh = (load_adr >> 8) & 0xff;
@@ -145,7 +149,7 @@ bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
             unsigned exec_adr_start = ATM_block_iter->atomHdr.execAdrHigh * 256 + ATM_block_iter->atomHdr.execAdrLow;
             unsigned load_adr_end = load_adr_start + data_sz - 1;
 
-            logTAPBlockHdr(*ATM_block_iter, load_adr_start, block_no);
+            Utility::logTAPBlockHdr(*ATM_block_iter, load_adr_start, block_no);
 
 
         }
@@ -157,7 +161,7 @@ bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
     fout.close();
 
     if (mVerbose) {
-        logTAPFileHdr(tapeFile);
+        Utility::logTAPFileHdr(tapeFile);
         cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a TAP file...\n\n";
     }
 
@@ -224,7 +228,7 @@ bool TAPCodec::decodeMultipleFiles(string& tapFileName, vector<TapeFile> &atomFi
         cout << "\nDecoding TAP file '" << tapFileName << "'...\n\n";
 
     // Read one Atom File from the TAP file
-    TapeFile TAP_file(AtomFile);
+    TapeFile TAP_file(ACORN_ATOM);
     while (decodeSingleFile(fin, file_size, TAP_file)) {
         atomFiles.push_back(TAP_file);
     }
@@ -248,14 +252,14 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TapeFile &tap
     string atom_filename;
     unsigned atom_file_sz, exec_adr, load_adr;
     if (fin.tellg() < file_size - sizeof(ATMHdr)) {
-        FileBlock block(AtomBlock);
+        FileBlock block(ACORN_ATOM);
         fin.read((char*)&block.atomHdr, sizeof(block.atomHdr));
         exec_adr = block.atomHdr.execAdrHigh * 256 + block.atomHdr.execAdrLow;
         load_adr = block.atomHdr.loadAdrHigh * 256 + block.atomHdr.loadAdrLow;
         atom_file_sz = block.atomHdr.lenHigh * 256 + block.atomHdr.lenLow;
         atom_filename = block.atomHdr.name;
         tapFile.firstBlock = 0;
-        tapFile.validFileName = filenameFromBlockName(atom_filename);
+        tapFile.validFileName = Utility::filenameFromBlockName(atom_filename);
         tapFile.blocks.clear();
         tapFile.complete = true;
         tapFile.isBasicProgram = true;
@@ -274,7 +278,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TapeFile &tap
     unsigned read_bytes = 0;
     while (!done) {
 
-        FileBlock block(AtomBlock);
+        FileBlock block(ACORN_ATOM);
         if (fin.tellg() <= file_size - expected_block_sz && read_bytes < atom_file_sz) {
 
             
@@ -289,7 +293,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TapeFile &tap
             strncpy(block.atomHdr.name, atom_filename.c_str(), ATM_HDR_NAM_SZ);
 
             if (mVerbose)
-                logTAPBlockHdr(block, block_load_adr, block_no);
+                Utility::logTAPBlockHdr(block, block_load_adr, block_no);
  
 
             // Read block data
@@ -319,7 +323,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TapeFile &tap
     }
 
     if (mVerbose) {
-        logTAPFileHdr(tapFile);
+        Utility::logTAPFileHdr(tapFile);
          cout << "\nDone decoding TAP file...\n";
     }
 

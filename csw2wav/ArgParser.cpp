@@ -35,7 +35,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 
 	srcFileName = argv[1];
 
-	dstFileName = crDefaultOutFileName(srcFileName, "wav");
+	dstFileName = Utility::crDefaultOutFileName(srcFileName, "wav");
 
 	// Now lock for remaining options
 	int ac = 2;

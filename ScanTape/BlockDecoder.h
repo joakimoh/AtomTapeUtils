@@ -9,6 +9,7 @@
 #include "../shared/AtomBlockTypes.h"
 #include "../shared/WaveSampleTypes.h"
 #include "CycleDecoder.h"
+#include "../shared/BlockTypes.h"
 
 
 
@@ -42,12 +43,14 @@ protected:
 
 	string mTapeFileName = "???";
 
+	TargetMachine mTargetMachine = ACORN_ATOM;
+
 
 public:
 
 	int nReadBytes = 0;
 
-	BlockDecoder(CycleDecoder& cycleDecoder, ArgParser& argParser, bool verbose);
+	BlockDecoder(CycleDecoder& cycleDecoder, ArgParser& argParser, bool verbose, TargetMachine targetMachine);
 
 	double getTime();
 
@@ -79,9 +82,6 @@ protected:
 
 	// Get bytes
 	bool getBytes(Bytes& block, int n, Word &CRC);
-
-	// CRC calculation
-	virtual void updateCRC(Word &CRC, Byte data) = 0;
 
 
 };

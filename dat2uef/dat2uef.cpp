@@ -39,18 +39,16 @@ int main(int argc, const char* argv[])
     DataCodec DATA_codec = DataCodec(arg_parser.verbose);
     int load_address;
     Bytes data;
-    TapeFile TAP_file(AtomFile);
-    if (arg_parser.bbcMicro)
-        TAP_file = TapeFile(BBCMicroFile);
+    TapeFile TAP_file(arg_parser.targetMachine);
 
-    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file, arg_parser.bbcMicro)) {
+    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file, arg_parser.targetMachine)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
         return false;
     }
 
 
 
-    UEFCodec UEF_codec = UEFCodec(false, arg_parser.verbose, arg_parser.bbcMicro);
+    UEFCodec UEF_codec = UEFCodec(false, arg_parser.verbose, arg_parser.targetMachine);
     UEF_codec.setTapeTiming(arg_parser.tapeTiming);
     if (!UEF_codec.encode(TAP_file, arg_parser.dstFileName)) {
         printf("Failed to encode DATA file '%s' as UEF file '%s'\n",

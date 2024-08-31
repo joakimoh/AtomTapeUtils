@@ -43,11 +43,11 @@ int main(int argc, const char* argv[])
     if (arg_parser.verbose)
         cout << "Output dir = " << arg_parser.dstDir << "\n";
 
-    UEFCodec UEF_codec = UEFCodec(arg_parser.verbose, arg_parser.bbcMicro);
+    UEFCodec UEF_codec = UEFCodec(arg_parser.verbose, arg_parser.targetMachine);
 
     // Scan UEF file for Tape Files
     vector<TapeFile> TAP_files;
-    UEF_codec.decodeMultipleFiles(arg_parser.srcFileName, TAP_files, arg_parser.bbcMicro);
+    UEF_codec.decodeMultipleFiles(arg_parser.srcFileName, TAP_files, arg_parser.targetMachine);
     if (arg_parser.verbose)
         cout << "#UEF files = " << TAP_files.size() << "\n";
 
@@ -65,18 +65,18 @@ int main(int argc, const char* argv[])
                 "' read. Base file name used for generated files is: '" << tapFile.validFileName << "'.\n";
 
             DataCodec DATA_codec = DataCodec(arg_parser.verbose);
-            string DATA_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "dat");
+            string DATA_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "dat");
             if (!DATA_codec.encode(tapFile, DATA_file_name)) {
                 cout << "Failed to write the DATA file!\n";
                 //return -1;
             }
 
-            AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.bbcMicro);
+            AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.targetMachine);
             string ABC_file_name;
-            if (arg_parser.bbcMicro)
-                ABC_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "bbc");
+            if (arg_parser.targetMachine <= BBC_MASTER)
+                ABC_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "bbc");
             else
-                ABC_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "abc");
+                ABC_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "abc");
             if (!ABC_codec.encode(tapFile, ABC_file_name)) {
                 cout << "Failed to write the program file!\n";
                 //return -1;
@@ -87,8 +87,8 @@ int main(int argc, const char* argv[])
                 // Only generate files if the Tape file was completed (without missing blocks)
 
                 // Generate TAP file - only for Acorn Atom
-                if (!arg_parser.bbcMicro) {
-                    string TAP_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "tap");
+                if (arg_parser.targetMachine == ACORN_ATOM) {
+                    string TAP_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "tap");
                     TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
                     if (!TAP_codec.encode(tapFile, TAP_file_name)) {
                         cout << "Failed to write TAP file '" << TAP_file_name << "'!\n";
@@ -106,7 +106,7 @@ int main(int argc, const char* argv[])
                 BytesIter data_iter = data.begin();
 
                 // Generate binary program file from data bytes
-                string BIN_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "");
+                string BIN_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, tapFile, "");
                 ofstream fout(BIN_file_name, ios::out | ios::binary | ios::ate);
                 if (!fout) {
                     cout << "can't write to file " << BIN_file_name << "\n";

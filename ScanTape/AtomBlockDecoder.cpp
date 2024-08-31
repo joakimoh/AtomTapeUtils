@@ -5,11 +5,6 @@
 #include "../shared/Utility.h"
 
 
-void AtomBlockDecoder::updateCRC(uint16_t &CRC, Byte data)
-{
-	updateAtomCRC(CRC, data);
-}
-
 string AtomBlockDecoder::atomTapeBlockHdrFieldName(int offset)
 {
 	switch (offset) {
@@ -28,7 +23,7 @@ string AtomBlockDecoder::atomTapeBlockHdrFieldName(int offset)
 
 
 AtomBlockDecoder::AtomBlockDecoder(
-	CycleDecoder& cycleDecoder, ArgParser &argParser, bool verbose) : BlockDecoder(cycleDecoder, argParser, verbose)
+	CycleDecoder& cycleDecoder, ArgParser &argParser, bool verbose) : BlockDecoder(cycleDecoder, argParser, verbose, ACORN_ATOM)
 {
 }
 
@@ -73,7 +68,7 @@ bool AtomBlockDecoder::readBlock(
 	}
 	leadToneDetected = true;
 	if (mVerbose)
-		cout << duration << "s lead tone detected at " << encodeTime(getTime()) << "\n";
+		cout << duration << "s lead tone detected at " << Utility::encodeTime(getTime()) << "\n";
 
 	// Read block header's preamble (i.e., synhronisation bytes)
 	if (!checkBytes(0x2a, 4)) {
@@ -109,16 +104,16 @@ bool AtomBlockDecoder::readBlock(
 				DEBUG_PRINT(getTime(), ERR, "Failed to read header %s\n", atomTapeBlockHdrFieldName(i).c_str());
 			return false;
 		}
-		updateCRC(CRC, *hdr++);
+		Utility::updateCRC(mTargetMachine, CRC, *hdr++);
 	}
 
 	int load_address, exec_adr, len;
-	if (!decodeAtomTapeHdr(mAtomTapeBlockHdr, readBlock, load_address, exec_adr, len, blockNo, block_type))
+	if (!Utility::decodeAtomTapeHdr(mAtomTapeBlockHdr, readBlock, load_address, exec_adr, len, blockNo, block_type))
 		return false;
 
 
 	if (mVerbose)
-		cout << "Header " << mTapeFileName << " " << hex << mAtomTapeBlockHdr.loadAdrHigh * 256 + mAtomTapeBlockHdr.loadAdrLow << " " << mAtomTapeBlockHdr.dataLenM1 + 1 << " " << blockNo << " read at " << encodeTime(getTime()) << dec << "\n";
+		cout << "Header " << mTapeFileName << " " << hex << mAtomTapeBlockHdr.loadAdrHigh * 256 + mAtomTapeBlockHdr.loadAdrLow << " " << mAtomTapeBlockHdr.dataLenM1 + 1 << " " << blockNo << " read at " << Utility::encodeTime(getTime()) << dec << "\n";
 
 
 	// Consume micro lead tone between header and data block (to record it's duration only)
@@ -138,7 +133,7 @@ bool AtomBlockDecoder::readBlock(
 	mArgParser.tapeTiming.minBlockTiming.microLeadToneDuration = micro_tone_duration;
 
 	if (mVerbose)
-		cout << micro_tone_duration << "s micro tone detected at " << encodeTime(getTime()) << "\n";
+		cout << micro_tone_duration << "s micro tone detected at " << Utility::encodeTime(getTime()) << "\n";
 
 	// Get data bytes
 	if (len > 0) {
@@ -155,7 +150,7 @@ bool AtomBlockDecoder::readBlock(
 			cout << _BYTE(readBlock.data[i]) << " ";
 		cout << "\n";
 
-		cout << len << " bytes of Block data read at " << encodeTime(getTime()) << "\n";
+		cout << len << " bytes of Block data read at " << Utility::encodeTime(getTime()) << "\n";
 	}
 
 	// Get CRC
@@ -169,7 +164,7 @@ bool AtomBlockDecoder::readBlock(
 	mReadingCRC = false;
 
 	if (mVerbose)
-		cout << "CRC read at " << encodeTime(getTime()) << "\n";
+		cout << "CRC read at " << Utility::encodeTime(getTime()) << "\n";
 
 	// Check CRC
 	if (received_CRC != (CRC  & 0xff)) {
@@ -179,7 +174,7 @@ bool AtomBlockDecoder::readBlock(
 	}
 
 	if (mVerbose) {
-		cout << len << " bytes data block + CRC read at " << encodeTime(getTime()) << "\n";
+		cout << len << " bytes data block + CRC read at " << Utility::encodeTime(getTime()) << "\n";
 	}
 
 
@@ -194,7 +189,7 @@ bool AtomBlockDecoder::readBlock(
 	rollback();
 
 	if (mVerbose)
-		cout << readBlock.blockGap << " s gap after block, starting at " << encodeTime(getTime()) << "\n";
+		cout << readBlock.blockGap << " s gap after block, starting at " << Utility::encodeTime(getTime()) << "\n";
 
 	return true;
 }
@@ -214,7 +209,7 @@ bool AtomBlockDecoder::getFileName(char name[ATM_HDR_NAM_SZ], uint16_t &CRC, int
 		else
 			len = i;
 		i++;
-		updateCRC(CRC, byte);
+		Utility::updateCRC(mTargetMachine, CRC, byte);
 	} while (!failed && byte != 0xd && i <= ATOM_TAPE_NAME_LEN);
 
 	// Add zero-padding

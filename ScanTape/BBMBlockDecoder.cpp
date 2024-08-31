@@ -4,18 +4,6 @@
 #include "../shared/Debug.h"
 #include "../shared/Utility.h"
 
-//
-// CRC is XMODEM
-// - 16-bit
-// - polynom x^12 + x^5 + x (1021 <=> 0001 0000 0010 0001)
-// - init value 0x0
-// - check value 0x31c3
-//
-void BBMBlockDecoder::updateCRC(uint16_t &CRC, Byte data)
-{
-	updateBBMCRC(CRC, data);
-}
-
 string BBMBlockDecoder::bbmTapeBlockHdrFieldName(int offset)
 {
 	switch (offset) {
@@ -44,7 +32,7 @@ string BBMBlockDecoder::bbmTapeBlockHdrFieldName(int offset)
 
 
 BBMBlockDecoder::BBMBlockDecoder(
-	CycleDecoder& cycleDecoder, ArgParser& argParser, bool verbose) : BlockDecoder(cycleDecoder, argParser, verbose)
+	CycleDecoder& cycleDecoder, ArgParser& argParser, bool verbose) : BlockDecoder(cycleDecoder, argParser, verbose, BBC_MODEL_B)
 {
 }
 
@@ -83,10 +71,10 @@ bool BBMBlockDecoder::readBlock(
 	leadToneDetected = false;
 
 	// Invalidate block data in case readBlock returns with only partilly filled out block
-	initbytes(&readBlock.bbmHdr.loadAdr[0], 0xff, 4);
-	initbytes(&readBlock.bbmHdr.execAdr[0], 0xff, 4);
-	initbytes(&readBlock.bbmHdr.blockNo[0], 0xff, 2);
-	initbytes(&readBlock.bbmHdr.blockLen[0], 0xff, 2);
+	Utility::initbytes(&readBlock.bbmHdr.loadAdr[0], 0xff, 4);
+	Utility::initbytes(&readBlock.bbmHdr.execAdr[0], 0xff, 4);
+	Utility::initbytes(&readBlock.bbmHdr.blockNo[0], 0xff, 2);
+	Utility::initbytes(&readBlock.bbmHdr.blockLen[0], 0xff, 2);
 	readBlock.bbmHdr.locked = false;
 	readBlock.bbmHdr.name[0] = 0xff;
 	readBlock.leadToneCycles = -1;
@@ -109,7 +97,7 @@ bool BBMBlockDecoder::readBlock(
 			return false;
 		}
 		if (mVerbose)
-			cout << duration << "s prelude lead tone detected at " << encodeTime(getTime()) << "\n";
+			cout << duration << "s prelude lead tone detected at " << Utility::encodeTime(getTime()) << "\n";
 
 		// Skip dummy byte
 		if (!checkBytes(0xaa, 1)) {
@@ -118,7 +106,7 @@ bool BBMBlockDecoder::readBlock(
 			//return false;
 		}
 		if (mVerbose)
-			cout << "dummy byte 0xaa (as part of lead carrier) detected at " << encodeTime(getTime()) << "\n";
+			cout << "dummy byte 0xaa (as part of lead carrier) detected at " << Utility::encodeTime(getTime()) << "\n";
 
 		// Get postlude part of lead tone
 		int lead_tone_prelude_cycles = readBlock.leadToneCycles;
@@ -128,7 +116,7 @@ bool BBMBlockDecoder::readBlock(
 		}
 		readBlock.leadToneCycles += lead_tone_prelude_cycles;
 		if (mVerbose)
-			cout << duration << "s postlude lead tone detected at " << encodeTime(getTime()) << "\n";
+			cout << duration << "s postlude lead tone detected at " << Utility::encodeTime(getTime()) << "\n";
 	}
 	else {
 		if (!mCycleDecoder.waitForTone(leadToneDuration, duration, waiting_time, readBlock.leadToneCycles, mLastHalfCycleFrequency)) {
@@ -136,7 +124,7 @@ bool BBMBlockDecoder::readBlock(
 			return false;
 		}
 		if (mVerbose)
-			cout << duration << "s lead tone detected at " << encodeTime(getTime()) << "\n";
+			cout << duration << "s lead tone detected at " << Utility::encodeTime(getTime()) << "\n";
 	}
 	leadToneDetected = true;
 
@@ -174,17 +162,17 @@ bool BBMBlockDecoder::readBlock(
 				DEBUG_PRINT(getTime(), ERR, "Failed to read header %s\n", bbmTapeBlockHdrFieldName(i).c_str());
 			return false;
 		}
-		updateCRC(calc_hdr_CRC, *hdr++);
+		Utility::updateCRC(BBC_MODEL_B, calc_hdr_CRC, *hdr++);
 	}
 
 	// Extract header information and update BBM block with it
-	if (!decodeBBMTapeHdr(mBBMTapeBlockHdr, readBlock, load_adr, exec_adr, block_len, blockNo, next_adr, isLastBlock))
+	if (!Utility::decodeBBMTapeHdr(mBBMTapeBlockHdr, readBlock, load_adr, exec_adr, block_len, blockNo, next_adr, isLastBlock))
 		return false;
 
 
 	if (mVerbose) {
-		cout << "Header read at " << encodeTime(getTime()) << ": ";
-		logTAPBlockHdr(readBlock, 0x0);
+		cout << "Header read at " << Utility::encodeTime(getTime()) << ": ";
+		Utility::logTAPBlockHdr(readBlock, 0x0);
 	}
 
 	// Get header CRC
@@ -204,7 +192,7 @@ bool BBMBlockDecoder::readBlock(
 	}
 
 	if (mVerbose)
-		cout << "A correct header CRC 0x" << hex << hdr_CRC << " read at " << encodeTime(getTime()) << "\n";
+		cout << "A correct header CRC 0x" << hex << hdr_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
 
 
 	// Get data bytes
@@ -218,11 +206,11 @@ bool BBMBlockDecoder::readBlock(
 	}
 
 	if (mVerbose)
-		cout << dec << block_len << " bytes of data read at " << encodeTime(getTime()) << "\n";
+		cout << dec << block_len << " bytes of data read at " << Utility::encodeTime(getTime()) << "\n";
 
 
 	if (DEBUG_LEVEL == DBG)
-		logData(load_adr, &readBlock.data[0], block_len);
+		Utility::logData(load_adr, &readBlock.data[0], block_len);
 
 	// Get data CRC
 	Word data_CRC;
@@ -240,11 +228,11 @@ bool BBMBlockDecoder::readBlock(
 	}
 
 	if (mVerbose)
-		cout << "A correct data CRC 0x" << hex << data_CRC << " read at " << encodeTime(getTime()) << "\n";
+		cout << "A correct data CRC 0x" << hex << data_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
 
 
 	if (mVerbose)
-		cout << "A correct data CRC 0x" << hex << data_CRC << " read at " << encodeTime(getTime()) << "\n";
+		cout << "A correct data CRC 0x" << hex << data_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
 
 	// Skip trailer tone that only exists for the last block of a file
 	if (isLastBlock) {
@@ -255,7 +243,7 @@ bool BBMBlockDecoder::readBlock(
 		}
 
 		if (mVerbose)
-			cout << duration << "s trailer tone detected at " << encodeTime(getTime()) << "\n";
+			cout << duration << "s trailer tone detected at " << Utility::encodeTime(getTime()) << "\n";
 
 
 		// Detect gap to next file by waiting for 100 cycles of the next files's first block's lead tone
@@ -269,7 +257,7 @@ bool BBMBlockDecoder::readBlock(
 		rollback();
 
 		if (mVerbose)
-			cout << readBlock.blockGap << " s gap after block, starting at " << encodeTime(getTime()) << "\n";
+			cout << readBlock.blockGap << " s gap after block, starting at " << Utility::encodeTime(getTime()) << "\n";
 	}
 
 	return true;
@@ -290,7 +278,7 @@ bool BBMBlockDecoder::getFileName(char name[BTM_HDR_NAM_SZ], uint16_t& calc_hdr_
 		else
 			len = i;
 		i++;
-		updateCRC(calc_hdr_CRC,byte);
+		Utility::updateCRC(mTargetMachine, calc_hdr_CRC,byte);
 	} while (!failed && byte != 0x0 && i <= BBM_TAPE_NAME_LEN);
 
 	// Add zero-padding

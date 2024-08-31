@@ -96,15 +96,15 @@ private:
 	bool mUseOriginalTiming = false;
 
 	bool mVerbose = false;
-	bool mBbcMicro = false;
+	TargetMachine mTargetMachine = ACORN_ATOM;
 
 public:
 
 	// Default constructor
-	CSWCodec(bool verbose, bool bbcMicro);
+	CSWCodec(bool verbose, TargetMachine targetMachine);
 
 	// Constructor
-	CSWCodec(bool useOriginalTiming, bool verbose, bool bbcMicro);
+	CSWCodec(bool useOriginalTiming, bool verbose, TargetMachine targetMachine);
 
 	// Reinitialise codec with a new tape timing
 	bool setTapeTiming(TapeProperties tapeTiming);

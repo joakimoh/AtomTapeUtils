@@ -20,6 +20,7 @@ BBMFileDecoder::BBMFileDecoder(
 
 bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
 {
+    TargetMachine file_block_type = BBC_MODEL_B;
     bool last_block = false;
     bool first_block = true;
     int load_adr_start = 0, load_adr_end = 0, exec_adr_start = 0, next_load_adr = 0;
@@ -66,7 +67,7 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
     uint32_t adr_offset = 0;
     while (!last_block) {
 
-        FileBlock read_block(BBCMicroBlock);
+        FileBlock read_block(BBC_MODEL_B);
         int block_sz;
         bool isBasicProgram;
         int exec_adr, file_load_adr, load_adr_UB = -1;
@@ -88,8 +89,8 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
         }
 
         // Extract BBM header parameters
-        bool complete_header = decodeBTMBlockHdr(
-            read_block, is_last_block, mBlockDecoder.nReadBytes,
+        bool complete_header = Utility::decodeFileBlockHdr(
+            file_block_type, read_block, mBlockDecoder.nReadBytes,
             file_load_adr, exec_adr, block_sz, isBasicProgram, fn
         );
         load_adr_UB = file_load_adr + adr_offset + block_sz - 1;
@@ -183,7 +184,7 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
                 first_block = false;
                 load_adr_start = file_load_adr;
                 exec_adr_start = exec_adr;
-                tapeFile.validFileName = filenameFromBlockName(file_name);
+                tapeFile.validFileName = Utility::filenameFromBlockName(file_name);
                 tape_start_time = block_start_time;
             }
             if (last_block) {
@@ -201,9 +202,9 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
 
             last_block_no = block_no;
 
-            logTAPBlockHdr(&logFile, read_block, adr_offset);
+            Utility::logTAPBlockHdr(&logFile, read_block, adr_offset);
             if (mArgParser.verbose)
-                logTAPBlockHdr(read_block, adr_offset);
+                Utility::logTAPBlockHdr(read_block, adr_offset);
 
         }
 
@@ -231,11 +232,11 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
             printf(
                 "At least one block missing or corrupted for file '%s' [%s,%s]\n",
                 tapeFile.validFileName.c_str(),
-                encodeTime(tapeFile.blocks[0].tapeStartTime).c_str(),
-                encodeTime(tapeFile.blocks[n_blocks - 1].tapeEndTime).c_str()
+                Utility::encodeTime(tapeFile.blocks[0].tapeStartTime).c_str(),
+                Utility::encodeTime(tapeFile.blocks[n_blocks - 1].tapeEndTime).c_str()
             );
             logFile << "*** ERR *** At least one block missing or corrupted for file '" << tapeFile.validFileName << "' [";
-            logFile << encodeTime(tapeFile.blocks[0].tapeStartTime) << "," << encodeTime(tapeFile.blocks[n_blocks - 1].tapeEndTime) << "]\n";
+            logFile << Utility::encodeTime(tapeFile.blocks[0].tapeStartTime) << "," << Utility::encodeTime(tapeFile.blocks[n_blocks - 1].tapeEndTime) << "]\n";
         }
         else
             tapeFile.complete = true;
@@ -247,10 +248,10 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
 
         tapeFile.baudRate = mArgParser.tapeTiming.baudRate;
 
-        logTAPFileHdr(&logFile, tapeFile);
+        Utility::logTAPFileHdr(&logFile, tapeFile);
 
         if (mArgParser.verbose)
-            logTAPFileHdr(tapeFile);
+            Utility::logTAPFileHdr(tapeFile);
 
 
         return true;

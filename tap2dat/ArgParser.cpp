@@ -38,7 +38,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		return;
 	}
 	srcFileName = argv[1];
-	dstFileName = crDefaultOutFileName(srcFileName, "dat");
+	dstFileName = Utility::crDefaultOutFileName(srcFileName, "dat");
 
 	int ac = 2;
 

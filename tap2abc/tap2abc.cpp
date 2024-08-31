@@ -37,13 +37,13 @@ int main(int argc, const char* argv[])
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
     TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
-    TapeFile TAP_file(AtomFile);
+    TapeFile TAP_file(ACORN_ATOM);
     if (!TAP_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode TAP file '%s'\n", arg_parser.srcFileName.c_str());
     }
 
 
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, false);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, ACORN_ATOM);
 
     if (!ABC_codec.encode(TAP_file, arg_parser.dstFileName)) {
         printf("Failed to encode TAP file '%s' as ABC file '%s'\n",

@@ -13,7 +13,7 @@ using namespace std;
 
 bool WavEncoder::init()
 {
-    if (!setBitTiming(mTapeTiming.baudRate, mBbcMicro, mStartBitCycles,
+    if (!Utility::setBitTiming(mTapeTiming.baudRate, mTargetMachine, mStartBitCycles,
         mLowDataBitCycles, mHighDataBitCycles, mStopBitCycles)
         ) {
         throw invalid_argument("Unsupported baud rate " + mTapeTiming.baudRate);
@@ -21,31 +21,33 @@ bool WavEncoder::init()
     mHighSamples = (double)mFS / F2_FREQ;
     mLowSamples = (double)mFS / F1_FREQ;
     if (mVerbose) {
-        cout << "Baudrate: " << dec << mTapeTiming.baudRate << "\n";
+        cout << "Baudrate: " << dec << mTapeTiming.baudRate << " Hz\n";
         cout << "mStartBitCycles: " << mStartBitCycles << "\n";
         cout << "mLowDataBitCycles: " << mLowDataBitCycles << "\n";
         cout << "mHighDataBitCycles: " << mHighDataBitCycles << "\n";
         cout << "mStopBitCycles: " << mStopBitCycles << "\n";
+        cout << "\n";
     }
+
+    return true;
 }
 
 WavEncoder::WavEncoder(
-    bool useOriginalTiming, int sampleFreq, bool verbose, bool bbcMicro
-): mUseOriginalTiming(useOriginalTiming), mFS(sampleFreq), mVerbose(verbose), mBbcMicro(bbcMicro)
+    bool useOriginalTiming, int sampleFreq, bool verbose, TargetMachine targetMachine
+): mUseOriginalTiming(useOriginalTiming), mFS(sampleFreq), mVerbose(verbose), mTargetMachine(targetMachine)
 {
-    if (!bbcMicro)
+    if (!targetMachine)
         mTapeTiming = atomTiming;
     else
         mTapeTiming = bbmTiming;
     if (!init()) {
         cout << "Failed to initialise the WavEncoder\n";
-    }
-    cout << "mFS: " << mFS << "\n";
+    };
 }
 
-WavEncoder::WavEncoder(int sampleFreq, bool verbose, bool bbcMicro) : mFS(sampleFreq), mVerbose(verbose), mBbcMicro(bbcMicro)
+WavEncoder::WavEncoder(int sampleFreq, bool verbose, TargetMachine targetMachine) : mFS(sampleFreq), mVerbose(verbose), mTargetMachine(targetMachine)
 {
-    if (!bbcMicro)
+    if (!targetMachine)
         mTapeTiming = atomTiming;
     else
         mTapeTiming = bbmTiming;
@@ -59,34 +61,14 @@ bool WavEncoder::setTapeTiming(TapeProperties tapeTiming)
     mTapeTiming = tapeTiming;
     if (mVerbose) {
 
-        cout << "Base frequency: " << dec << mTapeTiming.baseFreq << " Hz\n";
-        cout << "Baudrate: " << dec << mTapeTiming.baudRate << " Hz\n";
-        cout << "\n";
-        cout << "Min block gap: " << dec << mTapeTiming.minBlockTiming.blockGap << " s\n";
-        cout << "Min first block gap: " << dec << mTapeTiming.minBlockTiming.firstBlockGap << " s\n";
-        cout << "Min first lead tone: " << dec << mTapeTiming.minBlockTiming.firstBlockLeadToneDuration << " s\n";
-        cout << "Min last block gap: " << dec << mTapeTiming.minBlockTiming.lastBlockGap << " s\n";
-        cout << "Min micro tone: " << dec << mTapeTiming.minBlockTiming.microLeadToneDuration << " s\n";
-        cout << "Min other block lead tone: " << dec << mTapeTiming.minBlockTiming.otherBlockLeadToneDuration << " s\n";
-        cout << "Min trailer tone: " << dec << mTapeTiming.minBlockTiming.trailerToneDuration << " s\n";
-        cout << "\n";
-        cout << "Nom block gap: " << dec << mTapeTiming.minBlockTiming.blockGap << " s\n";
-        cout << "Nom first block gap: " << dec << mTapeTiming.nomBlockTiming.firstBlockGap << " s\n";
-        cout << "Nom first lead tone: " << dec << mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration << " s\n";
-        cout << "Nom last block gap: " << dec << mTapeTiming.nomBlockTiming.lastBlockGap << " s\n";
-        cout << "Nom micro tone: " << dec << mTapeTiming.nomBlockTiming.microLeadToneDuration << " s\n";
-        cout << "Nom other block lead tone: " << dec << mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration << " s\n";
-        cout << "Nom trailer tone: " << dec << mTapeTiming.nomBlockTiming.trailerToneDuration << " s\n";
-        cout << "\n";
-        cout << "Phaseshift: " << dec << mTapeTiming.phaseShift << " degrees\n";
-        cout << "Preserve timing: " << dec << mTapeTiming.preserve << "\n";
+        Utility::logTapeTiming(mTapeTiming);
     }
     return true;
 }
 
 bool WavEncoder::encode(TapeFile& tapeFile, string& filePath)
 {
-    if (tapeFile.fileType == FileType::AtomFile)
+    if (tapeFile.fileType == ACORN_ATOM)
         return encodeAtom(tapeFile, filePath);
     else
         return encodeBBM(tapeFile, filePath);
@@ -98,6 +80,8 @@ bool WavEncoder::encode(TapeFile& tapeFile, string& filePath)
 bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
 
 {
+    TargetMachine file_block_type = BBC_MODEL_B;
+
     double lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;
     double other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;
     double trailer_tone_duration = mTapeTiming.nomBlockTiming.trailerToneDuration;
@@ -174,7 +158,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
         
 
         // Store header bytes
-        if (!encodeTapeHdr(*block_iter, block_no, n_blocks, header_data)) {
+        if (!Utility::encodeTapeHdr(file_block_type, *block_iter, block_no, n_blocks, header_data)) {
             cout << "Failed to encode header bytes for block #" << block_no << "\n";
             return false;
         }
@@ -197,7 +181,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
 
 
         if (mVerbose)
-            cout << "HDR : ";
+            cout << "HDR+CRC : ";
 
 
         // Initialise data CRC
@@ -257,7 +241,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
             }
 
             if (mVerbose)
-                cout << trailer_tone_duration << " s TRAILER TONE : \n";
+                cout << trailer_tone_duration << " s TRAILER TONE : ";
 
             // Write the gap
             double block_gap = last_block_gap;
@@ -314,6 +298,8 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
  */
 bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
 {
+    TargetMachine file_block_type = ACORN_ATOM;
+
     double lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;
     double other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;
     double data_block_micro_lead_tone_duration = mTapeTiming.nomBlockTiming.microLeadToneDuration;
@@ -383,7 +369,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
             header_data.push_back(0x2a);
 
         // Store header bytes
-        if (!encodeTapeHdr(*block_iter, block_no, n_blocks, header_data)) {
+        if (!Utility::encodeTapeHdr(file_block_type, *block_iter, block_no, n_blocks, header_data)) {
             cout << "Failed to encode header for block #" << block_no << "\n";
             return false;
         }
@@ -531,19 +517,12 @@ bool WavEncoder::writeByte(Byte byte)
     if (!writeStopBit())
         return false;
 
-    updateBBMCRC(mCRC, byte);
+    Utility::updateCRC(mTargetMachine, mCRC, byte);
 
     return true;
 
 }
 
-void WavEncoder::updateCRC(Word& CRC, Byte byte)
-{
-    if (mBbcMicro)
-        updateBBMCRC(CRC, byte);
-    else
-        updateAtomCRC(CRC, byte);
-}
 
 bool WavEncoder::writeDataBit(int bit)
 {

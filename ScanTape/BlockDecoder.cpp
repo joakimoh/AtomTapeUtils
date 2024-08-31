@@ -30,12 +30,13 @@ bool BlockDecoder::rollback()
 }
 
 BlockDecoder::BlockDecoder(
-	CycleDecoder& cycleDecoder, ArgParser& argParser, bool verbose) : mCycleDecoder(cycleDecoder), mArgParser(argParser), mVerbose(verbose)
+	CycleDecoder& cycleDecoder, ArgParser& argParser, bool verbose, TargetMachine targetMachine) :
+	mCycleDecoder(cycleDecoder), mArgParser(argParser), mVerbose(verbose), mTargetMachine(targetMachine)
 {
 
 	mTracing = argParser.tracing;
 
-	if (!setBitTiming(mArgParser.tapeTiming.baudRate, argParser.bbcMicro, mStartBitCycles,
+	if (!Utility::setBitTiming(mArgParser.tapeTiming.baudRate, argParser.targetMachine, mStartBitCycles,
 		mLowDataBitCycles, mHighDataBitCycles, mStopBitCycles)
 	) {
 
@@ -90,7 +91,7 @@ bool BlockDecoder::getBytes(Bytes& bytes, int n, Word &CRC) {
 				DEBUG_PRINT(getTime(), ERR, "Failed to read byte #%d out of %d bytes\n", i, n);
 			failed = true;
 		}
-		updateCRC(CRC,byte);
+		Utility::updateCRC(mTargetMachine, CRC,byte);
 		bytes.push_back(byte);
 	}
 	return !failed;

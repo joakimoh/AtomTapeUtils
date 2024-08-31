@@ -20,7 +20,7 @@ class AtomBasicCodec
 
 private:
 	bool mVerbose = false;
-	bool mBbcMicro = false;
+	TargetMachine mTargetMachine = ACORN_ATOM;
 
 	
 	vector<TokenEntry> mBBMTokens
@@ -154,7 +154,7 @@ private:
 
 
 public:
-	AtomBasicCodec(bool verbose, bool bbcMicro);
+	AtomBasicCodec(bool verbose, TargetMachine targetMachine);
 
 	/*
 	 * Encode TAP File structure as Atom Basic program file

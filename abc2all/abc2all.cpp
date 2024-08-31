@@ -41,8 +41,8 @@ int main(int argc, const char* argv[])
 
 
     // Decode ABC file
-    TapeFile TAP_file(AtomFile);
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.bbcMicro);
+    TapeFile TAP_file(ACORN_ATOM);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.targetMachine);
     if (!ABC_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
     }
@@ -57,29 +57,29 @@ int main(int argc, const char* argv[])
 
     // Generate DATA file
     DataCodec DATA_codec = DataCodec(arg_parser.verbose);
-    string DATA_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "dat");
+    string DATA_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "dat");
     if (!DATA_codec.encode(TAP_file, DATA_file_name)) {
         cout << "Failed to write the DATA file!\n";
     }
 
     // Generate TAP file
-    if (!arg_parser.bbcMicro) {
+    if (arg_parser.targetMachine == ACORN_ATOM) {
         TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
-        string TAP_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "tap");
+        string TAP_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "tap");
         if (!TAP_codec.encode(TAP_file, TAP_file_name)) {
             cout << "Failed to write the TAP file!\n";
         }
     }
 
     // generate UEF file
-    UEFCodec UEF_codec = UEFCodec(false, arg_parser.verbose, false);
-    string UEF_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "uef");
+    UEFCodec UEF_codec = UEFCodec(false, arg_parser.verbose, arg_parser.targetMachine);
+    string UEF_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "uef");
     if (!UEF_codec.encode(TAP_file, UEF_file_name)) {
         cout << "Failed to write the UEF file!\n";
     }
 
     // Create binary file
-    string BIN_file_name = crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "");
+    string BIN_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "");
     if (!TAPCodec::data2Binary(TAP_file, BIN_file_name)) {
         cout << "can't create Binary file " << BIN_file_name << "\n";
     }

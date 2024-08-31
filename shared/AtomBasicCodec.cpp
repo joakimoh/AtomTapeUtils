@@ -11,7 +11,7 @@
 using namespace std;
 
 
-AtomBasicCodec::AtomBasicCodec(bool verbose, bool bbcMicro) :mVerbose(verbose), mBbcMicro(bbcMicro)
+AtomBasicCodec::AtomBasicCodec(bool verbose, TargetMachine targetMachine) :mVerbose(verbose), mTargetMachine(targetMachine)
 {
     // Intialise  dictionary of BBC Micro BASIC program tokens
     //
@@ -52,7 +52,7 @@ bool AtomBasicCodec::encode(TapeFile& tapeFile, string& filePath)
         return false;
     }
 
-    if (mBbcMicro)
+    if (mTargetMachine <= BBC_MASTER)
         return encodeBBM(tapeFile, filePath, fout);
     else
         return encodeAtom(tapeFile, filePath, fout);
@@ -92,9 +92,9 @@ bool AtomBasicCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& f
 {
     FileBlockIter file_block_iter = tapeFile.blocks.begin();
     BytesIter bi = file_block_iter->data.begin();
-    uint32_t exec_adr = bytes2uint(&file_block_iter->bbmHdr.execAdr[0], 4, true);
-    uint32_t load_adr = bytes2uint(&file_block_iter->bbmHdr.loadAdr[0], 4, true);
-    int data_len = bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 2, true);;
+    uint32_t exec_adr = Utility::bytes2uint(&file_block_iter->bbmHdr.execAdr[0], 4, true);
+    uint32_t load_adr = Utility::bytes2uint(&file_block_iter->bbmHdr.loadAdr[0], 4, true);
+    int data_len = Utility::bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 2, true);;
     string name = file_block_iter->bbmHdr.name;
 
     Byte b;
@@ -164,7 +164,7 @@ bool AtomBasicCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& f
         printf("Program '%s' didn't terminate with 0xff!\n", tapeFile.blocks.front().bbmHdr.name);
 
     if (mVerbose) {
-        logTAPFileHdr(tapeFile);
+        Utility::logTAPFileHdr(tapeFile);
         cout << "\nDone encoding program '" << tapeFile.blocks.front().bbmHdr.name << " ' as a BBC file...\n\n";
     }
 
@@ -248,7 +248,7 @@ bool AtomBasicCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& 
         printf("Program '%s' didn't terminate with 0xff!\n", tapeFile.blocks.front().atomHdr.name);
 
     if (mVerbose) {
-        logTAPFileHdr(tapeFile);
+        Utility::logTAPFileHdr(tapeFile);
         cout << "\nDone encoding program '" << tapeFile.blocks.front().atomHdr.name << " ' as an ABC file...\n\n";
     }
 
@@ -262,11 +262,11 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
 
     BytesIter data_iterator = data.begin();
     if (DEBUG_LEVEL == DBG)
-        logData(0x2900, data_iterator, data.size());
+        Utility::logData(0x2900, data_iterator, data.size());
 
 
     // Create ATM block
-    FileBlock block(AtomBlock);
+    FileBlock block(ACORN_ATOM);
     bool new_block = true;
     int count = 0;
     int load_address = 0x2900;
@@ -307,7 +307,7 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
         else {
             int data_len = block.data.size();
             if (mVerbose)
-                logTAPBlockHdr(block, load_address, n_blocks);
+                Utility::logTAPBlockHdr(block, load_address, n_blocks);
             block.atomHdr.lenHigh = 1;
             block.atomHdr.lenLow = 0;
             tapeFile.blocks.push_back(block);
@@ -317,7 +317,7 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
             tape_file_sz += data_len;
             n_blocks++;
             if (DEBUG_LEVEL == DBG)
-                logData(load_address, block_iterator, data_len);
+                Utility::logData(load_address, block_iterator, data_len);
         }
 
 
@@ -329,7 +329,7 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
     {
         int data_len = block.data.size();
         if (mVerbose)
-            logTAPBlockHdr(block, load_address, n_blocks);
+            Utility::logTAPBlockHdr(block, load_address, n_blocks);
         block.atomHdr.lenHigh = count / 256;
         block.atomHdr.lenLow = count % 256;
         tapeFile.blocks.push_back(block);
@@ -338,7 +338,7 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
         tape_file_sz += data_len;
         n_blocks++;
         if (DEBUG_LEVEL == DBG)
-            logData(load_address, block_iterator, data_len);
+            Utility::logData(load_address, block_iterator, data_len);
     }
 
     if (mVerbose) {
@@ -346,7 +346,7 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
         int load_adr = tapeFile.blocks[0].atomHdr.loadAdrHigh * 256 + tapeFile.blocks[0].atomHdr.loadAdrLow;
         string tape_filename = tapeFile.blocks[0].atomHdr.name;
         if (mVerbose) 
-            logTAPFileHdr(tapeFile);
+            Utility::logTAPFileHdr(tapeFile);
         cout << "\nDone decoding ABC file '" << file_name << "'...\n\n'";
     }
 
@@ -358,11 +358,11 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
     
     if (DEBUG_LEVEL == DBG) {
         BytesIter data_iterator = data.begin();
-        logData(0xffff0e00, data_iterator, data.size());
+        Utility::logData(0xffff0e00, data_iterator, data.size());
     }
 
     // Create BBM block
-    FileBlock block(BBCMicroBlock);
+    FileBlock block(BBC_MODEL_B);
     bool new_block = true;
     uint32_t count = 0;
     uint32_t file_load_address = 0xffff0e00;
@@ -382,7 +382,9 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
             else
                 block_sz = 256;
 
-            if (!encodeTAPHdr(block, block_name, file_load_address, load_address, exec_adr, n_blocks, block_sz))
+            if (!Utility::initTAPBlock(BBC_MODEL_B, block))
+                return false;
+            if (!Utility::encodeTAPHdr(block, block_name, file_load_address, load_address, exec_adr, n_blocks, block_sz))
                 return false;
 
             new_block = false;
@@ -399,7 +401,7 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
                 block.bbmHdr.blockFlag = 0x80;
 
             if (mVerbose)
-                logTAPBlockHdr(block, tape_file_sz);
+                Utility::logTAPBlockHdr(block, tape_file_sz);
 
             tapeFile.blocks.push_back(block);
             new_block = true;
@@ -409,7 +411,7 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
 
             if (DEBUG_LEVEL == DBG) {
                 BytesIter block_iterator = block.data.begin();
-                logData(load_address, block_iterator, block_sz);
+                Utility::logData(load_address, block_iterator, block_sz);
             }
         }
 
@@ -417,8 +419,8 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
 
 
     if (mVerbose) {
-        logTAPFileHdr(tapeFile);
-        cout << "\nDone decoding BBC Micro Tape File '" << file_name << "'...\n\n'";
+        Utility::logTAPFileHdr(tapeFile);
+        cout << "\nDone decoding BBC Micro Tape File '" << file_name << "'...\n\n";
     }
 
     return true;
@@ -436,10 +438,8 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
     filesystem::path fin_p = fullPathFileName;
     string file_name = fin_p.stem().string();
     string block_name;
-    if (mBbcMicro)
-        block_name = bbmBlockNameFromFilename(file_name);
-    else
-        block_name = atomBlockNameFromFilename(file_name);
+
+    block_name = Utility::blockNameFromFilename(mTargetMachine, file_name);
 
     if (mVerbose)
         cout << "\nDecoding ABC/BBC Micro file '" << fullPathFileName << "'...\n\n";
@@ -472,7 +472,7 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
         data.push_back(line_no / 256);
         data.push_back(line_no % 256);
 
-        if (mBbcMicro) {
+        if (mTargetMachine <= BBC_MASTER) {
             string tCode;
             if (!tokenizeLine(code, tCode)) {
                 cout << "Failed to tokenize line '" << code << "' ('" << tCode << "')\n";
@@ -490,7 +490,7 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
     data.push_back(0xff);
     fin.close();
 
-    if (mBbcMicro)
+    if (mTargetMachine <= BBC_MASTER)
         return decodeBBM(data, tapeFile, file_name, block_name);
     else
         return decodeAtom(data, tapeFile, file_name, block_name);
@@ -499,9 +499,9 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
 
 bool AtomBasicCodec::decode(Bytes& data, string& fullPathFileName)
 {
-    TapeFile tape_file(FileType::AtomFile);
-    if (mBbcMicro)
-        tape_file.fileType = FileType::BBCMicroFile;
+    TapeFile tape_file(ACORN_ATOM);
+    if (mTargetMachine <= BBC_MASTER)
+        tape_file.fileType = BBC_MODEL_B;
 
     ofstream fout(fullPathFileName);
     if (!fout) {
@@ -512,13 +512,10 @@ bool AtomBasicCodec::decode(Bytes& data, string& fullPathFileName)
     filesystem::path fin_p = fullPathFileName;
     string file_name = fin_p.stem().string();
     string block_name;
-    if (mBbcMicro)
-        block_name = bbmBlockNameFromFilename(file_name);
-    else
-        block_name = atomBlockNameFromFilename(file_name);
+    block_name = Utility::blockNameFromFilename(mTargetMachine, file_name);
 
     bool success;
-    if (mBbcMicro)
+    if (mTargetMachine <= BBC_MASTER)
         success = decodeBBM(data, tape_file, file_name, block_name);
     else
         success = decodeAtom(data, tape_file, file_name, block_name);

@@ -6,25 +6,27 @@
 #include "AtomBlockTypes.h"
 #include "BBMBlockTypes.h"
 
-typedef enum { AtomBlock, BBCMicroBlock } FileBlockType;
-typedef enum { AtomFile, BBCMicroFile, NoFile } FileType;
+typedef enum TargetMachine { BBC_MODEL_A = 0, ELECTRON = 1, BBC_MODEL_B = 2, BBC_MASTER = 3, ACORN_ATOM = 4, UNKNOWN_TARGET = 0xff };
+#define _TARGET_MACHINE(x) (x==BBC_MODEL_A?"BBC_MODEL_A": \
+	(x==ELECTRON?"ELECTRON":(x==BBC_MODEL_B?"BBC_MODEL_B":(x==BBC_MASTER?"BBC_MASTER":(x==ACORN_ATOM?"ACORN_ATOM":"???")))))
+
 
 class FileBlock {
 
 public:
 
-	FileBlock(FileBlockType bt) {
+	FileBlock(TargetMachine bt) {
 		blockType = bt;
 	}
 
 	string blockName() {
-		if (blockType == AtomBlock)
+		if (blockType == ACORN_ATOM)
 			return atomHdr.name;
 		else
 			return bbmHdr.name;
 	}
 
-	FileBlockType blockType;
+	TargetMachine blockType;
 
 	union {
 		ATMHdr atomHdr;
@@ -45,8 +47,8 @@ public:
 	double blockGap = 2.0; // gap after block (before the next block commence) - normally 2 s (Atom) or 3.3s (BBC Micro)
 };
 
-class ATMBlock : public FileBlock { public: ATMBlock() : FileBlock(AtomBlock) {}; };
-class BBMBlock : public FileBlock { public: BBMBlock() : FileBlock(BBCMicroBlock) {}; };
+class ATMBlock : public FileBlock { public: ATMBlock() : FileBlock(ACORN_ATOM) {}; };
+class BBMBlock : public FileBlock { public: BBMBlock() : FileBlock(BBC_MODEL_B) {}; };
 
 
 typedef vector<FileBlock>::iterator ATMBlockIter;
@@ -57,9 +59,9 @@ class TapeFile {
 
 public:
 
-	FileType fileType;
+	TargetMachine fileType;
 
-	TapeFile(FileType ft) { fileType = ft; }
+	TapeFile(TargetMachine ft) { fileType = ft; }
 
 	vector<FileBlock> blocks;
 
@@ -78,7 +80,7 @@ public:
 
 };
 
-class TAPFile : TapeFile { TAPFile() : TapeFile(AtomFile) {} };
-class TBPFile : TapeFile { TBPFile() : TapeFile(BBCMicroFile) {} };
+class TAPFile : TapeFile { TAPFile() : TapeFile(ACORN_ATOM) {} };
+class TBPFile : TapeFile { TBPFile() : TapeFile(BBC_MODEL_B) {} };
 
 #endif

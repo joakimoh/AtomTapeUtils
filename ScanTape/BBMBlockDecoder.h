@@ -34,8 +34,6 @@ private:
 
 	bool getFileName(char name[BTM_HDR_NAM_SZ], uint16_t& calc_hdr_CRC, int& len);
 
-	void updateCRC(uint16_t &CRC, Byte data);
-
 	string bbmTapeBlockHdrFieldName(int offset);
 
 

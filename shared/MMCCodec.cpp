@@ -80,7 +80,7 @@ bool MMCCodec::encode(TapeFile &tapeFile, string& filePath)
     string atom_filename = ATM_block_iter->atomHdr.name;
 
     if (mVerbose) {
-        logTAPFileHdr(tapeFile);
+        Utility::logTAPFileHdr(tapeFile);
 
     }
 
@@ -111,7 +111,7 @@ bool MMCCodec::encode(TapeFile &tapeFile, string& filePath)
         int block_exec_addr = ATM_block_iter->atomHdr.execAdrHigh * 256 + ATM_block_iter->atomHdr.execAdrLow;
 
         if (mVerbose)
-            logTAPBlockHdr(*ATM_block_iter, block_load_addr, block_no);
+            Utility::logTAPBlockHdr(*ATM_block_iter, block_load_addr, block_no);
 
         block_no++;
 
@@ -182,14 +182,14 @@ bool MMCCodec::decode(string& mmcFileName, TapeFile& tapeFile)
 
     tapeFile.blocks.clear();
     tapeFile.complete = true;
-    tapeFile.validFileName = filenameFromBlockName(atom_filename);
+    tapeFile.validFileName = Utility::filenameFromBlockName(atom_filename);
     tapeFile.isBasicProgram = true;
 
     BytesIter data_iterator = data.begin();
 
 
     // Create ATM block
-    FileBlock block(AtomBlock);
+    FileBlock block(ACORN_ATOM);
     int block_no = 0;
     bool new_block = true;
     int count = 0;

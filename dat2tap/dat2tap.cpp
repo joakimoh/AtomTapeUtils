@@ -50,8 +50,8 @@ int main(int argc, const char* argv[])
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
     DataCodec DATA_codec = DataCodec(arg_parser.verbose);
-    TapeFile TAP_file(AtomFile);
-    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file, false)) {
+    TapeFile TAP_file(ACORN_ATOM);
+    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file, ACORN_ATOM)) {
         printf("Failed to decode DATA file '%s'\n", arg_parser.srcFileName.c_str());
     }
 

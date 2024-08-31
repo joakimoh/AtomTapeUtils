@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include "../shared/TapeProperties.h"
+#include "../shared/BlockTypes.h"
 
 
 using namespace std;
@@ -16,7 +17,7 @@ public:
 	string dstFileName;
 	string srcFileName;
 	bool verbose = false;
-	bool bbcMicro = false;
+	TargetMachine targetMachine = ACORN_ATOM;
 	TapeProperties tapeTiming;
 
 private:

@@ -38,11 +38,9 @@ int main(int argc, const char* argv[])
     if (arg_parser.verbose)
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.bbcMicro);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.targetMachine);
 
-    TapeFile TAP_file(AtomFile); 
-    if (arg_parser.bbcMicro)
-        TAP_file = TapeFile(BBCMicroFile);
+    TapeFile TAP_file(arg_parser.targetMachine);
      
     if (!ABC_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
@@ -50,7 +48,7 @@ int main(int argc, const char* argv[])
 
 
 
-    UEFCodec UEF_codec = UEFCodec(false, arg_parser.verbose, arg_parser.bbcMicro);
+    UEFCodec UEF_codec = UEFCodec(false, arg_parser.verbose, arg_parser.targetMachine);
     UEF_codec.setTapeTiming(arg_parser.tapeTiming);
 
     if (!UEF_codec.encode(TAP_file, arg_parser.dstFileName)) {

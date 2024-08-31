@@ -32,7 +32,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	}
 
 	srcFileName = argv[1];
-	dstFileName = crDefaultOutFileName(srcFileName, "dat");
+	dstFileName = Utility::crDefaultOutFileName(srcFileName, "dat");
 
 
 	int ac = 2;
@@ -41,7 +41,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	tapeTiming = atomTiming;
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {
-			bbcMicro = true;
+			targetMachine = BBC_MODEL_B;
 			tapeTiming = bbmTiming;
 		}
 		ac++;

@@ -240,7 +240,7 @@ void Filter::plotDebug(int debugLevel, ExtremumSample& sample, ExtremumSample& p
 
 void Filter::plotDebug(int debugLevel, string text, ExtremumSample& sample, int extremumIndex, ExtremumSamples& samples)
 {
-    string t = encodeTime((double)sample.pos) + " (" + to_string(sample.pos) + ")";
+    string t = Utility::encodeTime((double)sample.pos) + " (" + to_string(sample.pos) + ")";
     string e = _EXTREMUM(sample.extremum);
     string p = to_string(extremumIndex);
  
@@ -253,8 +253,8 @@ void Filter::plotDebug(int debugLevel, string text, ExtremumSample& sample, int 
 void Filter::plotDebug(int debugLevel, string text, ExtremumSample &sample, ExtremumSample & prevSample, int extremumIndex, ExtremumSamples& samples)
 
 {
-    string t = encodeTime((double) sample.pos / mFS) + " (" + to_string(sample.pos) + ")";
-    string pt = encodeTime((double)prevSample.pos / mFS) + " (" + to_string(prevSample.pos) + ")";
+    string t = Utility::encodeTime((double) sample.pos / mFS) + " (" + to_string(sample.pos) + ")";
+    string pt = Utility::encodeTime((double)prevSample.pos / mFS) + " (" + to_string(prevSample.pos) + ")";
     string e = _EXTREMUM(sample.extremum);
     string pe = _EXTREMUM(prevSample.extremum);
     string p = to_string(extremumIndex);

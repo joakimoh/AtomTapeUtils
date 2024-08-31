@@ -49,8 +49,8 @@ int main(int argc, const char* argv[])
     if (arg_parser.verbose)
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, false);
-    TapeFile TAP_file(AtomFile);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, ACORN_ATOM);
+    TapeFile TAP_file(ACORN_ATOM);
     if (!ABC_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
     }

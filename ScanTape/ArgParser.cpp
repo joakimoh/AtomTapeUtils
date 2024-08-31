@@ -62,7 +62,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	tapeTiming = atomTiming;
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {
-			bbcMicro = true;
+			targetMachine = BBC_MODEL_B;
 			tapeTiming = bbmTiming;
 		}
 		ac++;
@@ -88,9 +88,9 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			verbose = true;
 		}
 		else if (strcmp(argv[ac], "-d") == 0 && ac + 2 < argc) {
-			double t1 = decodeTime(argv[ac + 1]);
+			double t1 = Utility::decodeTime(argv[ac + 1]);
 			//double t1 = strtod(argv[ac + 1], NULL);
-			double t2 = decodeTime(argv[ac + 2]);
+			double t2 = Utility::decodeTime(argv[ac + 2]);
 			//double t2 = strtod(argv[ac + 2], NULL);
 			if (t1 <= 0 || t2 <= 0 || t2 <= t1)
 				cout << "-d without valid non-zero start and stop times\n";

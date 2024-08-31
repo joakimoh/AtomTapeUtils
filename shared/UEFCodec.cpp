@@ -15,8 +15,12 @@
 
 using namespace std;
 
-bool UEFCodec::decodeMultipleFiles(string& uefFileName, vector<TapeFile>& tapeFiles, bool bbcMicro)
+bool UEFCodec::decodeMultipleFiles(string& uefFileName, vector<TapeFile>& tapeFiles, TargetMachine targetMachine)
 {
+    if (mVerbose) {
+        cout << "Decoding UEF files for target " << _TARGET_MACHINE(targetMachine) << "\n";
+    }
+
     // Get data for all tape files
     Bytes data;
     if (!getUEFdata(uefFileName, data)) {
@@ -26,7 +30,7 @@ bool UEFCodec::decodeMultipleFiles(string& uefFileName, vector<TapeFile>& tapeFi
 
     // Decode each of them
     BytesIter data_iter = data.begin();
-    TapeFile tape_file(FileType::AtomFile);
+    TapeFile tape_file(targetMachine);
     while (data_iter < data.end()) {
         if (!decodeFile(uefFileName, data, tape_file, data_iter)) {
             cout << "Failed to create Tape file '" << uefFileName << "'!\n";
@@ -45,14 +49,6 @@ bool UEFCodec::decodeMultipleFiles(string& uefFileName, vector<TapeFile>& tapeFi
     return true;
 }
 
-
-void UEFCodec::updateCRC(Word& CRC, Byte byte)
-{
-    if (mBbcMicro)
-        updateBBMCRC(CRC, byte);
-    else
-        updateAtomCRC(CRC, byte);
-}
 
 
 bool UEFCodec::decodeFloat(Byte encoded_val[4], float& decoded_val)
@@ -105,29 +101,55 @@ bool UEFCodec::encodeFloat(float val, Byte encoded_val[4])
     return true;
 }
 
-UEFCodec::UEFCodec(bool verbose, bool mBbcMicro) : mVerbose(verbose), mBbcMicro(mBbcMicro)
+UEFCodec::UEFCodec(bool verbose, TargetMachine mTargetMachine): mVerbose(verbose), mTargetMachine(mTargetMachine)
 {
-    if (mBbcMicro)
-        mTarget = TargetMachine::BBC_MODEL_B;
+     if (mTargetMachine <= BBC_MASTER)
+        mTapeTiming = bbmTiming;
+    else if (mTargetMachine == ACORN_ATOM)
+        mTapeTiming = atomTiming;
+    else
+        invalid_argument("Unsupported target machine " + mTargetMachine);
+    if (mVerbose)
+        Utility::logTapeTiming(mTapeTiming);
+
+    mBaudRate = mTapeTiming.baudRate;
+    mBaseFrequency = mTapeTiming.baseFreq;
+    mPhase = mTapeTiming.phaseShift;
 }
 
-UEFCodec::UEFCodec(bool useOriginalTiming, bool verbose, bool mBbcMicro): mVerbose(verbose), mBbcMicro(mBbcMicro)
+UEFCodec::UEFCodec(bool useOriginalTiming, bool verbose, TargetMachine mTargetMachine):
+    mUseOriginalTiming(useOriginalTiming),mVerbose(verbose), mTargetMachine(mTargetMachine)
 {
-    mUseOriginalTiming = useOriginalTiming;
-    if (mBbcMicro)
-        mTarget = TargetMachine::BBC_MODEL_B;
+    if (mTargetMachine <= BBC_MASTER)
+        mTapeTiming = bbmTiming;
+    else if (mTargetMachine == ACORN_ATOM)
+        mTapeTiming = atomTiming;
+    else
+        invalid_argument("Unsupported target machine " + mTargetMachine);
+    if (mVerbose)
+        Utility::logTapeTiming(mTapeTiming);
+
+    mBaudRate = mTapeTiming.baudRate;
+    mBaseFrequency = mTapeTiming.baseFreq;
+    mPhase = mTapeTiming.phaseShift;
 }
 
 
 bool UEFCodec::setTapeTiming(TapeProperties tapeTiming)
 {
     mTapeTiming = tapeTiming;
+
+    mBaudRate = mTapeTiming.baudRate;
+    mBaseFrequency = mTapeTiming.baseFreq;
+    mPhase = mTapeTiming.phaseShift;
+
     return true;
 }
 
 bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
 {
     FileBlockIter file_block_iter = tapeFile.blocks.begin();
+    TargetMachine file_block_type = BBC_MODEL_B;
 
     int block_no = 0;
     int n_blocks = (int)tapeFile.blocks.size();
@@ -178,7 +200,7 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
         // --------------------------------------------------------------------------
 
 
-        int data_len = bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 4, true); // get data length
+        int data_len = Utility::bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 4, true); // get data length
 
         
 
@@ -196,7 +218,7 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
         Word header_CRC = 0;
 
         // Store header bytes
-        if (!encodeTapeHdr(*file_block_iter, block_no, n_blocks, header_data)) {
+        if (!Utility::encodeTapeHdr(file_block_type, *file_block_iter, block_no, n_blocks, header_data)) {
             cout << "Failed to encode header for block #" << block_no << "\n";
             return false;
         }
@@ -493,7 +515,7 @@ bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
 
     // Write target
     if (!writeTargetChunk(fout)) {
-        printf("Failed to write target chunk with target %s\n", _TARGET_MACHINE(mTarget));
+        printf("Failed to write target chunk with target %s\n", _TARGET_MACHINE(mTargetMachine));
     }
 
 
@@ -519,13 +541,17 @@ bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
         printf("Failed to write %f s gap\n", first_block_gap);
     }
 
-    if (mBbcMicro) {
+    if (mTargetMachine <= BBC_MASTER) {
         encodeBBM(tapeFile, fout);
         tapeFileName = tapeFile.blocks[0].atomHdr.name;
-    } 
-    else {
+    }
+    else if (mTargetMachine <= ACORN_ATOM) {
         encodeAtom(tapeFile, fout);
         tapeFileName = tapeFile.blocks[0].atomHdr.name;
+    }
+    else {
+        cout << "Unknown target machine " << hex << mTargetMachine << "\n";
+        return false;
     }
 
     fout.close();
@@ -547,7 +573,7 @@ bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
      */
 bool UEFCodec::inspect(string& uefFileName)
 {
-    TapeFile tape_file(FileType::NoFile);
+    TapeFile tape_file(TargetMachine::UNKNOWN_TARGET);
 
     mInspect = true;
 
@@ -598,7 +624,7 @@ bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
     filesystem::path fin_p = uefFileName;
     string file_name = fin_p.stem().string();
 
-    if (mTarget != TargetMachine::UNKNOWN) {
+    if (mTargetMachine != TargetMachine::UNKNOWN_TARGET) {
 
         if (mVerbose)
             cout << "Initial block reading state is " << _BLOCK_STATE(mBlockState) << "...\n";
@@ -646,9 +672,9 @@ bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
             if (_TARGET_MACHINE(chunk.targetMachine) == "???") {
                 cout << "Invalid target machine " << (int)chunk.targetMachine << "\n";
             }
-            mTarget = (TargetMachine)chunk.targetMachine;
+            mTargetMachine = (TargetMachine)chunk.targetMachine;
             if (mVerbose)
-                cout << "Target machine chunk 0005 of size " << chunk_sz << " and specifying target " << _TARGET_MACHINE(mTarget) << ".\n";
+                cout << "Target machine chunk 0005 of size " << chunk_sz << " and specifying target " << _TARGET_MACHINE(mTargetMachine) << ".\n";
             break;
         }
 
@@ -769,9 +795,9 @@ bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
             CarrierChunkDummy tone_chunk;
             tone_chunk.chunkHdr = chunk_hdr;
             fin.read((char*)&tone_chunk.duration[0], sizeof(tone_chunk.duration));
-            int first_cycles = bytes2uint((Byte*)&tone_chunk.duration[0], 2, true);
+            int first_cycles = Utility::bytes2uint((Byte*)&tone_chunk.duration[0], 2, true);
             float first_duration = first_cycles / (2 * mBaseFrequency);
-            int following_cycles = bytes2uint((Byte*)&tone_chunk.duration[2], 2, true);
+            int following_cycles = Utility::bytes2uint((Byte*)&tone_chunk.duration[2], 2, true);
             float following_duration = following_cycles / (2 * mBaseFrequency);
 
             if (mVerbose)
@@ -923,7 +949,7 @@ bool UEFCodec::decodeFile(string uefFilename, Bytes &data, TapeFile& tapeFile, B
     }
 
     bool success;
-    if (mBbcMicro) {     
+    if (mTargetMachine <= BBC_MASTER) {     
         success = decodeBBMFile(data, tapeFile, data_iter);
         if (success)
             tapeFile.validFileName = tapeFile.blocks[0].blockName();
@@ -984,11 +1010,12 @@ bool UEFCodec::decode(string& uefFileName, TapeFile& tapeFile)
  */
 bool UEFCodec::decodeBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_iter)
 {
+    TargetMachine file_block_type = BBC_MODEL_B;
     int block_no = 0;
     bool is_last_block = false;
     bool is_first_block = true;
     string tape_file_name;
-    tapeFile.fileType = FileType::BBCMicroFile;
+    tapeFile.fileType = BBC_MODEL_B;
     tapeFile.blocks.clear();
     uint32_t adr_offset = 0;
 
@@ -1001,19 +1028,9 @@ bool UEFCodec::decodeBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
         // Read one block
         // 
 
-        FileBlock block(BBCMicroBlock);
+        FileBlock block(BBC_MODEL_B);
         Word hdr_CRC;
         BytesIter hdr_start = data_iter;
-
-        // Get timing data related to the block (recorded previously during reading of the UEF chunks)
-        block.blockGap = mBlockInfo[block_no].block_gap;
-        block.leadToneCycles = mBlockInfo[block_no].lead_tone_cycles;
-        block.trailerToneCycles = mBlockInfo[block_no].trailer_tone_cycles;
-        block.phaseShift = mBlockInfo[block_no].phase_shift;
-        block.tapeStartTime = mBlockInfo[block_no].start;
-        block.tapeEndTime = mBlockInfo[block_no].end;
-
-        
 
         // Skip dummy byte if it is the first block
         if (is_first_block) {
@@ -1026,6 +1043,11 @@ bool UEFCodec::decodeBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
             is_first_block = false;
         }
 
+        // Get timing data related to the block (recorded previously during reading of the UEF chunks)
+        if (block_no >= mBlockInfo.size() || !Utility::initTapeHdr(block, mBlockInfo[block_no])) {
+            cout << "Failed to initialise BBC Micro Tape Header for block #" << block_no << "\n";
+            return false;
+        }
         
         // Read preamble (1 x 0x2a)
         if (!check_bytes(data_iter, data, 1, hdr_CRC, 0x2a)) {
@@ -1036,7 +1058,8 @@ bool UEFCodec::decodeBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
         hdr_CRC = 0;
 
         // Read block name (up to 10 chars terminated by 0x0)
-        if (!read_block_name(data_iter, data, hdr_CRC, &block.bbmHdr.name[0])) {
+        
+        if (!Utility::readTapeFileName(mTargetMachine, data_iter, data, hdr_CRC, &block.bbmHdr.name[0])) {
             printf("Failed to read name bytes for block #%d.\n", block_no);
             return false;
         }
@@ -1052,18 +1075,18 @@ bool UEFCodec::decodeBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
         // Fill the Tape File Block with it
         // Extract header information and update BBM block with it
         uint32_t exec_adr, next_adr, load_adr, data_len;
-        if (!decodeBBMTapeHdr(hdr, block, load_adr, exec_adr, data_len, block_no, next_adr, is_last_block)) {
+        if (!Utility::decodeBBMTapeHdr(hdr, block, load_adr, exec_adr, data_len, block_no, next_adr, is_last_block)) {
             cout << "Failed to decode BBC Micro Tape Header!\n";
             return false;
         }
 
         if (mVerbose)
-            logTAPBlockHdr(block, adr_offset);
+            Utility::logTAPBlockHdr(block, adr_offset);
  
 
 
         if (DEBUG_LEVEL == DBG)
-            logData(0x0000, hdr_start, data_iter - hdr_start - 1);
+            Utility::logData(0x0000, hdr_start, data_iter - hdr_start - 1);
 
         // Read header CRC
         Word read_hdr_CRC;
@@ -1088,7 +1111,7 @@ bool UEFCodec::decodeBBMFile(Bytes &data, TapeFile &tapeFile, BytesIter &data_it
         }
         BytesIter bi = block.data.begin();
         if (DEBUG_LEVEL == DBG)
-            logData(load_adr, bi, block.data.size());
+            Utility::logData(load_adr, bi, block.data.size());
 
 
         // Read data CRC
@@ -1134,7 +1157,7 @@ bool UEFCodec::decodeAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_i
     BlockType block_type = BlockType::Unknown;
     string tape_file_name;
     int block_no = 0;
-    tapeFile.fileType = FileType::AtomFile;
+    tapeFile.fileType = ACORN_ATOM;
     tapeFile.blocks.clear();
 
     while (data_iter < data.end() && !(block_type & BlockType::Last)) {
@@ -1143,16 +1166,14 @@ bool UEFCodec::decodeAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_i
         // Read one block
         // 
 
-        FileBlock block(AtomBlock);
+        FileBlock block(ACORN_ATOM);
         Word CRC = 0;
         BytesIter hdr_start = data_iter;
 
-        block.blockGap = mBlockInfo[block_no].block_gap;
-        block.leadToneCycles = mBlockInfo[block_no].lead_tone_cycles;
-        block.microToneCycles = mBlockInfo[block_no].micro_tone_cycles;
-        block.phaseShift = mBlockInfo[block_no].phase_shift;
-        block.tapeStartTime = mBlockInfo[block_no].start;
-        block.tapeEndTime = mBlockInfo[block_no].end;
+        if (block_no >= mBlockInfo.size() || !Utility::initTapeHdr(block, mBlockInfo[block_no])) {
+            cout << "Failed to initialise Atom Tape Header for block #" << block_no << "\n";
+            return false;
+        }
 
         // Read preamble (4 x 0x2a)
         if (!check_bytes(data_iter, data, 4, CRC, 0x2a)) {
@@ -1162,7 +1183,7 @@ bool UEFCodec::decodeAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_i
 
 
         // Read block name (up to 13 chars terminated by 0xd)
-        if (!read_block_name(data_iter, data, CRC, &block.atomHdr.name[0])) {
+        if (!Utility::readTapeFileName(mTargetMachine, data_iter, data, CRC, &block.atomHdr.name[0])) {
             printf("Failed to read name bytes for block #%d.\n", block_no);
             return false;
         }
@@ -1176,15 +1197,15 @@ bool UEFCodec::decodeAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_i
         }
 
         int load_address, exec_adr, data_len;
-        if (!decodeAtomTapeHdr(hdr, block, load_address, exec_adr, data_len, block_no, block_type))
+        if (!Utility::decodeAtomTapeHdr(hdr, block, load_address, exec_adr, data_len, block_no, block_type))
             return false;
         
 
         if (mVerbose)
-            logAtomTapeHdr(hdr, block.atomHdr.name);
+            Utility::logAtomTapeHdr(hdr, block.atomHdr.name);
  
         if (DEBUG_LEVEL == DBG)
-            logData(0x0000, hdr_start, data_iter - hdr_start - 1);
+            Utility::logData(0x0000, hdr_start, data_iter - hdr_start - 1);
 
         // Read block data
         if (!read_bytes(data_iter, data, data_len, CRC, block.data)) {
@@ -1193,7 +1214,7 @@ bool UEFCodec::decodeAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_i
         }
         BytesIter bi = block.data.begin();
         if (DEBUG_LEVEL == DBG)
-            logData(load_address, bi, block.data.size());
+            Utility::logData(load_address, bi, block.data.size());
 
 
         // Read CRC
@@ -1235,7 +1256,7 @@ bool UEFCodec::inspectFile(Bytes data)
 {
     BytesIter data_iter = data.begin();
 
-    logData(0x0, data_iter, data.size());
+    Utility::logData(0x0, data_iter, data.size());
 
     return true;
 
@@ -1264,7 +1285,7 @@ bool UEFCodec::read_bytes(BytesIter& data_iter, Bytes& data, int n, Word & CRC, 
 
     for (i = 0; i < n && data_iter < data.end(); data_iter++) {
         block_data.push_back(*data_iter);
-        updateCRC(CRC, *data_iter);
+        Utility::updateCRC(mTargetMachine, CRC, *data_iter);
         i++;
     }
 
@@ -1282,7 +1303,7 @@ bool UEFCodec::read_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, B
 
     for (i = 0; i < n && data_iter < data.end(); data_iter++) {
         bytes[i] = *data_iter;
-        updateCRC(CRC, *data_iter);
+        Utility::updateCRC(mTargetMachine, CRC, *data_iter);
         i++;
     }
 
@@ -1303,7 +1324,7 @@ bool UEFCodec::check_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, 
             printf("UEF Byte %.2x was %x when expecting %2x.\n", i, *data_iter, refVal);
             return false;
         }
-        updateCRC(CRC, *data_iter);
+        Utility::updateCRC(mTargetMachine, CRC, *data_iter);
         i++;
     }
 
@@ -1315,13 +1336,6 @@ bool UEFCodec::check_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, 
     return true;
 }
 
-bool UEFCodec::read_block_name(BytesIter &data_iter, Bytes &data, Word& CRC, char *name)
-{
-    if (mBbcMicro)
-        return readBBMTapeFileName(data_iter, data, CRC, name);
-    else
-        return readAtomTapeFileName(data_iter, data, CRC, name);
-}
 
 bool UEFCodec::writeUEFHeader(ogzstream&fout, Byte majorVersion, Byte minorVersion)
 {
@@ -1352,11 +1366,11 @@ bool UEFCodec::writeUEFHeader(ogzstream&fout, Byte majorVersion, Byte minorVersi
  {
 
      TargetMachineChunk chunk;
-     chunk.targetMachine = mTarget;
+     chunk.targetMachine = mTargetMachine;
      fout.write((char*)&chunk, sizeof(chunk));
 
      if (mVerbose)
-         printf("Target machine chunk 0005 specifying a target %s written.\n", _TARGET_MACHINE(mTarget));
+         printf("Target machine chunk 0005 specifying a target %s written.\n", _TARGET_MACHINE(mTargetMachine));
 
      return true;
  }
@@ -1544,7 +1558,7 @@ bool UEFCodec::writeComplexDataChunk(ogzstream &fout, Byte bitsPerPacket, Byte p
     BytesIter data_iter = data.begin();
     for (int i = 0; i < block_size - 3; i++) {
         Byte b = *data_iter++;
-        updateCRC(CRC, b);
+        Utility::updateCRC(mTargetMachine, CRC, b);
         fout.write((char*)&b, sizeof(b));
     }
 
@@ -1566,7 +1580,7 @@ bool UEFCodec::writeSimpleDataChunk(ogzstream &fout, Bytes data, Word &CRC)
     BytesIter data_iter = data.begin();
     for (int i = 0; i < block_size; i++) {
         Byte b = *data_iter++;
-        updateCRC(CRC, b);
+        Utility::updateCRC(mTargetMachine, CRC, b);
         fout.write((char*)&b, sizeof(b));
     }
 
@@ -1780,10 +1794,10 @@ bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
 }
 bool UEFCodec::updateBlockState(CHUNK_TYPE chunkType, double duration)
 {
-    if (mTarget == TargetMachine::UNKNOWN)
+    if (mTargetMachine == TargetMachine::UNKNOWN_TARGET)
         return true;
 
-    if (mBbcMicro)
+    if (mTargetMachine <= BBC_MASTER)
         updateBBMBlockState(chunkType, duration);
     else
         updateAtomBlockState(chunkType, duration);

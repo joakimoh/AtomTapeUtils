@@ -18,12 +18,12 @@
 using namespace std;
 
 
-CSWCodec::CSWCodec(bool verbose, bool bbcMicro) : mVerbose(verbose), mBbcMicro(bbcMicro)
+CSWCodec::CSWCodec(bool verbose, TargetMachine targetMachine) : mVerbose(verbose), mTargetMachine(targetMachine)
 {
 
 }
 
-CSWCodec::CSWCodec(bool useOriginalTiming, bool verbose, bool bbcMicro): mVerbose(verbose), mBbcMicro(bbcMicro)
+CSWCodec::CSWCodec(bool useOriginalTiming, bool verbose, TargetMachine targetMachine): mVerbose(verbose), mTargetMachine(targetMachine)
 {
     mUseOriginalTiming = useOriginalTiming;
 }
@@ -40,7 +40,7 @@ bool CSWCodec::encode(TapeFile& tapeFile, string &filePath, int sampleFreq)
 {
 
     mFS = sampleFreq;
-    if (!setBitTiming(mTapeTiming.baudRate, mBbcMicro, mStartBitCycles,
+    if (!Utility::setBitTiming(mTapeTiming.baudRate, mTargetMachine, mStartBitCycles,
         mLowDataBitCycles, mHighDataBitCycles, mStopBitCycles)
         ) {
 

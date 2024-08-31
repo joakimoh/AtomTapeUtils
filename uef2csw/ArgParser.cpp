@@ -34,7 +34,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	}
 
 	srcFileName = argv[1];
-	dstFileName = crDefaultOutFileName(srcFileName, "csw");
+	dstFileName = Utility::crDefaultOutFileName(srcFileName, "csw");
 
 
 	int ac = 2;
@@ -43,7 +43,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	tapeTiming = atomTiming;
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {
-			bbcMicro = true;
+			targetMachine = BBC_MODEL_B;
 			tapeTiming = bbmTiming;
 		}
 		ac++;

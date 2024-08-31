@@ -44,7 +44,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {
-			bbcMicro = true;
+			targetMachine = BBC_MODEL_B;
 		}
 		else if (strcmp(argv[ac], "-g") == 0 && ac + 1 < argc) {
 			filesystem::path dir_path = argv[ac + 1];

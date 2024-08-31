@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include "../shared/TapeProperties.h"
+#include "BlockTypes.h"
 
 
 using namespace std;
@@ -19,7 +20,7 @@ public:
 	int mSampleFreq = 44100;
 
 	bool verbose = false;
-	bool bbcMicro = false;
+	TargetMachine targetMachine = ACORN_ATOM;
 	TapeProperties tapeTiming;
 
 private:

@@ -45,7 +45,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 
 	srcFileName = argv[1];
 
-	dstFileName = crDefaultOutFileName(srcFileName, "wav");
+	dstFileName = Utility::crDefaultOutFileName(srcFileName, "wav");
 
 	int ac = 2;
 	// First search for option '-bbm' to select target machine and the
@@ -53,7 +53,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	tapeTiming = atomTiming;
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {
-			bbcMicro = true;
+			targetMachine = BBC_MODEL_B;
 			tapeTiming = bbmTiming;
 		}
 		ac++;

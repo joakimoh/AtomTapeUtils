@@ -8,6 +8,7 @@
 #include <gzstream.h>
 #include "TAPCodec.h"
 #include "../shared/TapeProperties.h"
+#include "../shared/TapeProperties.h"
 
 
 using namespace std;
@@ -26,7 +27,7 @@ private:
 
 	bool mVerbose = false;
 
-	bool mBbcMicro = false;
+	TargetMachine mTargetMachine = ACORN_ATOM;
 
 	bool file_being_read = false;
 
@@ -160,10 +161,7 @@ private:
 	} OriginChunk;
 
 	// UEF Target machine chunk of type 0005
-	typedef enum TargetMachine {BBC_MODEL_A = 0, ELECTRON = 1, BBC_MODEL_B = 2, BBC_MASTER = 3, ATOM = 4, UNKNOWN = 0xff};
-#define _TARGET_MACHINE(x) (x==BBC_MODEL_A?"BBC_MODEL_A": \
-	(x==ELECTRON?"ELECTRON":(x==BBC_MODEL_B?"BBC_MODEL_B":(x==BBC_MASTER?"BBC_MASTER":(x==ATOM?"ATOM":"???")))))
-	typedef struct TargetMachineChunk_struct {
+		typedef struct TargetMachineChunk_struct {
 		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(TARGET_CHUNK), {1, 0, 0, 0} };
 		Byte targetMachine;
 	} TargetMachineChunk;
@@ -173,8 +171,6 @@ private:
 	float mBaseFrequency = 1200; // Default for an UEF file
 	unsigned mBaudRate = 1200; // Default for an UEF file
 	unsigned mPhase = 180; // Default for an UEF file
-
-	TargetMachine mTarget = ATOM;
 
 
 	// Methods to write header and different types of chunks
@@ -221,19 +217,11 @@ private:
 		)))\
 	)))))))
 
-	typedef struct BLOCK_INFO_struct {
-		int lead_tone_cycles;
-		int micro_tone_cycles;
-		int trailer_tone_cycles; // Only for BBC Micro
-		double block_gap;
-		int phase_shift = 180;
-		double start;
-		double end;
-	} BLOCK_INFO;
+	
 	BLOCK_STATE mBlockState = READING_GAP;
 	BLOCK_STATE mPrevBlockState = UNDEFINED_BLOCK_STATE;
-	vector<BLOCK_INFO> mBlockInfo;
-	BLOCK_INFO mCurrentBlockInfo;
+	vector<CapturedBlockTiming> mBlockInfo;
+	CapturedBlockTiming mCurrentBlockInfo;
 	float mCurrentTime = 0;
 	bool firstBlock = true;
 	bool updateBlockState(CHUNK_TYPE chunkType, double duration);
@@ -249,22 +237,18 @@ private:
 	bool read_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, Bytes& block_data);
 	bool read_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, Byte bytes[]);
 	bool check_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, Byte refVal);
-	bool read_block_name(BytesIter& data_iter, Bytes& data, Word& CRC, char *name);
 
 	// Methods to create Tape File from extracted data stream
 	bool decodeAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
 	bool decodeBBMFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
 
-	void updateCRC(Word& CRC, Byte byte);
-
-
 
 public:
 
 
-	UEFCodec(bool verbose, bool mBbcMicro);
+	UEFCodec(bool verbose, TargetMachine mTargetMachine);
 
-	UEFCodec(bool useOriginalTiming, bool verbose, bool mBbcMicro);
+	UEFCodec(bool useOriginalTiming, bool verbose, TargetMachine mTargetMachine);
 
 
 	static bool decodeFloat(Byte encoded_val[4], float& decoded_val);
@@ -289,7 +273,7 @@ public:
 	 */
 	bool inspect(string& uefFileName);
 
-	bool decodeMultipleFiles(string& fileName, vector<TapeFile>& tapeFiles, bool bbcMicro);
+	bool decodeMultipleFiles(string& fileName, vector<TapeFile>& tapeFiles, TargetMachine targetMachine);
 	
 	
 private:

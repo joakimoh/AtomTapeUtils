@@ -50,6 +50,15 @@ using namespace std;
 *	 whereas '1' is encoded as either 2 cycles of 2400 Hz (at 1200 Baud) or 8 cycles (at 300 Baud).
 * 
 */
+typedef struct CapturedBlockTiming_struct {
+	int lead_tone_cycles;
+	int micro_tone_cycles;
+	int trailer_tone_cycles; // Only for BBC Micro
+	double block_gap;
+	int phase_shift = 180;
+	double start;
+	double end;
+} CapturedBlockTiming;
 
 typedef struct BlockTiming_struct {
 	double firstBlockLeadToneDuration = 4; // lead tone duration of first block [s]

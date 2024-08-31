@@ -25,7 +25,7 @@ public:
 	/*
 	 * Decode DATA file as TAP File structure
 	 */
-	bool decode(string& tapFileName, TapeFile &tapFile, bool bbcMicro);
+	bool decode(string& tapFileName, TapeFile &tapFile, TargetMachine targetMachine);
 
 	bool data2Bytes(string& dataFileName, int& startAdress, Bytes& data);
 

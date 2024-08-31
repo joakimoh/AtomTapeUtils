@@ -38,14 +38,14 @@ private:
 
 	bool mVerbose = false;
 
-	bool mBbcMicro = false;
+	TargetMachine mTargetMachine = ACORN_ATOM;
 
 public:
 
 
-	WavEncoder(int sampleFreq, bool verbose, bool bbcMicro);
+	WavEncoder(int sampleFreq, bool verbose, TargetMachine targetMachine);
 
-	WavEncoder(bool useOriginalTiming, int sampleFreq, bool verbose, bool bbcMicro);
+	WavEncoder(bool useOriginalTiming, int sampleFreq, bool verbose, TargetMachine targetMachine);
 
 	bool setTapeTiming(TapeProperties tapeTiming);
 
@@ -70,8 +70,6 @@ public:
 private:
 
 	bool init();
-
-	void updateCRC(Word& CRC, Byte byte);
 	
 };
 

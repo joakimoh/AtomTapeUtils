@@ -31,7 +31,7 @@ int main(int argc, const char* argv[])
         return -1;
  
 
-    UEFCodec UEF_codec = UEFCodec(true, false);
+    UEFCodec UEF_codec = UEFCodec(true, UNKNOWN_TARGET);
     if (!UEF_codec.inspect(arg_parser.srcFileName)) {
         cout << "Failed to decode UEF file '" << arg_parser.srcFileName << "'\n";
     }

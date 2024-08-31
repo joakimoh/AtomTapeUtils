@@ -3,6 +3,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include "../shared/BlockTypes.h"
 
 
 using namespace std;
@@ -15,7 +16,7 @@ public:
 	string dstDir;
 	string srcFileName;
 	bool verbose = false;
-	bool bbcMicro = false;
+	TargetMachine targetMachine = ACORN_ATOM;
 
 private:
 

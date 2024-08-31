@@ -38,7 +38,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		return;
 	}
 	srcFileName = argv[1];
-	dstFileName = crDefaultOutFileName(srcFileName, ""); // no file extension !!!
+	dstFileName = Utility::crDefaultOutFileName(srcFileName, ""); // no file extension !!!
 
 	// Now lock for remaining options
 	int ac = 2;

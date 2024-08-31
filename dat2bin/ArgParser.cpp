@@ -39,14 +39,14 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		return;
 	}
 	srcFileName = argv[1];
-	dstFileName = crDefaultOutFileName(srcFileName, "bin");
+	dstFileName = Utility::crDefaultOutFileName(srcFileName, "bin");
 
 	int ac = 2;
 	// First search for option '-bbm' to select target machine and the
 	// related  properties
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {
-			bbcMicro = true;
+			targetMachine = BBC_MODEL_B;
 		}
 		ac++;
 	}
