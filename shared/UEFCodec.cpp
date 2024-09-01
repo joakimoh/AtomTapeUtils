@@ -154,13 +154,13 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
     int block_no = 0;
     int n_blocks = (int)tapeFile.blocks.size();
 
-    // Default values for block timing (if mUseOriginalTiming is true the recored block timing will instead by used later on)
-    float first_block_lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;// lead tone duration of first block 
+    // Default values for block timing (if mUseOriginalTiming is true the recorded block timing will instead by used later on)
+    int prelude_lead_tone_cycles = mTapeTiming.nomBlockTiming.firstBlockPreludeLeadToneCycles;
+    float lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration; // let first block have a longer lead tone
     float other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;// lead tone duration of all other blocks (2 s expected here but Atomulator needs 4 s)
     float last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
     float trailer_tone_duration = mTapeTiming.nomBlockTiming.trailerToneDuration;
-    float lead_tone_duration = first_block_lead_tone_duration; // let first block have a longer lead tone
-
+ 
     //
     // Write data-dependent part of UEF file
     //
@@ -172,11 +172,17 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
     while (file_block_iter < tapeFile.blocks.end()) {
 
         // Write a lead tone for the block - including a dummy byte if it is the first block
-        if (mUseOriginalTiming && tapeFile.validTiming)
+        if (mUseOriginalTiming && tapeFile.validTiming) {
+            prelude_lead_tone_cycles = file_block_iter->preludeToneCycles;
             lead_tone_duration = (file_block_iter->leadToneCycles) / (2 * mBaseFrequency);
+        }
+
         if (firstBlock) {
-            if (!writeCarrierChunkwithDummyByte(fout, 4, file_block_iter->leadToneCycles)) {
-                printf("Failed to write %f Hz lead tone (with dummy bye 0xaa) of duration %f s\n", mBaseFrequency, lead_tone_duration);
+            double prelude_lead_tone_duration = prelude_lead_tone_cycles * (2 * mBaseFrequency);
+            double postlude_lead_tone_cycles = lead_tone_duration / (2 * mBaseFrequency);
+            if (!writeCarrierChunkwithDummyByte(fout, prelude_lead_tone_cycles, postlude_lead_tone_cycles)) {
+                cout << "Failed to write " << prelude_lead_tone_cycles <<
+                    " cycles prelude tone and dummy byte 0xaa followed by " << lead_tone_duration << " s postlude tone\n";
             }
         }
         else {
@@ -583,6 +589,7 @@ bool UEFCodec::inspect(string& uefFileName)
 void UEFCodec::resetCurrentBlockInfo()
 {
     mCurrentBlockInfo.block_gap = -1;
+    mCurrentBlockInfo.prelude_lead_tone_cycles = -1;
     mCurrentBlockInfo.lead_tone_cycles = -1;
     mCurrentBlockInfo.micro_tone_cycles = -1;
     mCurrentBlockInfo.trailer_tone_cycles = -1;
@@ -693,7 +700,7 @@ bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
             }
             if (mVerbose)
                 cout << "Format change chunk 0116 of size " << chunk_sz << " and specifying a gap of " << gap << " s.\n";
-            if (!updateBlockState(CHUNK_TYPE::GAP_CHUNK, gap)) {
+            if (!updateBlockState(CHUNK_TYPE::GAP_CHUNK, gap, 0)) {
                 cout << "Unexpected Format change chunk 0116!\n";
                 return false;
             }
@@ -760,7 +767,7 @@ bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
             double gap_duration = double(gap_chunk.gap[0] + (gap_chunk.gap[1] << 8)) / (mBaudRate * 2);
             if (mVerbose)
                 cout << "Baudwise gap chunk 0112 of size " << chunk_sz << " and specifying a duration of " << gap_duration << " s.\n";
-            if (!updateBlockState(CHUNK_TYPE::GAP_CHUNK, gap_duration)) {
+            if (!updateBlockState(CHUNK_TYPE::GAP_CHUNK, gap_duration, 0)) {
                 cout << "Unexpected Format change chunk 0116!\n";
                 return false;
             }
@@ -779,7 +786,7 @@ bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
             double tone_duration = double(tone_chunk.duration[0] + (tone_chunk.duration[1] << 8)) / (mBaseFrequency * 2);
             if (mVerbose)
                 cout << "High tone chunk 0110 of size " << chunk_sz << " and specifying a duration of " << tone_duration << " s.\n";
-            if (!updateBlockState(CHUNK_TYPE::CARRIER_CHUNK, tone_duration)) {
+            if (!updateBlockState(CHUNK_TYPE::CARRIER_CHUNK, tone_duration, 0)) {
                 cout << "Unexpected high tone chunk!\n";
                 return false;
             }
@@ -803,7 +810,7 @@ bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
             if (mVerbose)
                 cout << "Carrier chunk with dummy byte 0111 of size " << chunk_sz << " and specifying " << first_cycles <<
                 " cycles of carrier followed by a dummy byte 0xaa, and ending with " << following_duration << "s of carrier.\n";
-            if (!updateBlockState(CHUNK_TYPE::CARRIER_DUMMY_CHUNK, first_duration + following_duration)) {
+            if (!updateBlockState(CHUNK_TYPE::CARRIER_DUMMY_CHUNK, following_duration, first_cycles)) {
                 cout << "Unexpected high tone chunk!\n";
                 return false;
             }
@@ -872,7 +879,7 @@ bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
                 fin.read((char*)&byte, 1);
                 data.push_back(byte);
             }
-            if (!updateBlockState(CHUNK_TYPE::DATA_CHUNK, chunk_sz * 10 * 4 / mBaseFrequency)) {
+            if (!updateBlockState(CHUNK_TYPE::DATA_CHUNK, chunk_sz * 10 * 4 / mBaseFrequency, 0)) {
                 cout << "Unepxected Data block chunk 0100\n";
                 return false;
             }
@@ -897,7 +904,7 @@ bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
                 fin.read((char*)&byte, 1);
                 data.push_back(byte);
             }
-            if (!updateBlockState(CHUNK_TYPE::DATA_CHUNK, chunk_sz * 10 * 4 / mBaseFrequency)) {
+            if (!updateBlockState(CHUNK_TYPE::DATA_CHUNK, chunk_sz * 10 * 4 / mBaseFrequency, 0)) {
                 cout << "Unepxected Data block chunk 0100\n";
                 return false;
             }
@@ -916,11 +923,20 @@ bool UEFCodec::getUEFdata(string& uefFileName, Bytes &data)
     }
 
     // If the final block is not followed by a gap, then
-    // it was not added to the block list. Then add it now
-    // and record a zero-length block gap.
+    // the block needs still to have a gap (0) and  it
+    // need to be added to the list of blocks properly.
     if (!mInspect && mBlockState != BLOCK_STATE::READING_GAP) {
-        mCurrentBlockInfo.block_gap = 0;
-        pushCurrentBlock();
+        if (mTargetMachine <= BBC_MASTER) {
+            int trailer_tone_cycles = mCurrentBlockInfo.lead_tone_cycles;
+            pullCurrentBlock();
+            mCurrentBlockInfo.trailer_tone_cycles = trailer_tone_cycles;
+            mCurrentBlockInfo.block_gap = 0;
+            pushCurrentBlock();
+        }
+        else {
+            mCurrentBlockInfo.block_gap = 0;
+            pushCurrentBlock();
+        }
     }
 
     fin.close();
@@ -1699,7 +1715,7 @@ bool UEFCodec::updateAtomBlockState(CHUNK_TYPE chunkType, double duration)
  *  (<carrier> <data 0xaa> <carrier> | <carrier with dummy byte>) <data> {<carrier> <data>} <carrier> <gap>
  *
 */
-bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
+bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration, int preludeCycles)
 {
     switch (chunkType) {
     case CHUNK_TYPE::GAP_CHUNK: // Gap between complete tape files
@@ -1731,6 +1747,7 @@ bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
             ) {
             mBlockState = BLOCK_STATE::READING_CARRIER_PRELUDE;
             mCurrentBlockInfo.start = mCurrentTime;
+            mCurrentBlockInfo.prelude_lead_tone_cycles = duration * mBaseFrequency * 2;
             firstBlock = true;
         } else if (mBlockState == BLOCK_STATE::READING_HDR_DATA) { // A tone signals start of next block (except for last block) 
             if (!firstBlock) {
@@ -1740,7 +1757,7 @@ bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
             mBlockState = BLOCK_STATE::READING_CARRIER_PRELUDE;     
         } else if (mBlockState == BLOCK_STATE::READING_DUMMY_BYTE) { // A tone follows after a dummy byte for the first block
             mBlockState = BLOCK_STATE::READING_CARRIER_POSTLUDE;
-            mCurrentBlockInfo.lead_tone_cycles += duration * mBaseFrequency * 2;
+            mCurrentBlockInfo.lead_tone_cycles = duration * mBaseFrequency * 2;
         }
         else
             return false;
@@ -1754,6 +1771,7 @@ bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
             ) {
              mBlockState = BLOCK_STATE::READING_CARRIER_WITH_DUMMY;
             mCurrentBlockInfo.start = mCurrentTime;
+            mCurrentBlockInfo.prelude_lead_tone_cycles = preludeCycles;
             mCurrentBlockInfo.lead_tone_cycles = duration * mBaseFrequency * 2;
             firstBlock = false;
         }
@@ -1792,13 +1810,13 @@ bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration)
 
     }
 }
-bool UEFCodec::updateBlockState(CHUNK_TYPE chunkType, double duration)
+bool UEFCodec::updateBlockState(CHUNK_TYPE chunkType, double duration, int preludeCycles)
 {
     if (mTargetMachine == TargetMachine::UNKNOWN_TARGET)
         return true;
 
     if (mTargetMachine <= BBC_MASTER)
-        updateBBMBlockState(chunkType, duration);
+        updateBBMBlockState(chunkType, duration, preludeCycles);
     else
         updateAtomBlockState(chunkType, duration);
 

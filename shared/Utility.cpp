@@ -149,8 +149,10 @@ void Utility::logTAPBlockHdr(ostream* fout, FileBlock& block, uint32_t adr_offse
             hex << setfill('0') << setw(4) << block_sz << " " <<
             hex << setfill('0') << setw(2) << hex << (int)flag << setfill(' ');
         if (block.leadToneCycles != -1 || block.trailerToneCycles != -1 || block.blockGap != -1) {
-            *fout << Utility::roundedPD(" LEAD TONE ", (double)block.leadToneCycles / F2_FREQ, ": ") <<
-                Utility::roundedPD(" TRAILER TONE ", (double)block.trailerToneCycles / F2_FREQ, ": ") <<
+            *fout << 
+                " PRELUDE LEAD " << setw(5) << (block.preludeToneCycles>0?to_string(block.preludeToneCycles):"-") << " cycles: " <<
+                Utility::roundedPD(" (POSTLUDE) LEAD ", (double)block.leadToneCycles / F2_FREQ, ": ") <<
+                Utility::roundedPD(" TRAILER ", (double)block.trailerToneCycles / F2_FREQ, ": ") <<
                 Utility::roundedPD("GAP ", block.blockGap, "");
         }
          *fout <<   "\n";
@@ -787,7 +789,7 @@ bool Utility::decodeBBMTapeHdr(BBMTapeBlockHdr& hdr, FileBlock& block,
     uint32_t&loadAdr, uint32_t&execAdr, uint32_t &blockLen, int &blockNo, uint32_t &nextAdr, bool &isLastBlock
 )
 {
-    // Extract heaader information and update BBM block with it
+    // Extract header information and update BBM block with it
     loadAdr = Utility::bytes2uint(&hdr.loadAdr[0], 4, true);
     execAdr = Utility::bytes2uint(&hdr.execAdr[0], 4, true);
     blockLen = Utility::bytes2uint(&hdr.blockLen[0], 2, true);
@@ -891,9 +893,10 @@ bool Utility::encodeAtomTapeHdr(FileBlock& block, int block_no, int n_blocks, By
 bool Utility::initTapeHdr(FileBlock& block, CapturedBlockTiming &block_info)
 {
     block.blockGap = block_info.block_gap;
+    block.preludeToneCycles = block_info.prelude_lead_tone_cycles;
     block.leadToneCycles = block_info.lead_tone_cycles;
     block.microToneCycles = block_info.micro_tone_cycles;
-    block.trailerToneCycles = block_info.micro_tone_cycles;
+    block.trailerToneCycles = block_info.trailer_tone_cycles;
     block.phaseShift = block_info.phase_shift;
     block.tapeStartTime = block_info.start;
     block.tapeEndTime = block_info.end;
@@ -904,12 +907,32 @@ bool Utility::initTapeHdr(FileBlock& block, CapturedBlockTiming &block_info)
 bool Utility::initTapeHdr(FileBlock& block)
 {
     block.blockGap = -1;
+    block.preludeToneCycles = -1;
     block.leadToneCycles = -1;
     block.microToneCycles = -1;
     block.trailerToneCycles = -1;
     block.phaseShift = 180;
     block.tapeStartTime = -1;
     block.tapeEndTime = -1;
+
+    if (block.blockType <= BBC_MASTER) {
+        initbytes(&block.bbmHdr.loadAdr[0], 0xff, 4);
+        initbytes(&block.bbmHdr.execAdr[0], 0xff, 4);
+        initbytes(&block.bbmHdr.blockNo[0], 0xff, 2);
+        initbytes(&block.bbmHdr.blockLen[0], 0xff, 2);
+        block.bbmHdr.locked = false;
+        block.bbmHdr.name[0] = 0xff;
+        block.bbmHdr.blockFlag = 0x00;
+    }
+    else if (block.blockType == ACORN_ATOM) {
+        block.atomHdr.execAdrHigh = 0xff;
+        block.atomHdr.execAdrLow = 0xff;
+        block.atomHdr.lenHigh = 0xff;
+        block.atomHdr.lenLow = 0xff;
+        block.atomHdr.loadAdrHigh = 0xff;
+        block.atomHdr.loadAdrLow = 0xff;
+        block.atomHdr.name[0] = 0xff;
+    }
 
     return true;
 }

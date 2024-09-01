@@ -59,6 +59,7 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
 
 
 
+    double min_prelude_lead_tone_duration = mArgParser.tapeTiming.minBlockTiming.firstBlockPreludeLeadToneCycles;
     double min_lead_tone_duration = mArgParser.tapeTiming.minBlockTiming.firstBlockLeadToneDuration;
     double min_trailer_tone_duration = mArgParser.tapeTiming.minBlockTiming.trailerToneDuration;
 
@@ -78,7 +79,7 @@ bool BBMFileDecoder::readFile(ofstream& logFile, TapeFile &tapeFile)
         mBlockDecoder.checkpoint();
         bool lead_tone_detected;
         bool success = mBlockDecoder.readBlock(
-            min_lead_tone_duration, min_trailer_tone_duration, read_block, first_block, is_last_block, block_no,
+            min_prelude_lead_tone_duration, min_lead_tone_duration, min_trailer_tone_duration, read_block, first_block, is_last_block, block_no,
             lead_tone_detected
         );
 

@@ -51,8 +51,9 @@ using namespace std;
 * 
 */
 typedef struct CapturedBlockTiming_struct {
+	int prelude_lead_tone_cycles; // Only for BBC Micro
 	int lead_tone_cycles;
-	int micro_tone_cycles;
+	int micro_tone_cycles;// Only for Acorn Atom
 	int trailer_tone_cycles; // Only for BBC Micro
 	double block_gap;
 	int phase_shift = 180;
@@ -61,10 +62,11 @@ typedef struct CapturedBlockTiming_struct {
 } CapturedBlockTiming;
 
 typedef struct BlockTiming_struct {
-	double firstBlockLeadToneDuration = 4; // lead tone duration of first block [s]
+	int firstBlockPreludeLeadToneCycles = 4; // prelude lead tone duration of first block [cycles] - BBC Micro only; this is the duration of the tone preceeding the dummy byte
+	double firstBlockLeadToneDuration = 4; // lead tone duration of first block [s] - BBC Micro only; this is the duration [s] of the tone following upon the dummy byte
 	double otherBlockLeadToneDuration = 2; // lead tone duration of all other blocks [s]
-	double microLeadToneDuration = 0.5; //  micro lead tone (separating block header and block data For Atom block) [s]
-	double trailerToneDuration = 0.83; //  trailer tone (after last BCC Micro tape block only) [s]
+	double microLeadToneDuration = 0.5; //  micro lead tone - Atom only; separates block header and block data  [s]
+	double trailerToneDuration = 0.83; //  trailer tone;- BBC Micro only; after last tape block only [s]
 	float firstBlockGap = 0.0; // Gap before the first block [s] - could be as low as zero in theory
 	float blockGap = 2; // Gap between each block [s]
 	float lastBlockGap = 2; // Gap after the last block [s]
@@ -81,15 +83,15 @@ typedef struct TapeProperties_struct  {
 
 const TapeProperties atomTiming {
 	1201, 180, 300,
-	{ 0.85,		0.85,	0.0,	0.0,	0.0,		0.0,	0.0 },
-	{ 4.0,		2.0,	0.5,	0.83,	0.0,		2.0,	2.0 },
+	{ 0,	0.85,		0.85,	0.0,	0.0,	0.0,		0.0,	0.0 },
+	{ 0,	4.0,		2.0,	0.5,	0.83,	0.0,		2.0,	2.0 },
 	false
 };
 
 const TapeProperties bbmTiming{
 	1201, 180, 1200,
-	{ 0.5,		0.2,	0.0,	0.5,	0.0,		0.0,	0.0 },
-	{ 5.1,		0.9,	0.0,	5.3,	0.0,		0.0,	1.8 },
+	{ 4,		0.5,		0.2,	0.0,	0.5,	0.0,		0.0,	0.0 },
+	{ 4,		5.1,		0.9,	0.0,	5.3,	0.0,		0.0,	1.8 },
 	false
 };
 

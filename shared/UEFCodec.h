@@ -224,9 +224,9 @@ private:
 	CapturedBlockTiming mCurrentBlockInfo;
 	float mCurrentTime = 0;
 	bool firstBlock = true;
-	bool updateBlockState(CHUNK_TYPE chunkType, double duration);
+	bool updateBlockState(CHUNK_TYPE chunkType, double duration, int preludeCycles);
 	bool UEFCodec::updateAtomBlockState(CHUNK_TYPE chunkType, double duration);
-	bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration);
+	bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration, int prelude_cycles);
 
 
 

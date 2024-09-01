@@ -52,13 +52,8 @@ bool AtomBlockDecoder::readBlock(
 	leadToneDetected = false;
 
 	// Invalidate block data in case readBlock returns with only partilly filled out block
-	readBlock.atomHdr.execAdrHigh = 0xff;
-	readBlock.atomHdr.execAdrLow = 0xff;
-	readBlock.atomHdr.lenHigh = 0xff;
-	readBlock.atomHdr.lenLow = 0xff;
-	readBlock.atomHdr.loadAdrHigh = 0xff;
-	readBlock.atomHdr.loadAdrLow = 0xff;
-	readBlock.atomHdr.name[0] = 0xff;
+	Utility::initTapeHdr(readBlock);
+
 
 	// Wait for lead tone of a min duration but still 'consume' the complete tone
 	double duration, dummy;

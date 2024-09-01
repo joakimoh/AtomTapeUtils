@@ -41,7 +41,8 @@ public:
 
 	// Detailed block timing - used for UEF/CSW file generation later on
 	int phaseShift = 180; // half_cycle [degrees] when shifting from high to low frequency - normally 180 degrees
-	int leadToneCycles = 9600; // no of high frequency cycles for lead tone - normally 4 * 2400 = 10 080
+	int preludeToneCycles = 4; // no of high frequency cycles for prelude lead tone (BBC Micro only) - normally 4 
+	int leadToneCycles = 9600; // no of high frequency cycles for lead tone (including postlude for BBC Micro)- normally 4 * 2400 = 10 080
 	int microToneCycles = 1200; // no of high frequency cycles between block header and data part for Atom Block - normally 0.5 * 2400 = 1200
 	int trailerToneCycles = 1992; // no of high frequency cycles after last BBC Micro tape block - normally 0.83 * 2400 = 1992
 	double blockGap = 2.0; // gap after block (before the next block commence) - normally 2 s (Atom) or 3.3s (BBC Micro)

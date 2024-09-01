@@ -36,10 +36,10 @@ WavEncoder::WavEncoder(
     bool useOriginalTiming, int sampleFreq, bool verbose, TargetMachine targetMachine
 ): mUseOriginalTiming(useOriginalTiming), mFS(sampleFreq), mVerbose(verbose), mTargetMachine(targetMachine)
 {
-    if (!targetMachine)
-        mTapeTiming = atomTiming;
-    else
+    if (targetMachine <= BBC_MASTER)
         mTapeTiming = bbmTiming;
+    else
+        mTapeTiming = atomTiming;
     if (!init()) {
         cout << "Failed to initialise the WavEncoder\n";
     };
@@ -68,8 +68,8 @@ bool WavEncoder::setTapeTiming(TapeProperties tapeTiming)
 
 bool WavEncoder::encode(TapeFile& tapeFile, string& filePath)
 {
-    if (tapeFile.fileType == ACORN_ATOM)
-        return encodeAtom(tapeFile, filePath);
+    if (tapeFile.fileType <= BBC_MASTER)
+         return encodeBBM(tapeFile, filePath);
     else
         return encodeBBM(tapeFile, filePath);
 }
@@ -82,6 +82,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
 {
     TargetMachine file_block_type = BBC_MODEL_B;
 
+    int prelude_lead_tone_cycles = mTapeTiming.nomBlockTiming.firstBlockPreludeLeadToneCycles;
     double lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;
     double other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;
     double trailer_tone_duration = mTapeTiming.nomBlockTiming.trailerToneDuration;
@@ -118,13 +119,15 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
 
         
         if (mUseOriginalTiming) {
+            prelude_lead_tone_cycles = block_iter->preludeToneCycles;
             lead_tone_duration = (block_iter->leadToneCycles) / high_tone_freq;
             mPhase = block_iter->phaseShift;
         }
 
         // Write a lead tone (including a dummy byte for the first lock)
         if (block_no == 0) {
-            if (!writeTone(4 / high_tone_freq)) { // 4 initial cycles
+            double prelude_lead_tone_duration = prelude_lead_tone_cycles / high_tone_freq;
+            if (!writeTone(prelude_lead_tone_duration)) { // Normally 4 initial cycles
                 printf("Failed to write lead tone of duration %f s\n", lead_tone_duration);
             }
             writeByte(0xaa); // dummy byte
@@ -133,8 +136,12 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
             printf("Failed to write lead tone of duration %f s\n", lead_tone_duration);
         }
 
-        if (mVerbose)
-            cout << "BLOCK " << block_no << ": LEAD TONE " << lead_tone_duration << " s : ";
+        if (mVerbose) {
+            if (block_no > 0)
+                cout << "BLOCK " << block_no << ": LEAD TONE " << lead_tone_duration << " s : ";
+            else
+                cout << "BLOCK 0: PRELUDE " << prelude_lead_tone_cycles << " cycles : DUMMY BYTE : POSTLUDE " << lead_tone_duration << " s : ";
+        }
 
         // Change lead tone duration for remaining blocks
         lead_tone_duration = other_block_lead_tone_duration;
@@ -234,9 +241,12 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
         // Write trailer tone and a gap if it is the last block
         if (block_no == n_blocks - 1) {
 
+            if (mUseOriginalTiming)
+                trailer_tone_duration = (block_iter->trailerToneCycles) / high_tone_freq;
+
             // Write trailer tone
             if (!writeTone(trailer_tone_duration)) {
-                printf("Failed to write lead tone of duration %f s\n", lead_tone_duration);
+                printf("Failed to write lead tone of duration %f s\n", trailer_tone_duration);
                 return false;
             }
 

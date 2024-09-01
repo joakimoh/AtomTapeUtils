@@ -52,7 +52,7 @@ BBMBlockDecoder::BBMBlockDecoder(
  * 
  */
 bool BBMBlockDecoder::readBlock(
-	double leadToneDuration, double trailerToneDuration, FileBlock& readBlock, bool firstBlock,
+	int preludeLadToneCycles, double leadToneDuration, double trailerToneDuration, FileBlock& readBlock, bool firstBlock,
 	bool &isLastBlock, int& blockNo, bool& leadToneDetected
 )
 {
@@ -71,17 +71,7 @@ bool BBMBlockDecoder::readBlock(
 	leadToneDetected = false;
 
 	// Invalidate block data in case readBlock returns with only partilly filled out block
-	Utility::initbytes(&readBlock.bbmHdr.loadAdr[0], 0xff, 4);
-	Utility::initbytes(&readBlock.bbmHdr.execAdr[0], 0xff, 4);
-	Utility::initbytes(&readBlock.bbmHdr.blockNo[0], 0xff, 2);
-	Utility::initbytes(&readBlock.bbmHdr.blockLen[0], 0xff, 2);
-	readBlock.bbmHdr.locked = false;
-	readBlock.bbmHdr.name[0] = 0xff;
-	readBlock.leadToneCycles = -1;
-	readBlock.blockGap = -1;
-	readBlock.trailerToneCycles = -1;
-	readBlock.tapeStartTime = -1;
-	readBlock.tapeEndTime = -1;
+	Utility::initTapeHdr(readBlock);
 
 
 	// Wait for lead tone of a min duration but still 'consume' the complete tone
@@ -91,8 +81,8 @@ bool BBMBlockDecoder::readBlock(
 
 	if (firstBlock) {
 
-		double prelude_tone_duration = 4 / F2_FREQ;
-		if (!mCycleDecoder.waitForTone(prelude_tone_duration, duration, waiting_time, readBlock.leadToneCycles, mLastHalfCycleFrequency)) {
+		double prelude_tone_duration = (double) preludeLadToneCycles / F2_FREQ;
+		if (!mCycleDecoder.waitForTone(prelude_tone_duration, duration, waiting_time, readBlock.preludeToneCycles, mLastHalfCycleFrequency)) {
 			// This is not necessarily an error - it could be because the end of the tape as been reached...
 			return false;
 		}
@@ -230,9 +220,6 @@ bool BBMBlockDecoder::readBlock(
 	if (mVerbose)
 		cout << "A correct data CRC 0x" << hex << data_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
 
-
-	if (mVerbose)
-		cout << "A correct data CRC 0x" << hex << data_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
 
 	// Skip trailer tone that only exists for the last block of a file
 	if (isLastBlock) {

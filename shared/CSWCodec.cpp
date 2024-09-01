@@ -20,12 +20,19 @@ using namespace std;
 
 CSWCodec::CSWCodec(bool verbose, TargetMachine targetMachine) : mVerbose(verbose), mTargetMachine(targetMachine)
 {
-
+    if (targetMachine <= BBC_MASTER)
+        mTapeTiming = bbmTiming;
+    else
+        mTapeTiming = atomTiming;
 }
 
 CSWCodec::CSWCodec(bool useOriginalTiming, bool verbose, TargetMachine targetMachine): mVerbose(verbose), mTargetMachine(targetMachine)
 {
     mUseOriginalTiming = useOriginalTiming;
+    if (targetMachine <= BBC_MASTER)
+        mTapeTiming = bbmTiming;
+    else
+        mTapeTiming = atomTiming;
 }
 
 
@@ -35,11 +42,290 @@ bool CSWCodec::setTapeTiming(TapeProperties tapeTiming)
     return true;
 }
 
+bool CSWCodec::encode(TapeFile& tapeFile, string& filePath, int sampleFreq)
+{
+    if (tapeFile.fileType <= BBC_MASTER)
+        return encodeBBM(tapeFile, filePath, sampleFreq);
+    else
+        return encodeBBM(tapeFile, filePath, sampleFreq);
+}
 
-bool CSWCodec::encode(TapeFile& tapeFile, string &filePath, int sampleFreq)
+bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
+{
+    TargetMachine file_block_type = BBC_MODEL_B;
+
+    mFS = sampleFreq;
+
+    if (!Utility::setBitTiming(mTapeTiming.baudRate, mTargetMachine, mStartBitCycles,
+        mLowDataBitCycles, mHighDataBitCycles, mStopBitCycles)
+        ) {
+
+        throw invalid_argument("Unsupported baud rate " + mTapeTiming.baudRate);
+    }
+    mHighSamples = (double)mFS / F2_FREQ;
+    mLowSamples = (double)mFS / F1_FREQ;
+
+    int prelude_tone_cycles = mTapeTiming.nomBlockTiming.firstBlockPreludeLeadToneCycles;
+    double lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;
+    double other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;
+    double trailer_tone_duration = mTapeTiming.nomBlockTiming.trailerToneDuration;
+    double first_block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
+    double block_gap = mTapeTiming.nomBlockTiming.blockGap;
+    double last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
+
+
+    float high_tone_freq = mTapeTiming.baseFreq * 2;
+
+
+    if (tapeFile.blocks.empty())
+        return false;
+
+
+    if (mVerbose)
+        cout << "\nEncode program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
+
+
+    FileBlockIter file_block_iter = tapeFile.blocks.begin();
+
+
+
+
+    int block_no = 0;
+    int n_blocks = (int)tapeFile.blocks.size();
+
+    // Encode initial gap before first block
+    if (!writeGap(first_block_gap)) {
+        printf("Failed to encode a gap of %f s\n", block_gap);
+    }
+
+    if (mVerbose)
+        cout << first_block_gap << " s GAP\n";
+
+
+    while (file_block_iter < tapeFile.blocks.end()) {
+
+        // Write a lead tone for the block
+        if (mUseOriginalTiming) {
+            prelude_tone_cycles = file_block_iter->preludeToneCycles;
+            lead_tone_duration = (file_block_iter->leadToneCycles) / high_tone_freq;
+            mPhase = file_block_iter->phaseShift;
+        }
+        if (block_no == 0) {
+            float prelude_lead_tone_duration = prelude_tone_cycles / high_tone_freq;
+            if (!writeTone(prelude_lead_tone_duration)) {            
+                printf("Failed to write prelude lead tone of duration %f s\n", prelude_lead_tone_duration);
+            }
+
+            if (!writeByte(0xaa)) {
+                cout << "Failed to write dummy byte 0xaa\n";
+            }
+        }
+        if (!writeTone(lead_tone_duration)) {
+            printf("Failed to write (postlude) lead tone of duration %f s\n", lead_tone_duration);
+        }
+
+        if (mVerbose) {
+            cout << dec;
+            if (block_no > 0)
+                cout << "BLOCK " << block_no << ": LEAD TONE " << lead_tone_duration << " s : ";
+            else
+                cout << "BLOCK 0: PRELUDE " << prelude_tone_cycles << " cycles : DUMMY BYTE : POSTLUDE " << lead_tone_duration << " s : ";
+        }
+
+        // Change lead tone duration for remaining blocks
+        lead_tone_duration = other_block_lead_tone_duration;
+
+
+        // Initialise header CRC
+
+        mCRC = 0;
+
+        // --------------------- start of block header  ------------------------
+        //
+        // Write block header including preamble
+        //
+        // <preamble:1> <block name:1-10> <load adr:4> <exec adr:4> <block no:2> <block len:2> <block flag:1> <next adr:4>
+        // 
+        // --------------------------------------------------------------------------
+
+        Bytes header_data;
+
+        // Store preamble
+        header_data.push_back(0x2a);
+
+
+        // Store header bytes
+        if (!Utility::encodeTapeHdr(file_block_type, *file_block_iter, block_no, n_blocks, header_data)) {
+            cout << "Failed to encode header bytes for block #" << block_no << "\n";
+            return false;
+        }
+
+
+        // Encode the header bytes
+        BytesIter hdr_iter = header_data.begin();
+        while (hdr_iter < header_data.end())
+            writeByte(*hdr_iter++);
+
+        //
+        // Write the header CRC
+        //
+
+        // Encode CRC byte
+        Word header_CRC = mCRC;
+        if (!writeByte(header_CRC / 256) || !writeByte(header_CRC % 256)) {
+            printf("Failed to encode header CRC!%s\n", "");
+            return false;
+        }
+
+
+        if (mVerbose)
+            cout << "HDR+CRC : ";
+
+
+        // Initialise data CRC
+        mCRC = 0;
+
+
+        // --------------------------------------------------------------------------
+        //
+        // ---------------- End of block header chunk -------------------------------
+
+
+        // --------------------- start of block data + CRC chunk ------------------------
+         //
+         // Write block data as one chunk
+         //
+         // --------------------------------------------------------------------------
+
+        // Write block data
+        BytesIter bi = file_block_iter->data.begin();
+        Bytes block_data;
+        while (bi < file_block_iter->data.end())
+            block_data.push_back(*bi++);
+
+        // Encode the block data bytes
+        BytesIter data_iter = block_data.begin();
+        while (data_iter < block_data.end())
+            writeByte(*data_iter++);
+
+
+        //
+        // Write the data CRC
+        //
+
+        Word data_CRC = mCRC;
+        if (!writeByte(data_CRC / 256) || !writeByte(data_CRC % 256)) {
+            printf("Failed to encode data CRC!%s\n", "");
+            return false;
+        }
+
+
+        if (mVerbose)
+            cout << "Data+CRC : ";
+
+
+
+        // --------------------------------------------------------------------------
+        //
+        // ---------------- End of block data chunk -------------------------------
+
+        // Write trailer tone and a gap if it is the last block
+        if (block_no == n_blocks - 1) {
+
+            if (mUseOriginalTiming)
+                trailer_tone_duration = (file_block_iter->trailerToneCycles) / high_tone_freq;
+
+            // Write trailer tone
+            if (!writeTone(trailer_tone_duration)) {
+                printf("Failed to write lead tone of duration %f s\n", trailer_tone_duration);
+                return false;
+            }
+
+            if (mVerbose)
+                cout << trailer_tone_duration << " s TRAILER TONE : ";
+
+            // Write the gap
+            double block_gap = last_block_gap;
+            if (mUseOriginalTiming)
+                block_gap = file_block_iter->blockGap;
+
+            if (!writeGap(block_gap)) {
+                printf("Failed to encode a gap of %f s\n", block_gap);
+                return false;
+            }
+
+            if (mVerbose)
+                cout << block_gap << " s GAP";
+
+        }
+
+        if (mVerbose)
+            cout << "\n";
+
+        file_block_iter++;
+
+
+        block_no++;
+
+    }
+
+    if (mVerbose)
+        cout << mPulses.size() << " pulses created from Tape File!\n";
+
+    if (mPulses.size() == 0) {
+        cout << "No pulses could be created from Tape File!\n";
+        return false;
+    }
+
+
+
+    // Write samples to CSW file
+    CSW2Hdr hdr;
+    ofstream fout(filePath, ios::out | ios::binary | ios::ate);
+
+    // Write CSW header
+    hdr.csw2.compType = 0x02; // (Z - RLE) - ZLIB compression of data stream
+    hdr.csw2.flags = 0; // Initial polarity (specified by bit b0) is LOW
+    hdr.csw2.hdrExtLen = 0;
+    hdr.csw2.sampleRate[0] = mFS & 0xff;
+    hdr.csw2.sampleRate[1] = (mFS >> 8) & 0xff;
+    hdr.csw2.sampleRate[2] = (mFS >> 16) & 0xff;
+    hdr.csw2.sampleRate[3] = (mFS >> 24) & 0xff;
+    int n_pulses = mPulses.size();
+    hdr.csw2.totNoPulses[0] = n_pulses & 0xff;
+    hdr.csw2.totNoPulses[1] = (n_pulses >> 8) & 0xff;
+    hdr.csw2.totNoPulses[2] = (n_pulses >> 16) & 0xff;
+    hdr.csw2.totNoPulses[3] = (n_pulses >> 24) & 0xff;
+    fout.write((char*)&hdr, sizeof(hdr));
+
+
+    // Write compressed samples
+    if (!encodeBytes(mPulses, fout)) {
+        cout << "Failed to compress CSW pulses and write them to file '" << filePath << "'!\n";
+        fout.close();
+        return false;
+    }
+    // Add one dummy byte to the end as e.g. CSW viewer seems to read one byte extra (which it shouldn't!)
+    char dummy_bytes[] = "0";
+    fout.write((char*)&dummy_bytes[0], sizeof(dummy_bytes));
+
+    fout.close();
+
+    // Clear samples to secure that future encodings start without any initial samples
+    mPulses.clear();
+
+    if (mVerbose)
+        cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
+
+    return true;
+
+}
+
+bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath, int sampleFreq)
 {
 
     mFS = sampleFreq;
+
     if (!Utility::setBitTiming(mTapeTiming.baudRate, mTargetMachine, mStartBitCycles,
         mLowDataBitCycles, mHighDataBitCycles, mStopBitCycles)
         ) {
@@ -442,7 +728,7 @@ bool CSWCodec::writeByte(Byte byte)
     if (!writeStopBit())
         return false;
 
-    mCRC += byte;
+    Utility::updateCRC(mTargetMachine, mCRC, byte);
 
     return true;
 

@@ -98,6 +98,9 @@ private:
 	bool mVerbose = false;
 	TargetMachine mTargetMachine = ACORN_ATOM;
 
+	bool encodeAtom(TapeFile& tapeFile, string& filePath, int sampleFreq);
+	bool encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq);
+
 public:
 
 	// Default constructor
@@ -130,7 +133,7 @@ private:
 	// Pulses read or to write
 	Bytes mPulses;
 
-	Byte mCRC = 0;
+	Word mCRC = 0;
 	int mFS = 44100;
 	int mPhase = 180;
 
