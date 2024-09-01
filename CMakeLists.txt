@@ -30,6 +30,12 @@ include_directories(
 )
 
 add_executable ( 
+	abc2bin  "abc2bin/abc2bin.cpp"
+	"abc2bin/ArgParser.h"  "abc2bin/ArgParser.cpp"
+)
+target_link_libraries(abc2bin PUBLIC shared )
+
+add_executable ( 
 	tap2dat  "tap2dat/tap2dat.cpp"
 	"tap2dat/ArgParser.h"  "tap2dat/ArgParser.cpp"
 )
