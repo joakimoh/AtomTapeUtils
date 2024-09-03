@@ -45,7 +45,7 @@ public:
 
 
     // CRC calculation
-    static void Utility::updateCRC(TargetMachine block_type, Word& CRC, Byte data);
+    static void updateCRC(TargetMachine block_type, Word& CRC, Byte data);
 
 
     static string crDefaultOutFileName(string filePath);
@@ -103,13 +103,13 @@ private:
     static bool decodeATMBlockHdr(
         FileBlock block, int nReadChars,
         int& loadAdr, int& execAdr, int& blockSz,
-        static bool& isBasicProgram, string& fileName
+        bool& isBasicProgram, string& fileName
     );
 
     static bool decodeBTMBlockHdr(
         FileBlock block, int nReadChars,
         int& loadAdr, int& execAdr, int& blockSz,
-        static bool& isBasicProgram, string& fileName
+        bool& isBasicProgram, string& fileName
     );
 
     static bool readAtomTapeFileName(BytesIter& data_iter, Bytes& data, Word& CRC, char* name);

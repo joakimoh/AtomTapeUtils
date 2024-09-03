@@ -155,7 +155,7 @@ bool BlockDecoder::getDataBit(Bit& bit)
 	// Advance time corresponding to one bit and count the no of transitions (1/2 cycles)
 	if (!mCycleDecoder.countHalfCycles(mDataBitSamples, n_half_cycles, mLastHalfCycleFrequency)) {
 		if (mTracing)
-			DEBUG_PRINT(getTime(), ERR, "Unexpected end of samples when reading data bit\n");
+			DEBUG_PRINT(getTime(), ERR, "Unexpected end of samples when reading data bit\n", "");
 		return false; // unexpected end of samples
 	}
 

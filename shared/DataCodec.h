@@ -19,8 +19,8 @@ public:
 	 * Encode TAP File structure as DATA file
 	 */
 	bool encode(TapeFile &tapFile, string& filePath);
-	bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout);
-	bool DataCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& fout);
+	bool encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout);
+	bool encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& fout);
 	
 	/*
 	 * Decode DATA file as TAP File structure

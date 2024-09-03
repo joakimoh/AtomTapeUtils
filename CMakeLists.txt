@@ -89,7 +89,7 @@ add_executable (
 target_link_libraries(uef2wav PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
 
 add_executable (
-	inspectuef  "inspectUEF/inspectuef.cpp"
+	inspectuef  "inspectuef/inspectUEF.cpp"
 	"inspectuef/ArgParser.h"  "inspectuef/ArgParser.cpp"
 )
 target_link_libraries(inspectuef PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)

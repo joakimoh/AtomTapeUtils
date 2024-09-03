@@ -225,8 +225,8 @@ private:
 	float mCurrentTime = 0;
 	bool firstBlock = true;
 	bool updateBlockState(CHUNK_TYPE chunkType, double duration, int preludeCycles);
-	bool UEFCodec::updateAtomBlockState(CHUNK_TYPE chunkType, double duration);
-	bool UEFCodec::updateBBMBlockState(CHUNK_TYPE chunkType, double duration, int prelude_cycles);
+	bool updateAtomBlockState(CHUNK_TYPE chunkType, double duration);
+	bool updateBBMBlockState(CHUNK_TYPE chunkType, double duration, int prelude_cycles);
 
 
 
@@ -279,12 +279,12 @@ public:
 private:
 		bool inspectFile(Bytes data); // help method to inspect above
 
-		bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout);
-		bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout);
+		bool encodeAtom(TapeFile& tapeFile, ogzstream& fout);
+		bool encodeBBM(TapeFile& tapeFile, ogzstream& fout);
 
 		bool getUEFdata(string& uefFileName, Bytes& data);
 
-		bool UEFCodec::decodeFile(string uefFilename, Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
+		bool decodeFile(string uefFilename, Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
 
 		void resetCurrentBlockInfo();
 		void pushCurrentBlock();
