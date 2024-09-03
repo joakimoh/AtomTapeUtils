@@ -201,7 +201,7 @@ bool MMCCodec::decode(string& mmcFileName, TapeFile& tapeFile)
         if (new_block) {
             count = 0;
             if (data.end() - data_iter < 256)
-                block_sz = data.end() - data_iter;
+                block_sz = (int) (data.end() - data_iter);
             else
                 block_sz = 256;
             block.data.clear();

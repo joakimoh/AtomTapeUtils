@@ -107,7 +107,7 @@ int main(int argc, const char* argv[])
     // Use found extremums to reconstruct the original samples
     t_start = chrono::system_clock::now();
     Samples new_shapes(samples.size());
-    if (!filter.plotFromExtremums(n_extremums, extremums, new_shapes, samples.size())) {
+    if (!filter.plotFromExtremums(n_extremums, extremums, new_shapes, (int) samples.size())) {
         cout << "Failed to plot from extremums!\n";
         return -1;
     }
@@ -125,17 +125,17 @@ int main(int argc, const char* argv[])
         // Write original samples and the filtered samples into a multiple-channel 16-bit PCM output WAV file
         if (arg_parser.nAveragingSamples > 0) {
             Samples samples_v[] = { samples , samples_to_filter, new_shapes };
-            success = writeSamples(arg_parser.outputFileName, samples_v, end(samples_v) - begin(samples_v), sample_freq, arg_parser.verbose);
+            success = writeSamples(arg_parser.outputFileName, samples_v, (int) (end(samples_v) - begin(samples_v)), sample_freq, arg_parser.verbose);
         }
         else {
             Samples samples_v[] = { samples , new_shapes };
-            success = writeSamples(arg_parser.outputFileName, samples_v, end(samples_v) - begin(samples_v), sample_freq, arg_parser.verbose);
+            success = writeSamples(arg_parser.outputFileName, samples_v, (int)(end(samples_v) - begin(samples_v)), sample_freq, arg_parser.verbose);
         }
     }
     else {
         // Write the filtered samples into a one-channel 16-bit PCM output WAV file
         Samples samples_v[] = { new_shapes };
-        success = writeSamples(arg_parser.outputFileName, samples_v, end(samples_v) - begin(samples_v), sample_freq, arg_parser.verbose);
+        success = writeSamples(arg_parser.outputFileName, samples_v, (int)(end(samples_v) - begin(samples_v)), sample_freq, arg_parser.verbose);
     }
     if (!success) {
         cout << "Couldn't write samples to Wave file '" << arg_parser.outputFileName << "'\n";

@@ -18,7 +18,7 @@ const Sample	SAMPLE_UNDEFINED = 0;
 const int		F1_FREQ = 1200; // low FSK frequency
 const int		F2_FREQ = 2400; // high FSK frequency
 
-typedef enum { LowBit, HighBit, UndefinedBit } Bit;
+enum Bit { LowBit, HighBit, UndefinedBit };
 
 typedef struct {
 	Bit bit;
@@ -28,11 +28,11 @@ typedef struct {
 typedef vector<BitSample> BitSamples;
 typedef BitSamples::iterator BitSamplesIter;
 
-typedef enum { LowLevel, HighLevel, NoCarrierLevel } Level;
+enum Level { LowLevel, HighLevel, NoCarrierLevel };
 
-typedef enum { LowHalfCycle, HighHalfCycle, UndefinedHalfCycle } HalfCycle;
+enum HalfCycle { LowHalfCycle, HighHalfCycle, UndefinedHalfCycle };
 
-typedef enum { F1, F2, NoCarrierFrequency, UndefinedFrequency } Frequency;
+enum Frequency { F1, F2, NoCarrierFrequency, UndefinedFrequency };
 
 
 #define _BIT(x) (x==BlockDecoder::Bit::Low?"Low":(x==BlockDecoder::Bit::High?"High":"Undefined"))

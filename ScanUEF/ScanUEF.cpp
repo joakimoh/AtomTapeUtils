@@ -96,7 +96,6 @@ int main(int argc, const char* argv[])
                 }
 
                 // Get data bytes
-                int load_address;
                 Bytes data;
                 uint32_t load_adr;
                 if (!TAPCodec::tap2Bytes(tapFile, load_adr, data)) {

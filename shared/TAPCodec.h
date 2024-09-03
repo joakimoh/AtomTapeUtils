@@ -34,7 +34,7 @@ public:
 	 */
 	bool decode(string &dataFileName, TapeFile& tapFile);
 
-	bool decodeSingleFile(ifstream& fin, unsigned file_size, TapeFile& tapFile);
+	bool decodeSingleFile(ifstream& fin, streamsize file_size, TapeFile& tapFile);
 
 	bool decodeMultipleFiles(string& tapFileName, vector<TapeFile> &atomFiles);
 

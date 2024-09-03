@@ -37,7 +37,6 @@ int main(int argc, const char* argv[])
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
     DataCodec DATA_codec = DataCodec(arg_parser.verbose);
-    int load_address;
     Bytes data;
     TapeFile TAP_file(arg_parser.targetMachine);
 

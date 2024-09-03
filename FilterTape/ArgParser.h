@@ -12,7 +12,7 @@ class ArgParser
 {
 public:
 
-	double sinusAmplitude = 16384;
+	int sinusAmplitude = 16384;
 	double saturationLevelLow = 0.8;
 	double saturationLevelHigh = 0.8;
 	double minPeakDistance = 0.0;

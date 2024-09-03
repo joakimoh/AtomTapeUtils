@@ -58,8 +58,8 @@ bool AtomFileDecoder::readFile(ofstream &logFile, TapeFile &tapFile)
     int last_valid_exec_adr = -1;
     int last_valid_block_sz = -1;
     BlockType last_valid_block_type = BlockType::Other;
-    int last_valid_block_start_time = -1;
-    int last_valid_block_end_time = -1;
+    double last_valid_block_start_time = -1;
+    double last_valid_block_end_time = -1;
 
 
 

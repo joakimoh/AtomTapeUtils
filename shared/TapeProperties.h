@@ -67,13 +67,13 @@ typedef struct BlockTiming_struct {
 	double otherBlockLeadToneDuration = 2; // lead tone duration of all other blocks [s]
 	double microLeadToneDuration = 0.5; //  micro lead tone - Atom only; separates block header and block data  [s]
 	double trailerToneDuration = 0.83; //  trailer tone;- BBC Micro only; after last tape block only [s]
-	float firstBlockGap = 0.0; // Gap before the first block [s] - could be as low as zero in theory
-	float blockGap = 2; // Gap between each block [s]
-	float lastBlockGap = 2; // Gap after the last block [s]
+	double firstBlockGap = 0.0; // Gap before the first block [s] - could be as low as zero in theory
+	double blockGap = 2; // Gap between each block [s]
+	double lastBlockGap = 2; // Gap after the last block [s]
 } BlockTiming;
 
 typedef struct TapeProperties_struct  {
-	float baseFreq; // Hz
+	double baseFreq; // Hz
 	int phaseShift; // Degrees [0-360]
 	int baudRate;
 	BlockTiming minBlockTiming;
@@ -82,14 +82,14 @@ typedef struct TapeProperties_struct  {
 } TapeProperties;
 
 const TapeProperties atomTiming {
-	1201, 180, 300,
+	1201.0f, 180, 300,
 	{ 0,	0.85,		0.85,	0.0,	0.0,	0.0,		0.0,	0.0 },
 	{ 0,	4.0,		2.0,	0.5,	0.83,	0.0,		2.0,	2.0 },
 	false
 };
 
-const TapeProperties bbmTiming{
-	1201, 180, 1200,
+const TapeProperties bbmTiming {
+	1201.0f, 180, 1200,
 	{ 4,		0.5,		0.2,	0.0,	0.5,	0.0,		0.0,	0.0 },
 	{ 4,		5.1,		0.9,	0.0,	5.3,	0.0,		0.0,	1.8 },
 	false

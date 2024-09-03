@@ -30,6 +30,6 @@ string FileDecoder::timeToStr(double t) {
     int t_h = (int)trunc(t / 3600);
     int t_m = (int)trunc((t - t_h) / 60);
     double t_s = t - t_h * 3600 - t_m * 60;
-    sprintf(t_str, "%2d:%2d:%9.6f (%12f)", t_h, t_m, t_s, t);
+    sprintf_s(t_str, "%2d:%2d:%9.6f (%12f)", t_h, t_m, t_s, t);
     return string(t_str);
 }

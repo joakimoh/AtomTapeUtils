@@ -89,7 +89,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
     double first_block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
     double last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
 
-    float high_tone_freq = mTapeTiming.baseFreq * 2;
+    double high_tone_freq = mTapeTiming.baseFreq * 2;
 
 
     if (tapeFile.blocks.empty()) {
@@ -317,7 +317,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
     double block_gap = mTapeTiming.nomBlockTiming.blockGap;
     double last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
 
-    float high_tone_freq = mTapeTiming.baseFreq * 2;
+    double high_tone_freq = mTapeTiming.baseFreq * 2;
 
     if (tapeFile.blocks.empty()) {
         cout << "Cannot encode an empty TAP File!\n";
@@ -443,7 +443,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
 
         // Encode CRC byte
 
-        if (!writeByte(mCRC)) {
+        if (!writeByte(mCRC & 0xff)) {
             printf("Failed to encode CRC!%s\n", "");
             return false;
         }
@@ -607,7 +607,7 @@ bool WavEncoder::writeGap(double duration)
     if (n_samples == 0)
         return true;
 
-    for (int s = 0; s < n_samples; s++) {
+    for (unsigned s = 0; s < n_samples; s++) {
         mSamples.push_back(0);
     }
 

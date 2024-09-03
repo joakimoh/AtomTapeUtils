@@ -48,7 +48,7 @@ bool TAPCodec::bytes2TAP(Bytes& data, TargetMachine targetMachine, string tapeFi
         if (count == 0) { // new block        
             block_sz = 256;
             if (data.end() - data_iter < 256)
-                block_sz = data.end() - data_iter;
+                block_sz = (int) (data.end() - data_iter);
             if (!Utility::initTAPBlock(block_type, block))
                 return false;
             if (!Utility::encodeTAPHdr(block, tapeFileName, fileLoadAdr, load_adr, execAdr, block_no, block_sz)) {
@@ -194,7 +194,7 @@ bool TAPCodec::decode(string& tapFileName, TapeFile& tapeFile)
         cout << "\nDecoding TAP file '" << tapFileName << "'...\n\n";
 
     // Read one Atom File from the TAP file
-    if (!decodeSingleFile(fin, file_size, tapeFile)) {
+    if (!decodeSingleFile(fin, (int) file_size, tapeFile)) {
         cout << "Failed to decode TAP file '" << tapFileName << "'!\n";
     }
 
@@ -241,7 +241,7 @@ bool TAPCodec::decodeMultipleFiles(string& tapFileName, vector<TapeFile> &atomFi
     return true;
 }
 
-bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TapeFile &tapFile)
+bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &tapFile)
 {
 
     // Test for end of file
@@ -251,7 +251,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, unsigned file_size, TapeFile &tap
     // Read TAP header to get name and size etc
     string atom_filename;
     unsigned atom_file_sz, exec_adr, load_adr;
-    if (fin.tellg() < file_size - sizeof(ATMHdr)) {
+    if (fin.tellg() < (streampos) (file_size - sizeof(ATMHdr))) {
         FileBlock block(ACORN_ATOM);
         fin.read((char*)&block.atomHdr, sizeof(block.atomHdr));
         exec_adr = block.atomHdr.execAdrHigh * 256 + block.atomHdr.execAdrLow;
@@ -346,7 +346,7 @@ bool TAPCodec::data2Binary(TapeFile& tapeFile, string& binFileName)
 
     FileBlockIter file_block_iter = tapeFile.blocks.begin();
     int sz = 0;
-    for (; file_block_iter < tapeFile.blocks.end(); sz += (*file_block_iter++).data.size());
+    for (; file_block_iter < tapeFile.blocks.end(); sz += (int) (*file_block_iter++).data.size());
     if (sz == 0)
         return false;
 

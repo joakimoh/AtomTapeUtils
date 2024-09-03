@@ -18,7 +18,7 @@ void ArgParser::printUsage(const char* name)
 	cout << "<UEF file>:\n\tUEF file to decode\n\n";
 	cout << "-g dir:\n\tProvide path to directory where generated files shall be put\n\t- default is work directory\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
-	cout << "-bbm:\n\Target machine is BBC Micro (default is Acorn Atom)\n\n";
+	cout << "-bbm:\nTarget machine is BBC Micro (default is Acorn Atom)\n\n";
 	cout << "\n";
 }
 

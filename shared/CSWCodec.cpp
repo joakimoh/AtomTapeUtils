@@ -74,7 +74,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
     double last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
 
 
-    float high_tone_freq = mTapeTiming.baseFreq * 2;
+    double high_tone_freq = mTapeTiming.baseFreq * 2;
 
 
     if (tapeFile.blocks.empty())
@@ -111,7 +111,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
             mPhase = file_block_iter->phaseShift;
         }
         if (block_no == 0) {
-            float prelude_lead_tone_duration = prelude_tone_cycles / high_tone_freq;
+            double prelude_lead_tone_duration = prelude_tone_cycles / high_tone_freq;
             if (!writeTone(prelude_lead_tone_duration)) {            
                 printf("Failed to write prelude lead tone of duration %f s\n", prelude_lead_tone_duration);
             }
@@ -291,7 +291,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
     hdr.csw2.sampleRate[1] = (mFS >> 8) & 0xff;
     hdr.csw2.sampleRate[2] = (mFS >> 16) & 0xff;
     hdr.csw2.sampleRate[3] = (mFS >> 24) & 0xff;
-    int n_pulses = mPulses.size();
+    int n_pulses = (int) mPulses.size();
     hdr.csw2.totNoPulses[0] = n_pulses & 0xff;
     hdr.csw2.totNoPulses[1] = (n_pulses >> 8) & 0xff;
     hdr.csw2.totNoPulses[2] = (n_pulses >> 16) & 0xff;
@@ -343,7 +343,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath, int sampleFreq)
     double last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
     
 
-    float high_tone_freq = mTapeTiming.baseFreq * 2;
+    double high_tone_freq = mTapeTiming.baseFreq * 2;
 
  
     if (tapeFile.blocks.empty())
@@ -483,7 +483,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath, int sampleFreq)
 
         // Encode CRC byte
 
-        if (!writeByte(mCRC)) {
+        if (!writeByte(mCRC & 0xff)) {
             printf("Failed to encode CRC!%s\n", "");
             return false;
         }
@@ -534,7 +534,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath, int sampleFreq)
     hdr.csw2.sampleRate[1] = (mFS >> 8) & 0xff;
     hdr.csw2.sampleRate[2] = (mFS >> 16) & 0xff;
     hdr.csw2.sampleRate[3] = (mFS >> 24) & 0xff;
-    int n_pulses = mPulses.size();
+    int n_pulses = (int) mPulses.size();
     hdr.csw2.totNoPulses[0] = n_pulses & 0xff;
     hdr.csw2.totNoPulses[1] = (n_pulses >> 8) & 0xff;
     hdr.csw2.totNoPulses[2] = (n_pulses >> 16) & 0xff;
@@ -845,7 +845,7 @@ bool CSWCodec::writeCycle(bool highFreq, unsigned n)
 
     double sample_no = 0;
     double prev_sample_no = - n_samples_per_half_cycle;
-    for (int c = 0; c < n; c++) {
+    for (unsigned c = 0; c < n; c++) {
 
         //  first half cycle
         int n_samples = (int) round(sample_no)  - (int) round(prev_sample_no);

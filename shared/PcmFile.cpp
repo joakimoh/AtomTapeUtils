@@ -104,6 +104,7 @@ bool writeSamples(string fileName, Samples samples[], const int nChannels, int s
 {
     // Check that each channel contains the same no of samples
     int n_samples = (int) samples[0].size();
+
     for (int i = 1; i < nChannels; i++) {
         if (samples[i].size() != n_samples) {
             cout << "Channel #" << i << " have different no of samples (" << samples[i].size() << ") than channel #0 (" << n_samples << ")!\n";
@@ -120,9 +121,11 @@ bool writeSamples(string fileName, Samples samples[], const int nChannels, int s
 
     CommonHeader h_head;
 
+    cout << "strncpy\n";
     strncpy(h_head.chunkId,"RIFF", 4);
     strncpy(h_head.format, "WAVE", 4);
     strncpy(h_head.subchunk1ID, "fmt ", 4);
+    cout << "DONE\n";
     h_head.ChunkSize = 36 + nChannels * n_samples * nChannels * 2; // 36 + subChunk2Size = 36 + NumSamples * NumChannels * 2
     h_head.numChannels = nChannels;
     h_head.byteRate = sampleFreq * nChannels * 2; //SampleRate * NumChannels * 2

@@ -22,7 +22,7 @@ AtomBasicCodec::AtomBasicCodec(bool verbose, TargetMachine targetMachine) :mVerb
         if (e.id1 != -1) {
             mTokenDictId[e.id1] = e;
             mTokenDictStr[e.fullT] = e;
-            int min_len = e.shortT.length() - 1;
+            int min_len = (int) (e.shortT.length() - 1);
             for (int l = min_len; l < e.fullT.length(); l++) {
                 string a = e.fullT.substr(0, l) + ".";
                 mTokenDictStr[a] = e;
@@ -83,7 +83,7 @@ int tapeDataSz(TapeFile& f)
 {
     int sz = 0;
     for (int i = 0; i < f.blocks.size(); i++)
-        sz += f.blocks[i].data.size();
+        sz += (int) f.blocks[i].data.size();
     return sz;
 }
 
@@ -139,7 +139,7 @@ bool AtomBasicCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& f
             line_pos = -1;
             int line_no = line_no_high * 256 + line_no_low;
             char line_no_s[7];
-            sprintf(line_no_s, "%5d", line_no);
+            sprintf_s(line_no_s, "%5d", line_no);
             fout << line_no_s;
         }
         else if (b == 0xd) {
@@ -224,7 +224,7 @@ bool AtomBasicCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& 
                 line_pos = -1;
                 int line_no = line_no_high * 256 + line_no_low;
                 char line_no_s[7];
-                sprintf(line_no_s, "%5d", line_no);
+                sprintf_s(line_no_s, "%5d", line_no);
                 fout << line_no_s;
             }
             else if (b == 0xd) {
@@ -262,7 +262,7 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
 
     BytesIter data_iterator = data.begin();
     if (DEBUG_LEVEL == DBG)
-        Utility::logData(0x2900, data_iterator, data.size());
+        Utility::logData(0x2900, data_iterator, (int) data.size());
 
 
     // Create ATM block
@@ -280,7 +280,7 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
         if (new_block) {
             count = 0;
             if (data.end() - data_iter < 256)
-                block_sz = data.end() - data_iter;
+                block_sz = (int) (data.end() - data_iter);
             else
                 block_sz = 256;
             block.data.clear();
@@ -305,7 +305,7 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
             count++;
         }
         else {
-            int data_len = block.data.size();
+            int data_len = (int) block.data.size();
             if (mVerbose)
                 Utility::logTAPBlockHdr(block, load_address, n_blocks);
             block.atomHdr.lenHigh = 1;
@@ -327,7 +327,7 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
 
     // Catch last block
     {
-        int data_len = block.data.size();
+        int data_len = (int) block.data.size();
         if (mVerbose)
             Utility::logTAPBlockHdr(block, load_address, n_blocks);
         block.atomHdr.lenHigh = count / 256;
@@ -358,7 +358,7 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
     
     if (DEBUG_LEVEL == DBG) {
         BytesIter data_iterator = data.begin();
-        Utility::logData(0xffff0e00, data_iterator, data.size());
+        Utility::logData(0xffff0e00, data_iterator, (int) data.size());
     }
 
     // Create BBM block
@@ -378,7 +378,7 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
         if (new_block) {
             count = 0;
             if (data.end() - data_iter < 256)
-                block_sz = data.end() - data_iter;
+                block_sz = (int) (data.end() - data_iter);
             else
                 block_sz = 256;
 
@@ -566,7 +566,7 @@ bool AtomBasicCodec::tokenizeLine(string &line, string& tCode)
 
 bool AtomBasicCodec::isDelimiter(char c)
 {
-    const string delimiters = "'+-*/^!,<>?;[]:*{}@\"#$%&'()=~\|_£";
+    const string delimiters = "'+-*/^!,<>?;[]:*{}@\"#$%&'()=~|_£";
 
     for (int i = 0; i < delimiters.length(); i++) {
         if (c == delimiters[i])

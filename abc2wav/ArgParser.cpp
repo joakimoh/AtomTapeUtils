@@ -31,7 +31,7 @@ void ArgParser::printUsage(const char* name)
 	cout << "-lg <d>:\n\tThe duration of the gap after the last block\n\t- default is " << tapeTiming.nomBlockTiming.lastBlockGap << " s\n\n";
 	cout << "-b baudrate:\n\tBaudrate (300 or 1200)\n\t- default is " << tapeTiming.baudRate << "\n\n";
 	cout << "-ps <phase_shift>:\n\tPhase shift when transitioning from high to low tone [0,180] degrees\n\t- default is " << tapeTiming.phaseShift << " degrees\n\n";
-	cout << "-bbm:\n\Target machine is BBC Micro (default is Acorn Atom)\n\n"; 
+	cout << "-bbm:\nTarget machine is BBC Micro (default is Acorn Atom)\n\n"; 
 	cout << "\n";
 }
 

@@ -5,7 +5,7 @@
 #include "../shared/WaveSampleTypes.h"
 #include "ArgParser.h"
 
-typedef enum { LOCAL_MAX, LOCAL_MIN, PLATEAU, START_POS_SLOPE, START_NEG_SLOPE } Extremum;
+enum Extremum { LOCAL_MAX, LOCAL_MIN, PLATEAU, START_POS_SLOPE, START_NEG_SLOPE };
 
 typedef struct {
 	Extremum extremum;

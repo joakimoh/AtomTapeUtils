@@ -21,7 +21,7 @@ void ArgParser::printUsage(const char *name)
 	cout << "-v:\n\tVerbose output\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.csw'.\n\n";
-	cout << "-bbm:\n\Scan for BBC Micro (default is Acorn Atom)\n\n";
+	cout << "-bbm:\nScan for BBC Micro (default is Acorn Atom)\n\n";
 	cout << "\n";
 }
 

@@ -42,7 +42,7 @@ BlockDecoder::BlockDecoder(
 
 		throw invalid_argument("Unsupported baud rate " + mArgParser.tapeTiming.baudRate);
 	}
-	mDataBitSamples = round(mCycleDecoder.getF2Duration() * mHighDataBitCycles); // No of samples for a data bit
+	mDataBitSamples = (int) round(mCycleDecoder.getF2Duration() * mHighDataBitCycles); // No of samples for a data bit
 
 	// Threshold between no of 1/2 cycles for a '0' and '1' databit
 	mDataBitHalfCycleBitThreshold = mLowDataBitCycles + mHighDataBitCycles;
@@ -125,7 +125,7 @@ bool BlockDecoder::getStartBit()
 		double wt;
 		if (!mCycleDecoder.stopOnHalfCycles(Frequency::F1, n_remaining_start_bit_half_cycles, wt, mLastHalfCycleFrequency)) {
 			if (mTracing)
-				DEBUG_PRINT(getTime(), ERR, "Failed to detect start bit\n", "");
+				DEBUG_PRINT(getTime(), ERR, "Failed to detect start bit%s\n", "");
 			return false;
 		}
 		waiting_time += wt;
@@ -141,7 +141,7 @@ bool BlockDecoder::getStartBit()
 	
 	DEBUG_PRINT(
 		getTime(), DBG, 
-		"start bit detected after waiting %d 1/2 F2 cycles before the first F1 cycle\n", round(waiting_time / (F2_FREQ * 2))
+		"start bit detected after waiting %d 1/2 F2 cycles before the first F1 cycle\n", (int) round(waiting_time / (F2_FREQ * 2))
 	);
 
 	return true;
@@ -155,7 +155,7 @@ bool BlockDecoder::getDataBit(Bit& bit)
 	// Advance time corresponding to one bit and count the no of transitions (1/2 cycles)
 	if (!mCycleDecoder.countHalfCycles(mDataBitSamples, n_half_cycles, mLastHalfCycleFrequency)) {
 		if (mTracing)
-			DEBUG_PRINT(getTime(), ERR, "Unexpected end of samples when reading data bit\n", "");
+			DEBUG_PRINT(getTime(), ERR, "Unexpected end of samples when reading data bit%s\n", "");
 		return false; // unexpected end of samples
 	}
 
@@ -194,7 +194,7 @@ bool BlockDecoder::getByte(Byte* byte, int& nCollectedCycles)
 			DEBUG_PRINT(getTime(), ERR, "Failed to read start bit%s\n", "");
 		return false;
 	}
-	DEBUG_PRINT(getTime(), DBG, "Got start bit\n", "");
+	DEBUG_PRINT(getTime(), DBG, "Got start bit%s\n", "");
 
 	// Get data bits
 	*byte = 0;
@@ -229,7 +229,7 @@ bool BlockDecoder::getStopBit()
 	double waiting_time;
 	if (!mCycleDecoder.stopOnHalfCycles(Frequency::F2, 2, waiting_time, mLastHalfCycleFrequency)) {
 		if (mTracing)
-			DEBUG_PRINT(getTime(), ERR, "Failed to detect stop bit\n", "");
+			DEBUG_PRINT(getTime(), ERR, "Failed to detect stop bit%s\n", "");
 		return false;
 	}
 

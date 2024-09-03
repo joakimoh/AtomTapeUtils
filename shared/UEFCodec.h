@@ -37,12 +37,12 @@ private:
 	// UEF header and chunks
 	//
 
-	typedef enum {
+	enum CHUNK_ID {
 		ORIGIN_CHUNK = 0x0000, SIMPLE_DATA_CHUNK = 0x100, COMPLEX_DATA_CHUNK = 0x0104,
 		CARRIER_TONE_CHUNK = 0x0110, CARRIER_TONE_WITH_DUMMY_BYTE = 0x0111, PHASE_CHUNK = 0x0115, BAUD_RATE_CHUNK = 0x117, SECURITY_CHUNK = 0x0114,
 		BAUDWISE_GAP_CHUNK = 0x0112, FLOAT_GAP_CHUNK = 0x0116, BASE_FREQ_CHUNK = 0x113,
 		TARGET_CHUNK = 0x0005, UNKNOWN_CHUNK = 0xffff
-	} CHUNK_ID;
+	} ;
 #define CHUNK_ID_BYTES(x) {x & 0xff, (x >> 8) & 0xff}
 #define _CHUNK_ID(x) \
 	(x==ORIGIN_CHUNK?"ORIGIN_CHUNK":\
@@ -168,7 +168,7 @@ private:
 
 
 
-	float mBaseFrequency = 1200; // Default for an UEF file
+	double mBaseFrequency = 1200; // Default for an UEF file
 	unsigned mBaudRate = 1200; // Default for an UEF file
 	unsigned mPhase = 180; // Default for an UEF file
 
@@ -176,13 +176,13 @@ private:
 	// Methods to write header and different types of chunks
 	bool writeUEFHeader(ogzstream &fout, Byte majorVersion, Byte minorVersion);
 	bool writeBaseFrequencyChunk(ogzstream&fout);
-	bool writeFloatPrecGapChunk(ogzstream&fout, float duration);
-	bool writeIntPrecGapChunk(ogzstream& fout, float duration);
+	bool writeFloatPrecGapChunk(ogzstream&fout, double duration);
+	bool writeIntPrecGapChunk(ogzstream& fout, double duration);
 	bool writeSecurityCyclesChunk(ogzstream&fout, int nCycles, Byte firstPulse, Byte lastPulse, Bytes cycles);
 	string decode_security_cycles(SecurityCyclesChunkHdr& hdr, Bytes cycles);
 	bool writeBaudrateChunk(ogzstream&fout);
 	bool writePhaseChunk(ogzstream&fout);
-	bool writeCarrierChunk(ogzstream&fout, float duration);
+	bool writeCarrierChunk(ogzstream&fout, double duration);
 	bool writeCarrierChunkwithDummyByte(ogzstream& fout, int firstCycles, int followingCycles);
 	bool writeComplexDataChunk(ogzstream&fout, Byte bitsPerPacket, Byte parity, Byte stopBitInfo, Bytes data, Word &CRC);
 	bool writeSimpleDataChunk(ogzstream&fout, Bytes data, Word& CRC);
@@ -194,16 +194,16 @@ private:
 	// Data kept while parsing UEF file
 	//
 
-	typedef enum {
+	enum BLOCK_STATE {
 		READING_GAP,
 		READING_CARRIER_WITH_DUMMY, READING_CARRIER_PRELUDE, READING_DUMMY_BYTE, READING_CARRIER_POSTLUDE, /* BBC Micro only */
 		READING_CARRIER, /* Electron and Acorn Atom and BBC Micro if the carrier with dummy byte is used */
 		READING_HDR, READING_MICRO_TONE, READING_DATA, // Atom Acorn only
 		READING_HDR_DATA, READING_TRAILER_TONE,// BBC Micro only
 		UNDEFINED_BLOCK_STATE
-	} BLOCK_STATE;
+	};
 
-	typedef enum { CARRIER_CHUNK, CARRIER_DUMMY_CHUNK, DATA_CHUNK, GAP_CHUNK, UNDEFINED_CHUNK } CHUNK_TYPE;
+	enum CHUNK_TYPE { CARRIER_CHUNK, CARRIER_DUMMY_CHUNK, DATA_CHUNK, GAP_CHUNK, UNDEFINED_CHUNK };
 
 #define _BLOCK_STATE(x) \
     (x==READING_GAP?"READING_GAP":\
@@ -222,7 +222,7 @@ private:
 	BLOCK_STATE mPrevBlockState = UNDEFINED_BLOCK_STATE;
 	vector<CapturedBlockTiming> mBlockInfo;
 	CapturedBlockTiming mCurrentBlockInfo;
-	float mCurrentTime = 0;
+	double mCurrentTime = 0;
 	bool firstBlock = true;
 	bool updateBlockState(CHUNK_TYPE chunkType, double duration, int preludeCycles);
 	bool updateAtomBlockState(CHUNK_TYPE chunkType, double duration);
@@ -251,9 +251,9 @@ public:
 	UEFCodec(bool useOriginalTiming, bool verbose, TargetMachine mTargetMachine);
 
 
-	static bool decodeFloat(Byte encoded_val[4], float& decoded_val);
+	static bool decodeFloat(Byte encoded_val[4], double& decoded_val);
 
-	static bool encodeFloat(float val, Byte encoded_val[4]);
+	static bool encodeFloat(double val, Byte encoded_val[4]);
 	
 
 	bool setTapeTiming(TapeProperties tapeTiming);

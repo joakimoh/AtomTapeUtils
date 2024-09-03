@@ -29,7 +29,7 @@ CSWCycleDecoder::CSWCycleDecoder(
 	// Min & max durations of F1 & F2 frequency low/high 1/2 cycles
 	mMinNSamplesF1Cycle = (int)round((1 - mArgParser.freqThreshold) * mFS / F1_FREQ); // Min duration of an F1 cycle
 	mMaxNSamplesF1Cycle = (int)round((1 + mArgParser.freqThreshold) * mFS / F1_FREQ); // Max duration of an F1 cycle
-	int n_samples_F1 = round(mFS / F1_FREQ);
+	int n_samples_F1 = (int) round(mFS / F1_FREQ);
 	mMinNSamplesF2Cycle = (int)round((1 - mArgParser.freqThreshold) * mFS / F2_FREQ); // Min duration of an F2 cycle
 	mMaxNSamplesF2Cycle = (int)round((1 + mArgParser.freqThreshold) * mFS / F2_FREQ); // Max duration of an F2 cycle
 	int n_samples_F2 = (int)round(mFS / F2_FREQ);
@@ -154,7 +154,6 @@ int CSWCycleDecoder::countHalfCycles(int nSamples, int& half_cycles, Frequency& 
 	bool stop = false;
 
 	half_cycles = 0;
-	int sample_no;
 
 	for (int n = 0; !stop; ) {
 		if (!getNextPulse()) // fails if there are no more pulses
@@ -385,7 +384,7 @@ bool CSWCycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 */
 bool CSWCycleDecoder::waitForTone(double minDuration, double &duration, double& waitingTime, int& highToneCycles, Frequency & lastHalfCycleFrequency) {
 
-	int n_min_half_cycles = minDuration * F2_FREQ * 2;
+	int n_min_half_cycles = (int) round(minDuration * F2_FREQ * 2);
 	int n_remaining_half_cycles;
 
 	double t_start = getTime();

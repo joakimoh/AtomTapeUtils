@@ -16,15 +16,15 @@ Filter::Filter(int sampleFreq, ArgParser argParser)
     derivativeThreshold = argParser.derivativeThreshold;
     mMaxSampleAmplitude = argParser.sinusAmplitude;
     minPeakDistanceSamples = (int) round(argParser.minPeakDistance * mFS / F2_FREQ);
-    saturationLevelLow = argParser.saturationLevelLow * SAMPLE_LOW_MIN;
-    saturationLevelHigh = argParser.saturationLevelHigh * SAMPLE_HIGH_MAX;
+    saturationLevelLow = (int) round(argParser.saturationLevelLow * SAMPLE_LOW_MIN);
+    saturationLevelHigh = (int)round(argParser.saturationLevelHigh * SAMPLE_HIGH_MAX);
 
 }
 
 bool Filter::averageFilter(Samples& samples, Samples& filtered_samples)
 {
     const int n = mAveragePoints;
-    int sz = samples.size();
+    int sz = (int) samples.size();
     for (int p = 0; p < sz; p++) {
         if (p <= n || sz - p <= n)
             filtered_samples[p] = samples[p];
@@ -44,7 +44,7 @@ bool Filter::normaliseFilter(Samples& samples, ExtremumSamples& outSamples, int&
 {
 
     int sample_pos = 0;
-    int sample_sz = samples.size();
+    int sample_sz = (int) samples.size();
     Extremum extremum = PLATEAU;
     int extremum_pos = 0;
     nOutSamples = 0;
@@ -118,7 +118,7 @@ bool Filter::find_extreme(int &pos, Samples& samples, Extremum prevExtremum, Ext
     double d;
     int p = pos;
     int p1, p2;
-    int sz = samples.size();
+    int sz = (int) samples.size();
     
 
     int prev_slope;

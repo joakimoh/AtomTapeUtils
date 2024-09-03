@@ -130,15 +130,15 @@ bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
 
             if (new_line) {
                 if (file_block_iter->data.end() - bi < 16)
-                    line_sz = file_block_iter->data.end() - bi;
+                    line_sz = (int) (file_block_iter->data.end() - bi);
                 li = bi;
-                sprintf(s, "%.4x ", load_adr);
+                sprintf_s(s, "%.4x ", load_adr);
                 fout << s;
                 c = 0;
                 new_line = false;
             }
 
-            sprintf(s, "%.2x ", int(*bi++));
+            sprintf_s(s, "%.2x ", int(*bi++));
             fout << s;
 
             if (c == line_sz - 1) {
@@ -214,15 +214,15 @@ bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
 
             if (new_line) {
                 if (file_block_iter->data.end() - bi < 16)
-                    line_sz = file_block_iter->data.end() - bi;
+                    line_sz = (int) (file_block_iter->data.end() - bi);
                 li = bi;
-                sprintf(s, "%.4x ", load_adr);
+                sprintf_s(s, "%.4x ", load_adr);
                 fout << s;
                 c = 0;
                 new_line = false;
             }
 
-            sprintf(s, "%.2x ", int(*bi++));
+            sprintf_s(s, "%.2x ", int(*bi++));
             fout << s;
 
             if (c == line_sz - 1) {
@@ -316,7 +316,7 @@ bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine t
         if (new_block) {
             count = 0;
             if (data.end() - data_iter < 256)
-                block_sz = data.end() - data_iter;
+                block_sz = (int) (data.end() - data_iter);
             else
                 block_sz = 256;
             tape_file_sz += block_sz;

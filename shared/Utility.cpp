@@ -85,9 +85,9 @@ void Utility::logTAPFileHdr(ostream* fout, TapeFile& tapeFile)
     if (tapeFile.fileType == ACORN_ATOM) {    
         uint32_t exec_adr = block.atomHdr.execAdrHigh * 256 + block.atomHdr.execAdrLow;
         uint32_t load_adr = block.atomHdr.loadAdrHigh * 256 + block.atomHdr.loadAdrLow;
-        uint32_t n_blocks = tapeFile.blocks.size();
+        uint32_t n_blocks = (uint32_t) tapeFile.blocks.size();
         uint32_t file_sz = 0;
-        for (int i = 0; i < n_blocks; i++)
+        for (uint32_t i = 0; i < n_blocks; i++)
             file_sz += tapeFile.blocks[i].atomHdr.lenHigh * 256 + tapeFile.blocks[i].atomHdr.lenLow;
         *fout << "\n" << setw(13) << block.atomHdr.name << " " << hex << setw(4) << load_adr << " " <<
             load_adr + file_sz - 1 << " " << exec_adr << " " << n_blocks << "\n";
@@ -97,8 +97,8 @@ void Utility::logTAPFileHdr(ostream* fout, TapeFile& tapeFile)
         uint32_t load_adr = Utility::bytes2uint(&block.bbmHdr.loadAdr[0], 4, true);
         uint32_t block_no = Utility::bytes2uint(&block.bbmHdr.blockNo[0], 2, true);
         uint32_t file_sz = 0;
-        uint32_t n_blocks = tapeFile.blocks.size();
-        for(int i = 0; i < n_blocks;i++)
+        uint32_t n_blocks = (uint32_t) tapeFile.blocks.size();
+        for(uint32_t i = 0; i < n_blocks;i++)
             file_sz += Utility::bytes2uint(&tapeFile.blocks[i].bbmHdr.blockLen[0], 2, true);
         *fout << "\n" << setw(10) << block.bbmHdr.name << " " << hex << setw(8) << load_adr << " " <<  load_adr + file_sz - 1<<  " " << exec_adr << " " <<
             setw(4) << dec << n_blocks << " " << 
@@ -208,7 +208,6 @@ void Utility::logAtomTapeHdr(ostream* fout, AtomTapeBlockHdr &hdr, char blockNam
     int block_sz;
     uint32_t block_no = hdr.blockNoHigh * 256 + hdr.blockNoLow;
     string block_name;
-    int len;
     BlockType block_type = Utility::parseAtomTapeBlockFlag(hdr, block_sz);
     for (int i = 0; i < 13 && blockName[i] != 0xd; block_name += blockName[i++]);
     *fout << setfill(' ') << setw(13)  << block_name << " " <<
@@ -480,7 +479,7 @@ string Utility::encodeTime(double t) {
     int t_h = (int)trunc(t / 3600);
     int t_m = (int)trunc((t - t_h * 3600) / 60);
     double t_s = t - t_h * 3600 - t_m * 60;
-    sprintf(t_str, "%dh:%dm:%.6fs (%fs)", t_h, t_m, t_s, t);
+    sprintf_s(t_str, "%dh:%dm:%.6fs (%fs)", t_h, t_m, t_s, t);
     return string(t_str);
 }
 
@@ -531,7 +530,7 @@ string Utility::atomBlockNameFromFilename(string fn)
             else if (len - p >= 2 && isxdigit(fn[p + 1]) && isxdigit(fn[p + 2])) { // '_hh' => ASCII hh
                 string hs = fn.substr(p + 1, 2);
                 int h;
-                sscanf(hs.c_str(), "%2x", &h);
+                sscanf_s(hs.c_str(), "%2x", &h);
                 c = (char) h;
                 p += 2;
             }
@@ -592,7 +591,7 @@ string Utility::bbmBlockNameFromFilename(string fn)
 * Filenames cannot either end in SPACE or DOT.*/
 string Utility::filenameFromBlockName(string fileName)
 {
-    string invalid_chars = "\"/<>:\|?*";
+    string invalid_chars = "\"/<>:|?*";
     string s = "";
     for (auto& c : fileName) {
         if (c != '_' && invalid_chars.find(c) == string::npos && c >= ' ')
@@ -754,15 +753,15 @@ bool Utility::decodeATMBlockHdr(
         return false; // If filename not read then the rest will not have been read either...
 
     // Calculate offset to the rest of the block's parameters (that comes after the preamble and filename)
-    int offset = 4 + fileName.length();
+    int offset = 4 + (int) fileName.length();
 
-    if (nReadChars > offset + (long)  & ((AtomTapeBlockHdr*)0)->loadAdrLow)
+    if (nReadChars > offset + (uint64_t)  & ((AtomTapeBlockHdr*)0)->loadAdrLow)
         loadAdr = block.atomHdr.loadAdrHigh * 256 + block.atomHdr.loadAdrLow;
 
-    if (nReadChars > offset + (long)&((AtomTapeBlockHdr*)0)->dataLenM1)
+    if (nReadChars > offset + (uint64_t) &((AtomTapeBlockHdr*)0)->dataLenM1)
         blockSz = block.atomHdr.lenHigh * 256 + block.atomHdr.lenLow;
 
-    if (nReadChars > offset + (long) &((AtomTapeBlockHdr*)0) -> execAdrLow)
+    if (nReadChars > offset + (uint64_t) &((AtomTapeBlockHdr*)0) -> execAdrLow)
         execAdr = block.atomHdr.execAdrHigh * 256 + block.atomHdr.execAdrLow;
 
     if (execAdr == 0xc2b2)
@@ -921,7 +920,7 @@ bool Utility::initTapeHdr(FileBlock& block)
         initbytes(&block.bbmHdr.blockNo[0], 0xff, 2);
         initbytes(&block.bbmHdr.blockLen[0], 0xff, 2);
         block.bbmHdr.locked = false;
-        block.bbmHdr.name[0] = 0xff;
+        block.bbmHdr.name[0] = (char) 0xff;
         block.bbmHdr.blockFlag = 0x00;
     }
     else if (block.blockType == ACORN_ATOM) {
@@ -931,7 +930,7 @@ bool Utility::initTapeHdr(FileBlock& block)
         block.atomHdr.lenLow = 0xff;
         block.atomHdr.loadAdrHigh = 0xff;
         block.atomHdr.loadAdrLow = 0xff;
-        block.atomHdr.name[0] = 0xff;
+        block.atomHdr.name[0] = (char) 0xff;
     }
 
     return true;

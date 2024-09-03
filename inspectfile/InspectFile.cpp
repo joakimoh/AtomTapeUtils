@@ -60,17 +60,17 @@ int main(int argc, const char* argv[])
     while (data_iter < data.end() && count < 1024) {
         vector<uint8_t>::iterator line_iter = data_iter;
         char s[32];
-        sprintf(s, "%4.4x ", pos);
+        sprintf_s(s, "%4.4x ", pos);
         *fout << s;
         int i;
         for (i = 0; i < 16 && line_iter < data.end(); i++) {
             char s[32];
-            sprintf(s, "%2.2x ", (int)*line_iter++);
+            sprintf_s(s, "%2.2x ", (int)*line_iter++);
             *fout << s;
         }
         for (int j = i; j < 16; j++) {
             char s[32];
-            sprintf(s, "   ");
+            sprintf_s(s, "   ");
             *fout << s;
         }
         line_iter = data_iter;
@@ -78,9 +78,9 @@ int main(int argc, const char* argv[])
             char c = *line_iter++;
             char s[32];
             if (c >= 0x20 && c <= 0x7e)
-                sprintf(s, "%2c ", c);
+                sprintf_s(s, "%2c ", c);
             else
-                sprintf(s, "  .");
+                sprintf_s(s, "  .");
             *fout << s;
             data_iter++;
         }

@@ -19,7 +19,7 @@ void ArgParser::printUsage(const char* name)
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.abc'/'.bbc'.\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
-	cout << "-bbm:\n\Target machine is BBC Micro (default is Acorn Atom)\n\n";
+	cout << "-bbm:\nTarget machine is BBC Micro (default is Acorn Atom)\n\n";
 	cout << "\n";
 }
 
