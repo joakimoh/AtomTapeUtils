@@ -74,11 +74,8 @@ bool BBMBlockDecoder::readBlock(
 	Utility::initTapeHdr(readBlock);
 
 
-	// Wait for lead tone of a min duration but still 'consume' the complete tone
+	// Wait for lead tone of a min duration but still 'consume' the complete tone (including dummy byte if applicable)
 	double duration, waiting_time;
-	
-	
-
 	if (firstBlock) {
 
 		double prelude_tone_duration = (double) preludeLadToneCycles / F2_FREQ;
@@ -99,12 +96,10 @@ bool BBMBlockDecoder::readBlock(
 			cout << "dummy byte 0xaa (as part of lead carrier) detected at " << Utility::encodeTime(getTime()) << "\n";
 
 		// Get postlude part of lead tone
-		int lead_tone_prelude_cycles = readBlock.leadToneCycles;
 		if (!mCycleDecoder.waitForTone(leadToneDuration, duration, waiting_time, readBlock.leadToneCycles, mLastHalfCycleFrequency)) {
 			// This is not necessarily an error - it could be because the end of the tape as been reached...
 			return false;
 		}
-		readBlock.leadToneCycles += lead_tone_prelude_cycles;
 		if (mVerbose)
 			cout << duration << "s postlude lead tone detected at " << Utility::encodeTime(getTime()) << "\n";
 	}
