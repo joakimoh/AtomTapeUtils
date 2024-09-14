@@ -3,7 +3,7 @@
 #include <string>
 #include <map>
 #include <vector>
-#include "BlockTypes.h"
+#include "FileBlock.h"
 
 
 using namespace std;

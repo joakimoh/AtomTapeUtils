@@ -9,7 +9,9 @@
 #include "TAPCodec.h"
 #include "../shared/TapeProperties.h"
 #include "../shared/WaveSampleTypes.h"
-#include "../shared/BlockTypes.h"
+#include "../shared/FileBlock.h"
+#include "BitTiming.h"
+#include "UEFCodec.h"
 
 using namespace std;
 
@@ -91,38 +93,47 @@ class CSWCodec
 
 private:
 
-	TapeProperties mTapeTiming;
+
 
 	bool mUseOriginalTiming = false;
 
 	bool mVerbose = false;
 	TargetMachine mTargetMachine = ACORN_ATOM;
 
-	bool encodeAtom(TapeFile& tapeFile, string& filePath, int sampleFreq);
-	bool encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq);
+	bool encodeAtom(TapeFile& tapeFile, string& filePath);
+	bool encodeBBM(TapeFile& tapeFile, string& filePath);
 
 public:
 
 	// Default constructor
-	CSWCodec(bool verbose, TargetMachine targetMachine);
+	CSWCodec(int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine);
 
 	// Constructor
-	CSWCodec(bool useOriginalTiming, bool verbose, TargetMachine targetMachine);
-
-	// Reinitialise codec with a new tape timing
-	bool setTapeTiming(TapeProperties tapeTiming);
+	CSWCodec(bool useOriginalTiming, int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine);
 
 	// Encode a TAP File structure as CSW file
-	bool encode(TapeFile &tapeFile, string& filePath, int sampleFreq);
+	bool encode(TapeFile &tapeFile, string& filePath);
 
 	 // Decode a CSW file as a vector of pulses
-	bool decode(string &CSWFileName, Bytes &pulses, int &sampleFreq, HalfCycle &firstHalfCycle);
+	bool decode(string &CSWFileName, Bytes &pulses, HalfCycle &firstHalfCycle);
 
 	// Tell whether a file is a CSW file
 	static bool isCSWFile(string& CSWFileName);
 
+	bool writeByte(Byte byte, DataEncoding encoding);
+	bool writeTone(double duration);
+	bool writeGap(double duration);
+
+	bool setBaseFreq(double baseFreq);
+	bool setBaudRate(int baudrate);
+	bool setPhase(int phase);
+
+	bool writeSamples(string filePath);
 
 private:
+
+	TapeProperties mTapeTiming;
+	BitTiming mBitTiming;
 
 	// Pulse data
 	int mPulseIndex;
@@ -134,24 +145,13 @@ private:
 	Bytes mPulses;
 
 	Word mCRC = 0;
-	int mFS = 44100;
-	int mPhase = 180;
 
-	double mHighSamples;
-	double mLowSamples;;
 
-	int mStartBitCycles;	// #cycles for start bit - should be 1 "bit"
-	int mLowDataBitCycles; // #cycles for LOW "0" data bit - for F2 frequency
-	int mHighDataBitCycles;	//#cycles for HIGH "1" data bit - for F1 frequency
-	int mStopBitCycles;		// #cycles for stop bit - should be 1 1/2 "bit"
-
-	bool writeByte(Byte byte);
 	bool writeDataBit(int bit);
 	bool writeStartBit();
-	bool writeStopBit();
+	bool writeStopBit(DataEncoding encoding);
 	bool writeCycle(bool high, unsigned n);
-	bool writeTone(double duration);
-	bool writeGap(double duration);
+
 
 };
 

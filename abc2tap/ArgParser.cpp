@@ -38,7 +38,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	srcFileName = argv[1];
 	dstFileName = Utility::crDefaultOutFileName(srcFileName, ""); // no file extension !!!
 
-	// Now lock for remaining options
+	// Now look for remaining options
 	int ac = 2;
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {

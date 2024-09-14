@@ -31,15 +31,22 @@ typedef struct HeaderTail_struct {
 
 } HeaderTail;
 
+class PcmFile {
 
-// Read samples from a one channel 16-bit 44.1 kHz PCM WAW file
-bool readSamples(string fileName, Samples &samples, int &sampleFreq, bool verbose);
+private:
+
+    static string str4(char c[4]);
+
+public:
+
+    // Read samples from a one channel 16-bit 44.1 kHz PCM WAW file
+    static bool readSamples(string fileName, Samples& samples, int& sampleFreq, bool verbose);
 
 
-// Write sample vector into a multiple channel 16-bit 44.1 kHz PCM WAW file
-bool writeSamples(string fileName, Samples samples[], int nChannels, int sampleFreq, bool verbose);
+    // Write sample vector into a multiple channel 16-bit 44.1 kHz PCM WAW file
+    static bool writeSamples(string fileName, Samples samples[], int nChannels, int sampleFreq, bool verbose);
 
 
-
+};
 
 #endif // !PCM_FILE_H

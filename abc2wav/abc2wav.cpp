@@ -48,9 +48,8 @@ int main(int argc, const char* argv[])
         );
     }
 
-
-    WavEncoder WAV_encoder = WavEncoder(false, 44100, arg_parser.verbose, arg_parser.targetMachine);
-    WAV_encoder.setTapeTiming(arg_parser.tapeTiming);
+    int sample_freq = 44100;
+    WavEncoder WAV_encoder = WavEncoder(false, sample_freq, arg_parser.tapeTiming, arg_parser.verbose, arg_parser.targetMachine);
     if (!WAV_encoder.encode(TAP_file, arg_parser.dstFileName)) {
         cout << "Failed to encode program file '" << arg_parser.srcFileName << "' as WAV file '" << arg_parser.dstFileName << "'\n";
     }

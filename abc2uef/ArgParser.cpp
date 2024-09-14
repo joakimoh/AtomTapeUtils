@@ -65,7 +65,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		ac++;
 	}
 
-	// Now lock for remaining options
+	// Now look for remaining options
 	ac = 2;
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {

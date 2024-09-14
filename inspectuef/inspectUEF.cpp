@@ -29,12 +29,27 @@ int main(int argc, const char* argv[])
 
     if (arg_parser.failed())
         return -1;
- 
 
     UEFCodec UEF_codec = UEFCodec(true, UNKNOWN_TARGET);
+
+    ofstream fout;
+    if (arg_parser.dstFileName != "") {
+        fout = ofstream(arg_parser.dstFileName);
+        if (!fout) {
+            cout << "can't write to file " << arg_parser.dstFileName << "\n";
+            return (-1);
+        }
+        UEF_codec.setStdOut(&fout);
+    }
+ 
+
+    
     if (!UEF_codec.inspect(arg_parser.srcFileName)) {
         cout << "Failed to decode UEF file '" << arg_parser.srcFileName << "'\n";
     }
+
+    if (arg_parser.dstFileName != "")
+        fout.close();
 
     return 0;
 }

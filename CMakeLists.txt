@@ -140,18 +140,6 @@ add_executable (
 )
 target_link_libraries(dat2wav PUBLIC shared)
 
-add_executable ( 
-	uef2abc "uef2abc/uef2abc.cpp"
-	"uef2abc/ArgParser.h"  "uef2abc/ArgParser.cpp"
-)
-target_link_libraries(uef2abc PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
-
-add_executable ( 
-	uef2dat "uef2dat/uef2dat.cpp" 
-	"uef2dat/ArgParser.h"  "uef2dat/ArgParser.cpp"
-)
-target_link_libraries(uef2dat PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
-
 add_executable(
 	ScanTape "ScanTape/ScanTape.cpp"
 	"ScanTape/ArgParser.h" "ScanTape/ArgParser.cpp"
@@ -161,10 +149,9 @@ add_executable(
 	"ScanTape/WavCycleDecoder.h" "ScanTape/WavCycleDecoder.cpp"
 	"ScanTape/BlockDecoder.h" "ScanTape/BlockDecoder.cpp"
 	"ScanTape/FileDecoder.h" "ScanTape/FileDecoder.cpp"
-	"ScanTape/AtomBlockDecoder.h" "ScanTape/AtomBlockDecoder.cpp"
-	"ScanTape/AtomFileDecoder.h" "ScanTape/AtomFileDecoder.cpp"
-	"ScanTape/BBMBlockDecoder.h" "ScanTape/BBMBlockDecoder.cpp"
-	"ScanTape/BBMFileDecoder.h" "ScanTape/BBMFileDecoder.cpp"
+	"ScanTape/WavTapeReader.h" "ScanTape/WavTapeReader.cpp"
+	"ScanTape/UEFTapeReader.h" "ScanTape/UEFTapeReader.cpp"
+
 )
 target_link_libraries(ScanTape PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
 
@@ -173,12 +160,6 @@ add_executable(
 	"ScanTAP/ArgParser.h" "ScanTAP/ArgParser.cpp"
 )
 target_link_libraries(ScanTAP PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
-
-add_executable(
-	ScanUEF "ScanUEF/ScanUEF.cpp"
-	"ScanUEF/ArgParser.h" "ScanUEF/ArgParser.cpp"
-)
-target_link_libraries(ScanUEF PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
 
 add_executable(
 	abc2all "abc2all/abc2all.cpp"

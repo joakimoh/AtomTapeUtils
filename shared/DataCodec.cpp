@@ -119,7 +119,7 @@ bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
         int load_adr = file_load_adr + tape_file_sz; 
 
         if (mVerbose) {
-            Utility::logTAPBlockHdr(*file_block_iter, tape_file_sz);
+            file_block_iter->logHdr();
         }
 
         tape_file_sz += block_sz;
@@ -169,7 +169,7 @@ bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
     fout.close();
 
     if (mVerbose) {
-        Utility::logTAPFileHdr(tapeFile);
+        tapeFile.logTAPFileHdr();
         cout << "\nDone encoding program '" << tapeFile.blocks[0].bbmHdr.name << "' as a DATA file...\n\n";
     }
 
@@ -202,7 +202,7 @@ bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
         char s[64];
 
         if (mVerbose)
-            Utility::logTAPBlockHdr(*file_block_iter, 0x0, block_no);
+            file_block_iter->logHdr();
         
         block_no++;
         tape_file_sz += data_len;
@@ -253,7 +253,7 @@ bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
     fout.close();
 
     if (mVerbose) {
-        Utility::logTAPFileHdr(tapeFile);
+        tapeFile.logTAPFileHdr();
         cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a DATA file...\n\n";
     }
 
@@ -288,7 +288,7 @@ bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine t
     int file_load_adr;
     FileBlock block(targetMachine);
     
-    block_name = Utility::blockNameFromFilename(targetMachine, file_name);
+    block_name = FileBlock::blockNameFromFilename(ACORN_ATOM, file_name);
     if (targetMachine) {
         file_load_adr = 0xffff0e00;
         exec_adr = load_adr;
@@ -321,9 +321,9 @@ bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine t
                 block_sz = 256;
             tape_file_sz += block_sz;
 
-            if (!Utility::initTAPBlock(targetMachine, block))
+            if (!block.init())
                 return false;
-            if (!Utility::encodeTAPHdr(block, block_name, file_load_adr, load_adr, exec_adr, block_no, block_sz)) {
+            if (!block.encodeTAPHdr(block_name, file_load_adr, load_adr, exec_adr, block_no, block_sz)) {
                 cout << "Failed to encode TAP file header for file '" << dataFileName << "'!\n";
                 return false;
             }
@@ -338,7 +338,7 @@ bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine t
         if (count == block_sz) {
 
             if (mVerbose)
-                Utility::logTAPBlockHdr(block, tape_file_sz);
+                block.logHdr();
 
             tapeFile.blocks.push_back(block);
             new_block = true;
@@ -346,17 +346,17 @@ bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine t
             load_adr += count;
             block_no++;
             //BytesIter block_iterator = block.data.begin();
-            // if (DEBUG_LEVEL == DBG) Utility::logData(load_address, block_iterator, block.data.size());
+            // if (DEBUG_LEVEL == DBG && mVerbose) Utility::logData(load_address, block_iterator, block.data.size());
         }
 
 
     }
 
 
-    //if (DEBUG_LEVEL == DBG) Utility::logData(load_address, block_iterator, block.data.size());
+    //if (DEBUG_LEVEL == DBG && mVerbose) Utility::logData(load_address, block_iterator, block.data.size());
 
     if (mVerbose)
-        Utility::logTAPFileHdr(tapeFile);
+        tapeFile.logTAPFileHdr();
 
     if (mVerbose)
         cout << "\nDone decoding DATA file '" << dataFileName << "'...\n\n";

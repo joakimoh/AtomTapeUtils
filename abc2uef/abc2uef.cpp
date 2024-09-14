@@ -51,6 +51,7 @@ int main(int argc, const char* argv[])
     UEFCodec UEF_codec = UEFCodec(false, arg_parser.verbose, arg_parser.targetMachine);
     UEF_codec.setTapeTiming(arg_parser.tapeTiming);
 
+
     if (!UEF_codec.encode(TAP_file, arg_parser.dstFileName)) {
         printf("Failed to encode program file '%s' as UEF file '%s'\n",
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()

@@ -9,7 +9,7 @@
 
 using namespace std;
 
-string str4(char c[4])
+string PcmFile::str4(char c[4])
 {
     stringstream ss;
     for (int i = 0; i < 4; i++)
@@ -21,7 +21,7 @@ string str4(char c[4])
     return ss.str();
 }
 
-bool readSamples(string fileName, Samples &samples, int& sampleFreq, bool verbose)
+bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, bool verbose)
 {
 
     ifstream fin(fileName, ios::in | ios::binary | ios::ate);
@@ -100,7 +100,7 @@ bool readSamples(string fileName, Samples &samples, int& sampleFreq, bool verbos
     return true;
 }
 
-bool writeSamples(string fileName, Samples samples[], const int nChannels, int sampleFreq, bool verbose)
+bool PcmFile::writeSamples(string fileName, Samples samples[], const int nChannels, int sampleFreq, bool verbose)
 {
     // Check that each channel contains the same no of samples
     int n_samples = (int) samples[0].size();
@@ -121,11 +121,11 @@ bool writeSamples(string fileName, Samples samples[], const int nChannels, int s
 
     CommonHeader h_head;
 
-    cout << "strncpy\n";
+
     strncpy(h_head.chunkId,"RIFF", 4);
     strncpy(h_head.format, "WAVE", 4);
     strncpy(h_head.subchunk1ID, "fmt ", 4);
-    cout << "DONE\n";
+ 
     h_head.ChunkSize = 36 + nChannels * n_samples * nChannels * 2; // 36 + subChunk2Size = 36 + NumSamples * NumChannels * 2
     h_head.numChannels = nChannels;
     h_head.byteRate = sampleFreq * nChannels * 2; //SampleRate * NumChannels * 2

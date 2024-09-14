@@ -7,7 +7,6 @@
 #include <map>
 #include <vector>
 
-
 using namespace std;
 
 /*	
@@ -50,7 +49,9 @@ using namespace std;
 *	 whereas '1' is encoded as either 2 cycles of 2400 Hz (at 1200 Baud) or 8 cycles (at 300 Baud).
 * 
 */
-typedef struct CapturedBlockTiming_struct {
+class  CapturedBlockTiming{
+
+public:
 	int prelude_lead_tone_cycles; // Only for BBC Micro
 	int lead_tone_cycles;
 	int micro_tone_cycles;// Only for Acorn Atom
@@ -59,9 +60,14 @@ typedef struct CapturedBlockTiming_struct {
 	int phase_shift = 180;
 	double start;
 	double end;
-} CapturedBlockTiming;
 
-typedef struct BlockTiming_struct {
+	void init();
+	void log();
+} ;
+
+class BlockTiming {
+public:
+
 	int firstBlockPreludeLeadToneCycles = 4; // prelude lead tone duration of first block [cycles] - BBC Micro only; this is the duration of the tone preceeding the dummy byte
 	double firstBlockLeadToneDuration = 4; // lead tone duration of first block [s] - BBC Micro only; this is the duration [s] of the tone following upon the dummy byte
 	double otherBlockLeadToneDuration = 2; // lead tone duration of all other blocks [s]
@@ -70,30 +76,39 @@ typedef struct BlockTiming_struct {
 	double firstBlockGap = 0.0; // Gap before the first block [s] - could be as low as zero in theory
 	double blockGap = 2; // Gap between each block [s]
 	double lastBlockGap = 2; // Gap after the last block [s]
-} BlockTiming;
 
-typedef struct TapeProperties_struct  {
+	void log(string prefix);
+	void log();
+
+} ;
+
+class TapeProperties {
+public:
 	double baseFreq; // Hz
 	int phaseShift; // Degrees [0-360]
 	int baudRate;
 	BlockTiming minBlockTiming;
 	BlockTiming nomBlockTiming;
 	bool preserve = false; // If set, the original tape timing shall be used when generating UEF/CSW/WAV files
-} TapeProperties;
+
+	void log();
+};
 
 const TapeProperties atomTiming {
 	1201.0f, 180, 300,
 	{ 0,	0.85,		0.85,	0.0,	0.0,	0.0,		0.0,	0.0 },
-	{ 0,	4.0,		2.0,	0.5,	0.83,	0.0,		2.0,	2.0 },
+	{ 0,	4.0,		2.0,	0.5,	0.0,	0.0,		2.0,	2.0 },
 	false
 };
 
 const TapeProperties bbmTiming {
 	1201.0f, 180, 1200,
-	{ 4,		0.5,		0.2,	0.0,	0.5,	0.0,		0.0,	0.0 },
+	{ 3,		0.5,		0.2,	0.0,	0.5,	0.0,		0.0,	0.0 },
 	{ 4,		5.1,		0.9,	0.0,	5.3,	0.0,		0.0,	1.8 },
 	false
 };
+
+const TapeProperties defaultTiming = bbmTiming;
 
 
 

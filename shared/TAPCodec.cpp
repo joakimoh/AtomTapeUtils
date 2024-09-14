@@ -20,21 +20,18 @@ TAPCodec::TAPCodec(bool verbose) : mVerbose(verbose)
 bool TAPCodec::bytes2TAP(Bytes& data, TargetMachine targetMachine, string tapeFileName, uint32_t fileLoadAdr, uint32_t execAdr, TapeFile& tapeFile)
 {
 
-    TargetMachine block_type;
     if (targetMachine) {
         tapeFile.fileType = BBC_MODEL_B;
         tapeFile.baudRate = 1200;
-        block_type = BBC_MODEL_B;
     }
     else {
         tapeFile.fileType = ACORN_ATOM;
         tapeFile.baudRate = 300;
-        block_type = ACORN_ATOM;
     }
 
     tapeFile.isBasicProgram = false;
     tapeFile.complete = true;
-    tapeFile.validFileName = Utility::filenameFromBlockName(tapeFileName);
+    tapeFile.validFileName = FileBlock::filenameFromBlockName(targetMachine, tapeFileName);
     tapeFile.validTiming = false;
     
 
@@ -49,9 +46,9 @@ bool TAPCodec::bytes2TAP(Bytes& data, TargetMachine targetMachine, string tapeFi
             block_sz = 256;
             if (data.end() - data_iter < 256)
                 block_sz = (int) (data.end() - data_iter);
-            if (!Utility::initTAPBlock(block_type, block))
+            if (!block.init())
                 return false;
-            if (!Utility::encodeTAPHdr(block, tapeFileName, fileLoadAdr, load_adr, execAdr, block_no, block_sz)) {
+            if (!block.encodeTAPHdr(tapeFileName, fileLoadAdr, load_adr, execAdr, block_no, block_sz)) {
                 cout << "Failed to create Tape Block for Tape File " << tapeFileName << "\n";
                 return false;
             }
@@ -114,6 +111,9 @@ bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
     unsigned block_no = 0;
 
     if (mVerbose)
+        tapeFile.logTAPFileHdr();
+
+    if (mVerbose)
         cout << "\nEncoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a TAP file...\n\n";
 
     // Get atom file data for header (exec adr, load adr & file sz)
@@ -140,19 +140,12 @@ bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
     while (ATM_block_iter < tapeFile.blocks.end()) {
 
         // Write data
-        fout.write((char*)&ATM_block_iter->data[0], ATM_block_iter->data.size());
+        if (ATM_block_iter->data.size() > 0)
+            fout.write((char*)&ATM_block_iter->data[0], ATM_block_iter->data.size());
 
-        if (mVerbose) {
-            string atom_filename = ATM_block_iter->atomHdr.name;
-            unsigned data_sz = ATM_block_iter->atomHdr.lenHigh * 256 + ATM_block_iter->atomHdr.lenLow;
-            unsigned load_adr_start = ATM_block_iter->atomHdr.loadAdrHigh * 256 + ATM_block_iter->atomHdr.loadAdrLow;
-            unsigned exec_adr_start = ATM_block_iter->atomHdr.execAdrHigh * 256 + ATM_block_iter->atomHdr.execAdrLow;
-            unsigned load_adr_end = load_adr_start + data_sz - 1;
+        if (mVerbose)
+            ATM_block_iter->logHdr();
 
-            Utility::logTAPBlockHdr(*ATM_block_iter, load_adr_start, block_no);
-
-
-        }
         ATM_block_iter++;
         block_no++;
     }
@@ -161,7 +154,7 @@ bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
     fout.close();
 
     if (mVerbose) {
-        Utility::logTAPFileHdr(tapeFile);
+        tapeFile.logTAPFileHdr();
         cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a TAP file...\n\n";
     }
 
@@ -259,7 +252,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
         atom_file_sz = block.atomHdr.lenHigh * 256 + block.atomHdr.lenLow;
         atom_filename = block.atomHdr.name;
         tapFile.firstBlock = 0;
-        tapFile.validFileName = Utility::filenameFromBlockName(atom_filename);
+        tapFile.validFileName = block.filenameFromBlockName(atom_filename);
         tapFile.blocks.clear();
         tapFile.complete = true;
         tapFile.isBasicProgram = true;
@@ -293,7 +286,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
             strncpy(block.atomHdr.name, atom_filename.c_str(), ATM_HDR_NAM_SZ);
 
             if (mVerbose)
-                Utility::logTAPBlockHdr(block, block_load_adr, block_no);
+                block.logHdr();
  
 
             // Read block data
@@ -323,7 +316,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
     }
 
     if (mVerbose) {
-        Utility::logTAPFileHdr(tapFile);
+        tapFile.logTAPFileHdr();
          cout << "\nDone decoding TAP file...\n";
     }
 

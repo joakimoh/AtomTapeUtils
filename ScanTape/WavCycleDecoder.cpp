@@ -122,9 +122,12 @@ int WavCycleDecoder::consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency 
 		if (half_cycle_duration >= min_d && half_cycle_duration <= max_d) {
 			nHalfCycles++;
 		}
-		else
+		else {
 			stop = true;
+		}
+		
 	}
+
 
 	// Record the frequency of the last 1/2 cycle (but only if a 1/2 cycle was detected)
 	updateHalfCycleFreq(half_cycle_duration, lastHalfCycleFrequency);
@@ -165,6 +168,7 @@ int WavCycleDecoder::stopOnHalfCycles(Frequency f, int nHalfCycles, double &wait
 				
 				waitingTime = t_end - t_start;
 			}
+
 		}
 		else
 			n = 0;

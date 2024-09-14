@@ -14,11 +14,11 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char *name)
 {
-	cout << "Usage:\t" << name << " <WAV file> [-g <generate dir path] [-d <debug start time> <debug stop time>] [-b <b>]\n";
+	cout << "Usage:\t" << name << " <WAV/CSW/UEF file> [-g <generate dir path] [-d <debug start time> <debug stop time>] [-b <b>]\n";
 	cout << "\t[-f <freq tolerance>] [-l <level tolerance>] [-s <start time> ] [-e] [-t] [-pot]\n";
 	cout << " \t[-lt <duration>] [-slt <duration>] [-ml <duration>] [-v] [-bbm]\n";
 	cout << "\n";
-	cout << "<WAVE file>:\n\t16-bit PCM WAV file to analyse\n\n";
+	cout << "<WAV/CSW/UEF file>:\n\t16-bit PCM WAV/CSW/UEF file to analyse\n\n";
 	cout << "\n";
 	cout << "If no output directory is specifed, then all generated files will be created in the current work directory\n";
 	cout << "\n";
@@ -68,7 +68,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		ac++;
 	}
 
-	// Now lock for remaining options
+	// Now look for remaining options
 	ac = 2;
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {

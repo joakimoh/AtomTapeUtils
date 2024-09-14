@@ -9,6 +9,8 @@
 #include "TAPCodec.h"
 #include "WaveSampleTypes.h"
 #include "../shared/TapeProperties.h"
+#include "BitTiming.h"
+#include "UEFCodec.h"
 
 
 using namespace std;
@@ -23,14 +25,8 @@ private:
 	bool mUseOriginalTiming = false;
 
 	int mMaxSampleAmplitude = 16384;
-	int mFS;
-	double mHighSamples;
-	double mLowSamples;;
 
-	int mStartBitCycles;	// #cycles for start bit - should be 1 "bit"
-	int mLowDataBitCycles; // #cycles for LOW "0" data bit - for F2 frequency
-	int mHighDataBitCycles;	//#cycles for HIGH "1" data bit - for F1 frequency
-	int mStopBitCycles;		// #cycles for stop bit - should be 1 1/2 "bit"
+	BitTiming mBitTiming;
 
 	Word mCRC;
 
@@ -40,22 +36,24 @@ private:
 
 	TargetMachine mTargetMachine = ACORN_ATOM;
 
+	DataEncoding mDefaultEncoding;
+
 public:
 
 
-	WavEncoder(int sampleFreq, bool verbose, TargetMachine targetMachine);
+	WavEncoder(int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine);
 
-	WavEncoder(bool useOriginalTiming, int sampleFreq, bool verbose, TargetMachine targetMachine);
+	WavEncoder(bool useOriginalTiming, int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine);
 
-	bool setTapeTiming(TapeProperties tapeTiming);
-
-	bool writeByte(Byte byte);
+	bool writeByte(Byte byte, DataEncoding encoding);
 	bool writeDataBit(int bit);
 	bool writeStartBit();
-	bool writeStopBit();
+	bool writeStopBit(DataEncoding encoding);
 	bool writeCycle(bool high, unsigned n);
 	bool writeTone(double duration);
 	bool writeGap(double duration);
+
+	bool writeSamples(string &filePath);
 
 
 	/*
@@ -65,12 +63,9 @@ public:
 	bool encodeAtom(TapeFile& tapeFile, string& filePath);
 	bool encodeBBM(TapeFile& tapeFile, string& filePath);
 
-
-
-private:
-
-	bool init();
-	
+	bool setBaseFreq(double baseFreq);
+	bool setBaudRate(int baudrate);
+	bool setPhase(int phase);
 };
 
 #endif // ! WAV_ENCODER_H

@@ -5,6 +5,7 @@
 #include "CommonTypes.h"
 #include "AtomBlockTypes.h"
 #include "BBMBlockTypes.h"
+#include "TapeProperties.h"
 
 enum TargetMachine { BBC_MODEL_A = 0, ELECTRON = 1, BBC_MODEL_B = 2, BBC_MASTER = 3, ACORN_ATOM = 4, UNKNOWN_TARGET = 0xff };
 #define _TARGET_MACHINE(x) (x==BBC_MODEL_A?"BBC_MODEL_A": \
@@ -15,23 +16,17 @@ class FileBlock {
 
 public:
 
-	FileBlock(TargetMachine bt) {
-		blockType = bt;
-	}
 
-	string blockName() {
-		if (blockType == ACORN_ATOM)
-			return atomHdr.name;
-		else
-			return bbmHdr.name;
-	}
 
-	TargetMachine blockType;
+	TargetMachine targetMachine;
 
 	union {
 		ATMHdr atomHdr;
 		BTMHdr bbmHdr;
 	};
+
+	BlockType blockType = BlockType::Unknown;
+	int blockNo = -1; // ATM header lacks block no so add it here
 
 	vector<Byte> data;
 
@@ -46,14 +41,68 @@ public:
 	int microToneCycles = 1200; // no of high frequency cycles between block header and data part for Atom Block - normally 0.5 * 2400 = 1200
 	int trailerToneCycles = 1992; // no of high frequency cycles after last BBC Micro tape block - normally 0.83 * 2400 = 1992
 	double blockGap = 2.0; // gap after block (before the next block commence) - normally 2 s (Atom) or 3.3s (BBC Micro)
+
+
+protected:
+	
+
+private:
+
+	static bool updateAtomCRC(Word& CRC, Byte data);
+	static bool updateBBMCRC(Word& CRC, Byte data);
+	
+	static string atomTapeBlockHdrFieldName(int offset);
+	static string bbmTapeBlockHdrFieldName(int offset);
+
+	static string bbmBlockNameFromFilename(TargetMachine targetMachine, string fn);
+	static string atomBlockNameFromFilename(TargetMachine targetMachine, string fn);
+
+	static string FileBlock::atomFilenameFromBlockName(TargetMachine targetMachine, string fileName);
+	static string FileBlock::bbmFilenameFromBlockName(TargetMachine targetMachine, string fileName);
+
+public:
+
+	FileBlock(TargetMachine bt);
+	
+	bool init();
+	bool init(CapturedBlockTiming& block_info);
+
+	// Properties
+	int tapeHdrSz();
+	string blockName();
+	uint32_t loadAdr();
+	uint32_t execAdr();
+	int dataSz();
+	bool isBasicProgram();
+	bool lastBlock();
+	bool firstBlock();
+
+	string tapeField(int n);
+
+	bool updateCRC(Word& crc, Byte data);
+	static bool updateCRC(TargetMachine targetMachine, Word& crc, Byte data);
+
+	bool decodeTapeHdr(Bytes &name, Bytes &hdr);
+	bool decodeTapeHdr(Bytes &hdr);
+	bool encodeTapeHdr(Bytes &hdr);
+	bool logHdr(ostream* fout);
+	bool logHdr();
+
+	bool encodeTAPHdr(
+		string tapefileName, uint32_t fileLoadAdr, uint32_t loadAdr, uint32_t execAdr, uint32_t blockNo, uint32_t BlockSz
+	);
+
+	bool readTapeFileName(TargetMachine target_machine, BytesIter& data_iter, Bytes& data, Word& CRC);
+
+	string filenameFromBlockName(string fileName);
+	static string filenameFromBlockName(TargetMachine target, string fileName);
+
+	string blockNameFromFilename(string filename);
+	static string blockNameFromFilename(TargetMachine target, string filename);
+
 };
 
-class ATMBlock : public FileBlock { public: ATMBlock() : FileBlock(ACORN_ATOM) {}; };
-class BBMBlock : public FileBlock { public: BBMBlock() : FileBlock(BBC_MODEL_B) {}; };
 
-
-typedef vector<FileBlock>::iterator ATMBlockIter;
-typedef vector<FileBlock>::iterator BBMBlockIter;
 typedef vector<FileBlock>::iterator FileBlockIter;
 
 class TapeFile {
@@ -79,9 +128,9 @@ public:
 
 	int baudRate = 300;
 
-};
+	void logTAPFileHdr(ostream* fout);
+	void logTAPFileHdr();
 
-class TAPFile : TapeFile { TAPFile() : TapeFile(ACORN_ATOM) {} };
-class TBPFile : TapeFile { TBPFile() : TapeFile(BBC_MODEL_B) {} };
+};
 
 #endif

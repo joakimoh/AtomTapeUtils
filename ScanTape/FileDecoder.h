@@ -6,7 +6,7 @@
 #include "BlockDecoder.h"
 #include <vector>
 #include "../shared/CommonTypes.h"
-#include "BlockTypes.h"
+#include "FileBlock.h"
 
 
 
@@ -22,6 +22,8 @@ protected:
 
 	bool mTracing;
 	bool mVerbose;
+	TargetMachine mTarget;
+	BlockDecoder mBlockDecoder;
 
 	string timeToStr(double t);
 
@@ -29,9 +31,12 @@ public:
 
 
 
-	FileDecoder(ArgParser& argParser);
+	FileDecoder(
+		BlockDecoder& blockDecoder,
+		ArgParser& argParser
+	);
 
-	virtual bool readFile(ofstream& logFile, TapeFile& tapFile) = 0;
+	bool readFile(ofstream& logFile, TapeFile& tapFile);
 
 
 

@@ -4,7 +4,7 @@
 #define DATA_CODEC_H
 
 #include <string>
-#include "BlockTypes.h"
+#include "FileBlock.h"
 
 class DataCodec
 {

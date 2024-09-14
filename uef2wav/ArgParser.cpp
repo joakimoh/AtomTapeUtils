@@ -16,7 +16,7 @@ void ArgParser::printUsage(const char* name)
 {
 	cout << "Usage:\t" << name << " <UEF file> [-o <output file] [-b <b>] [-lt <d>] [-slt <d>]\n";
 	cout <<	"\t[-ml <d>] [-fg <d>] [-sg <d>] [-lg <d>] [-ps <phase_shift>] [-v]\n";
-	cout << "\t[-pot] [-f <sample freq>] [-bbm]\n\n";
+	cout << "\t[-pot] [-f <sample freq>] [-bbm] [-atm]\n\n";
 	cout << "<UEF file>:\n\tUEF file to decode\n";
 	cout << "\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
@@ -33,7 +33,8 @@ void ArgParser::printUsage(const char* name)
 	cout << "-pot:\n\tPreserve original tape timing when generating the CSW file - default is " << mPreserveOriginalTiming << "\n\n";
 	cout << "-f <sample freq>:\n\tSample frequency to use - default is " << mSampleFreq << "\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
-	cout << "-bbm:\nScan for BBC Micro (default is Acorn Atom)\n\n";
+	cout << "-bbm:\nUse BBC Micro tape encoding (default)\n\n";
+	cout << "-atm:\nUse Acorn Atom tape encoding\n\n";
 	cout << "\n";
 }
 
@@ -52,19 +53,26 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	int ac = 2;
 	// First search for option '-bbm' to select target machine and the
 	// related default timing properties
-	tapeTiming = atomTiming;
+	tapeTiming = defaultTiming; // Default for UEF file
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {
 			targetMachine = BBC_MODEL_B;
 			tapeTiming = bbmTiming;
 		}
+		else if (strcmp(argv[ac], "-atm") == 0) {
+			targetMachine = ACORN_ATOM;
+			tapeTiming = bbmTiming;
+		}
 		ac++;
 	}
 
-	// Now lock for remaining options
+	// Now look for remaining options
 	ac = 2;
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {
+			// Nothing to do here as already handled above
+		}
+		else if (strcmp(argv[ac], "-atm") == 0) {
 			// Nothing to do here as already handled above
 		}
 		else if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {

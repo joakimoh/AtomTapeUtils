@@ -51,7 +51,7 @@ int main(int argc, const char* argv[])
     t_start = chrono::system_clock::now();
     Samples samples;
     int sample_freq = 44100;
-    if (!readSamples(arg_parser.wavFile, samples, sample_freq, arg_parser.verbose)) {
+    if (!PcmFile::readSamples(arg_parser.wavFile, samples, sample_freq, arg_parser.verbose)) {
         cout << "Couldn't open PCM Wave file '" << arg_parser.wavFile << "'\n";
         return -1;
     }
@@ -125,17 +125,17 @@ int main(int argc, const char* argv[])
         // Write original samples and the filtered samples into a multiple-channel 16-bit PCM output WAV file
         if (arg_parser.nAveragingSamples > 0) {
             Samples samples_v[] = { samples , samples_to_filter, new_shapes };
-            success = writeSamples(arg_parser.outputFileName, samples_v, (int) (end(samples_v) - begin(samples_v)), sample_freq, arg_parser.verbose);
+            success = PcmFile::writeSamples(arg_parser.outputFileName, samples_v, (int) (end(samples_v) - begin(samples_v)), sample_freq, arg_parser.verbose);
         }
         else {
             Samples samples_v[] = { samples , new_shapes };
-            success = writeSamples(arg_parser.outputFileName, samples_v, (int)(end(samples_v) - begin(samples_v)), sample_freq, arg_parser.verbose);
+            success = PcmFile::writeSamples(arg_parser.outputFileName, samples_v, (int)(end(samples_v) - begin(samples_v)), sample_freq, arg_parser.verbose);
         }
     }
     else {
         // Write the filtered samples into a one-channel 16-bit PCM output WAV file
         Samples samples_v[] = { new_shapes };
-        success = writeSamples(arg_parser.outputFileName, samples_v, (int)(end(samples_v) - begin(samples_v)), sample_freq, arg_parser.verbose);
+        success = PcmFile::writeSamples(arg_parser.outputFileName, samples_v, (int)(end(samples_v) - begin(samples_v)), sample_freq, arg_parser.verbose);
     }
     if (!success) {
         cout << "Couldn't write samples to Wave file '" << arg_parser.outputFileName << "'\n";

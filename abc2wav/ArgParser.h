@@ -7,7 +7,7 @@
 #include <map>
 #include <vector>
 #include "../shared/TapeProperties.h"
-#include "BlockTypes.h"
+#include "FileBlock.h"
 
 
 using namespace std;

@@ -9,32 +9,76 @@
 #include "TAPCodec.h"
 #include "../shared/TapeProperties.h"
 #include "../shared/TapeProperties.h"
+#include "BitTiming.h"
 
 
 using namespace std;
 
+enum ChunkInfoType { BAUDRATE, BASE_FREQ, CARRIER, CARRIER_DUMMY, DATA, GAP, PHASE, IGNORE, UNKNOWN };
 
+
+#define _CHUNK_INFO_TYPE(x) (\
+	x==CARRIER?"CARRIER":\
+	(x==CARRIER_DUMMY?"CARRIER_DUMMY":\
+	(x==DATA?"DATA":(x==GAP?"GAP":\
+	(x==PHASE?"PHASE":(x==IGNORE?"IGNORE":(x==BAUDRATE?"BAUDRATE":(x==BASE_FREQ?"BASEFREQ":"UNKNOWN"))))))))
+
+
+// Data encoding as can be specified for an UEF complex data block
+// Default values are used for simple data chunks
+enum Parity { NO_PAR, ODD, EVEN };
+#define _PARITY(x) (x==Parity::NO_PAR?"-":(x==Parity::ODD?"ODD":"EVEN"))
+class DataEncoding {
+public:
+	int bitsPerPacket = 8; // 7 or 8
+	Parity parity = Parity::NO_PAR; // NONE/ODD/EVEN
+	int nStopBits = 1; // 1 or 2 normally
+	bool extraShortWave = false; // For Acorn Atom
+
+	DataEncoding() { init(); }
+
+	DataEncoding(int nb, Parity p, int nsb, bool esw) {
+		bitsPerPacket = nb;
+		parity = p;
+		nStopBits = nsb;
+		extraShortWave = esw;
+	}
+
+	void init() { bitsPerPacket = 8; parity = Parity::NO_PAR; nStopBits = 1; extraShortWave = false; }
+};
+
+const DataEncoding atomDefaultDataEncoding(8, Parity::NO_PAR, 1, true); // 8N-1
+const DataEncoding bbmDefaultDataEncoding(8, Parity::NO_PAR, 1, false); // 8N1
+
+
+
+class ChunkInfo {
+
+		
+public:
+
+
+	ChunkInfoType chunkInfoType = ChunkInfoType::UNKNOWN;
+	double data1_fp = 0.0;
+	int data2_i = 0;
+	Bytes data;
+	DataEncoding dataEncoding;
+
+	ChunkInfo(ChunkInfoType chunkType, double time1, int time2) : chunkInfoType(chunkType), data1_fp(time1), data2_i(time2) {}
+	ChunkInfo() {}
+
+	void init() { chunkInfoType = ChunkInfoType::UNKNOWN; data1_fp = -1.0;  data2_i = -1; data.clear(); dataEncoding.init(); }
+};
 
 class UEFCodec
 {
+	
 
 private:
 
 
-	TapeProperties mTapeTiming;
-
-	bool mUseOriginalTiming = false;
-
-	bool mVerbose = false;
-
-	TargetMachine mTargetMachine = ACORN_ATOM;
-
-	bool file_being_read = false;
-
-	bool mInspect = false;
-
 	//
-	// UEF header and chunks
+	// UEF header and chunk types
 	//
 
 	enum CHUNK_ID {
@@ -72,8 +116,6 @@ private:
 		ChunkId chunkId;
 		ChunkSz chunkSz;
 	} ChunkHdr;
-
-
 
 	// UEF base frequency chunk
 	typedef struct BaseFreqChunk_struct {
@@ -168,10 +210,10 @@ private:
 
 
 
-	double mBaseFrequency = 1200; // Default for an UEF file
-	unsigned mBaudRate = 1200; // Default for an UEF file
-	unsigned mPhase = 180; // Default for an UEF file
 
+	//
+	// Methods used when creating an EUF File
+	//
 
 	// Methods to write header and different types of chunks
 	bool writeUEFHeader(ogzstream &fout, Byte majorVersion, Byte minorVersion);
@@ -189,72 +231,91 @@ private:
 	bool writeOriginChunk(ogzstream&fout, string origin);
 	bool writeTargetChunk(ogzstream& fout);
 
-
-	//
-	// Data kept while parsing UEF file
-	//
-
-	enum BLOCK_STATE {
-		READING_GAP,
-		READING_CARRIER_WITH_DUMMY, READING_CARRIER_PRELUDE, READING_DUMMY_BYTE, READING_CARRIER_POSTLUDE, /* BBC Micro only */
-		READING_CARRIER, /* Electron and Acorn Atom and BBC Micro if the carrier with dummy byte is used */
-		READING_HDR, READING_MICRO_TONE, READING_DATA, // Atom Acorn only
-		READING_HDR_DATA, READING_TRAILER_TONE,// BBC Micro only
-		UNDEFINED_BLOCK_STATE
-	};
-
-	enum CHUNK_TYPE { CARRIER_CHUNK, CARRIER_DUMMY_CHUNK, DATA_CHUNK, GAP_CHUNK, UNDEFINED_CHUNK };
-
-#define _BLOCK_STATE(x) \
-    (x==READING_GAP?"READING_GAP":\
-    (x==READING_CARRIER?"READING_CARRIER":(x==READING_HDR?"READING_HDR":\
-    (x==READING_MICRO_TONE?"READING_MICRO_TONE":(x==READING_DATA?"READING_DATA":\
-	(x==READING_CARRIER_PRELUDE?"READING_CARRIER_PRELUDE":\
-	(x == READING_DUMMY_BYTE ? "READING_DUMMY_BYTE" :\
-	(x == READING_CARRIER_POSTLUDE ? "READING_CARRIER_POSTLUDE" : (x == READING_HDR_DATA?"READING_HDR_DATA":\
-	(x == READING_TRAILER_TONE?"READING_TRAILER_TONE":\
-	(READING_CARRIER_WITH_DUMMY?"READING_CARRIER_WITH_DUMMY":"???")\
-		)))\
-	)))))))
-
-	
-	BLOCK_STATE mBlockState = READING_GAP;
-	BLOCK_STATE mPrevBlockState = UNDEFINED_BLOCK_STATE;
-	vector<CapturedBlockTiming> mBlockInfo;
-	CapturedBlockTiming mCurrentBlockInfo;
-	double mCurrentTime = 0;
-	bool firstBlock = true;
-	bool updateBlockState(CHUNK_TYPE chunkType, double duration, int preludeCycles);
-	bool updateAtomBlockState(CHUNK_TYPE chunkType, double duration);
-	bool updateBBMBlockState(CHUNK_TYPE chunkType, double duration, int prelude_cycles);
-
-
-
 	bool addBytes2Vector(Bytes& v, Byte bytes[], int n);
 
-	// Methods to decode bytes
-	bool read_word(BytesIter& data_iter, Bytes& data, Word& word, bool little_endian);
-	bool read_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, Bytes& block_data);
-	bool read_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, Byte bytes[]);
-	bool check_bytes(BytesIter& data_iter, Bytes& data, int n, Word& CRC, Byte refVal);
+	bool encodeAtom(TapeFile& tapeFile, ogzstream& fout);
+	bool encodeBBM(TapeFile& tapeFile, ogzstream& fout);
 
-	// Methods to create Tape File from extracted data stream
-	bool decodeAtomFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
-	bool decodeBBMFile(Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
+	static bool encodeFloat(double val, Byte encoded_val[4]);
 
 
+	//
+	// Methods used when reading EUF File
+	//
+
+	static bool decodeFloat(Byte encoded_val[4], double& decoded_val);
+
+	bool readBytes(Byte* dst, int n);
+
+	bool detectCarrier(double& waitingTime, double& duration1, double& duration2, bool skipData, bool acceptDummy);
+
+	
+
+	void consume_bytes(int& n, Bytes& data);
+
+	
+	//
+	// General properties used by the codec
+	//
+
+	TapeProperties mTapeTiming;
+
+	bool mUseOriginalTiming = false;
+
+	bool mVerbose = false;
+
+	TargetMachine mTargetMachine = ACORN_ATOM;
+
+
+	//
+	// Data kept wile both reading and writiing an UEF file
+	// 
+
+	double mBaseFrequency = 1200; // Default for an UEF file
+	unsigned mBaudRate = 1200; // Default for an UEF file
+	unsigned mPhase = 180; // Default for an UEF file
+
+	//
+	// Data kept while writing UEF file
+	//
+
+	bool firstBlock = true;
+	
+
+
+	//
+	// Data kept while reading UEF file
+	//
+
+	class UEFChkPoint {
+
+	public:
+		BytesIter pos;
+		double time = 0;
+		Bytes bufferedData;
+		enum {};
+
+		UEFChkPoint(BytesIter p, double t, Bytes data) : pos(p), time(t), bufferedData(data) {}
+	};
+
+	BitTiming mBitTiming;
+	Bytes mRemainingData;
+	Bytes mUefData;
+	BytesIter mUefDataIter;
+	double mTime = 0.0;
+	vector <UEFChkPoint> checkpoints;
+
+	ostream* mFout = &cout;
+	
 public:
 
+	bool setStdOut(ostream* fout);
+
+	bool processChunk(ChunkInfo& chunkInfo);
 
 	UEFCodec(bool verbose, TargetMachine mTargetMachine);
 
 	UEFCodec(bool useOriginalTiming, bool verbose, TargetMachine mTargetMachine);
-
-
-	static bool decodeFloat(Byte encoded_val[4], double& decoded_val);
-
-	static bool encodeFloat(double val, Byte encoded_val[4]);
-	
 
 	bool setTapeTiming(TapeProperties tapeTiming);
 
@@ -264,32 +325,30 @@ public:
 	bool encode(TapeFile& tapFile, string& filePath);
 
 	/*
-	 * Decode UEF file as TAP File structure
-	 */
-	bool decode(string &uefFileName, TapeFile& tapFile);
-
-	/*
 	 * Decode UEF file but only print it's content rather than converting a Tape File 
 	 */
 	bool inspect(string& uefFileName);
 
-	bool decodeMultipleFiles(string& fileName, vector<TapeFile>& tapeFiles, TargetMachine targetMachine);
+	double getTime();
+	bool rollback();
+	bool checkpoint();
+
+	int getPhaseShift();
+
+	double getBaseFreq();
+
+	bool readfromDataChunk(int n, Bytes& data);
+	bool detectGap(double& duration1);
+	bool detectCarrierWithDummyByte(double& waitingTime, double& duration1, double& duration2);
+	bool detectCarrierWithDummyByte(double& duration1, double& duration2);
+	bool detectCarrier(double& waitingTime, double& duration);
+	bool detectCarrier(double& duration);
+
+	bool readUefFile(string& uefFileName);
+	bool validUefFile(string& uefFileName);
 	
 	
-private:
-		bool inspectFile(Bytes data); // help method to inspect above
 
-		bool encodeAtom(TapeFile& tapeFile, ogzstream& fout);
-		bool encodeBBM(TapeFile& tapeFile, ogzstream& fout);
-
-		bool getUEFdata(string& uefFileName, Bytes& data);
-
-		bool decodeFile(string uefFilename, Bytes &data, TapeFile& tapeFile, BytesIter& data_iter);
-
-		void resetCurrentBlockInfo();
-		void pushCurrentBlock();
-		void pullCurrentBlock();
-	
 
 
 };

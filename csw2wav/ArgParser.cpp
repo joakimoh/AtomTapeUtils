@@ -37,7 +37,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 
 	dstFileName = Utility::crDefaultOutFileName(srcFileName, "wav");
 
-	// Now lock for remaining options
+	// Now look for remaining options
 	int ac = 2;
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {

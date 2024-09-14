@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 #include "CommonTypes.h"
-#include "BlockTypes.h"
+#include "FileBlock.h"
 
 using namespace std;
 

@@ -38,21 +38,28 @@ ArgParser::ArgParser(int argc, const char* argv[])
 
 
 	int ac = 2;
-	// First search for option '-bbm' to select target machine and the
+	// First search for option '-bbm' and '-atm' to select target machine and the
 	// related default timing properties
-	tapeTiming = atomTiming;
+	tapeTiming = defaultTiming; // Default for UEF file
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {
 			targetMachine = BBC_MODEL_B;
 			tapeTiming = bbmTiming;
 		}
+		else if (strcmp(argv[ac], "-atm") == 0) {
+			targetMachine = ACORN_ATOM;
+			tapeTiming = bbmTiming;
+		}
 		ac++;
 	}
 
-	// Now lock for remaining options
+	// Now look for remaining options
 	ac = 2;
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-bbm") == 0) {
+			// Nothing to do here as already handled above
+		}
+		else if (strcmp(argv[ac], "-atm") == 0) {
 			// Nothing to do here as already handled above
 		}
 		else if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {

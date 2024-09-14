@@ -12,58 +12,49 @@
 #include "AtomBlockTypes.h"
 #include "WaveSampleTypes.h"
 #include "zpipe.h"
+#include "FileBlock.h"
 
 
 
 using namespace std;
 
 
-CSWCodec::CSWCodec(bool verbose, TargetMachine targetMachine) : mVerbose(verbose), mTargetMachine(targetMachine)
+CSWCodec::CSWCodec(int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine) : 
+    mBitTiming(sampleFreq, tapeTiming.baseFreq, tapeTiming.baudRate, targetMachine), mVerbose(verbose), mTargetMachine(targetMachine)
 {
-    if (targetMachine <= BBC_MASTER)
-        mTapeTiming = bbmTiming;
-    else
+    if (!targetMachine)
         mTapeTiming = atomTiming;
+    else if (targetMachine == ACORN_ATOM)
+        mTapeTiming = atomTiming;
+    else
+        mTapeTiming = defaultTiming;
 }
 
-CSWCodec::CSWCodec(bool useOriginalTiming, bool verbose, TargetMachine targetMachine): mVerbose(verbose), mTargetMachine(targetMachine)
+CSWCodec::CSWCodec(bool useOriginalTiming, int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine):
+    mBitTiming(sampleFreq, tapeTiming.baseFreq, tapeTiming.baudRate, targetMachine), mVerbose(verbose), mTargetMachine(targetMachine)
 {
     mUseOriginalTiming = useOriginalTiming;
-    if (targetMachine <= BBC_MASTER)
-        mTapeTiming = bbmTiming;
-    else
+    if (!targetMachine)
         mTapeTiming = atomTiming;
+    else if (targetMachine == ACORN_ATOM)
+        mTapeTiming = atomTiming;
+    else
+        mTapeTiming = defaultTiming;
 }
 
 
-bool CSWCodec::setTapeTiming(TapeProperties tapeTiming)
-{
-    mTapeTiming = tapeTiming;
-    return true;
-}
-
-bool CSWCodec::encode(TapeFile& tapeFile, string& filePath, int sampleFreq)
+bool CSWCodec::encode(TapeFile& tapeFile, string& filePath)
 {
     if (tapeFile.fileType <= BBC_MASTER)
-        return encodeBBM(tapeFile, filePath, sampleFreq);
+        return encodeBBM(tapeFile, filePath);
     else
-        return encodeBBM(tapeFile, filePath, sampleFreq);
+        return encodeAtom(tapeFile, filePath);
 }
 
-bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
+bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
 {
     TargetMachine file_block_type = BBC_MODEL_B;
 
-    mFS = sampleFreq;
-
-    if (!Utility::setBitTiming(mTapeTiming.baudRate, mTargetMachine, mStartBitCycles,
-        mLowDataBitCycles, mHighDataBitCycles, mStopBitCycles)
-        ) {
-
-        throw invalid_argument("Unsupported baud rate " + mTapeTiming.baudRate);
-    }
-    mHighSamples = (double)mFS / F2_FREQ;
-    mLowSamples = (double)mFS / F1_FREQ;
 
     int prelude_tone_cycles = mTapeTiming.nomBlockTiming.firstBlockPreludeLeadToneCycles;
     double lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;
@@ -108,7 +99,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
         if (mUseOriginalTiming) {
             prelude_tone_cycles = file_block_iter->preludeToneCycles;
             lead_tone_duration = (file_block_iter->leadToneCycles) / high_tone_freq;
-            mPhase = file_block_iter->phaseShift;
+            mTapeTiming.phaseShift = file_block_iter->phaseShift;
         }
         if (block_no == 0) {
             double prelude_lead_tone_duration = prelude_tone_cycles / high_tone_freq;
@@ -116,7 +107,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
                 printf("Failed to write prelude lead tone of duration %f s\n", prelude_lead_tone_duration);
             }
 
-            if (!writeByte(0xaa)) {
+            if (!writeByte(0xaa, bbmDefaultDataEncoding)) {
                 cout << "Failed to write dummy byte 0xaa\n";
             }
         }
@@ -155,7 +146,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
 
 
         // Store header bytes
-        if (!Utility::encodeTapeHdr(file_block_type, *file_block_iter, block_no, n_blocks, header_data)) {
+        if (!file_block_iter->encodeTapeHdr(header_data)) {
             cout << "Failed to encode header bytes for block #" << block_no << "\n";
             return false;
         }
@@ -164,7 +155,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
         // Encode the header bytes
         BytesIter hdr_iter = header_data.begin();
         while (hdr_iter < header_data.end())
-            writeByte(*hdr_iter++);
+            writeByte(*hdr_iter++, bbmDefaultDataEncoding);
 
         //
         // Write the header CRC
@@ -172,7 +163,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
 
         // Encode CRC byte
         Word header_CRC = mCRC;
-        if (!writeByte(header_CRC / 256) || !writeByte(header_CRC % 256)) {
+        if (!writeByte(header_CRC / 256, bbmDefaultDataEncoding) || !writeByte(header_CRC % 256, bbmDefaultDataEncoding)) {
             printf("Failed to encode header CRC!%s\n", "");
             return false;
         }
@@ -206,7 +197,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
         // Encode the block data bytes
         BytesIter data_iter = block_data.begin();
         while (data_iter < block_data.end())
-            writeByte(*data_iter++);
+            writeByte(*data_iter++, bbmDefaultDataEncoding);
 
 
         //
@@ -214,7 +205,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
         //
 
         Word data_CRC = mCRC;
-        if (!writeByte(data_CRC / 256) || !writeByte(data_CRC % 256)) {
+        if (!writeByte(data_CRC / 256, bbmDefaultDataEncoding) || !writeByte(data_CRC % 256, bbmDefaultDataEncoding)) {
             printf("Failed to encode data CRC!%s\n", "");
             return false;
         }
@@ -280,6 +271,22 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
 
 
     // Write samples to CSW file
+    if (!writeSamples(filePath)) {
+        cout << "Failed to write CSW pulses to file '" << filePath << "'!\n";
+        return false;
+    }
+ 
+
+    if (mVerbose)
+        cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
+
+    return true;
+
+}
+
+bool CSWCodec::writeSamples(string filePath)
+{
+    // Write samples to CSW file
     CSW2Hdr hdr;
     ofstream fout(filePath, ios::out | ios::binary | ios::ate);
 
@@ -287,11 +294,11 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
     hdr.csw2.compType = 0x02; // (Z - RLE) - ZLIB compression of data stream
     hdr.csw2.flags = 0; // Initial polarity (specified by bit b0) is LOW
     hdr.csw2.hdrExtLen = 0;
-    hdr.csw2.sampleRate[0] = mFS & 0xff;
-    hdr.csw2.sampleRate[1] = (mFS >> 8) & 0xff;
-    hdr.csw2.sampleRate[2] = (mFS >> 16) & 0xff;
-    hdr.csw2.sampleRate[3] = (mFS >> 24) & 0xff;
-    int n_pulses = (int) mPulses.size();
+    hdr.csw2.sampleRate[0] = mBitTiming.fS & 0xff;
+    hdr.csw2.sampleRate[1] = (mBitTiming.fS >> 8) & 0xff;
+    hdr.csw2.sampleRate[2] = (mBitTiming.fS >> 16) & 0xff;
+    hdr.csw2.sampleRate[3] = (mBitTiming.fS >> 24) & 0xff;
+    int n_pulses = (int)mPulses.size();
     hdr.csw2.totNoPulses[0] = n_pulses & 0xff;
     hdr.csw2.totNoPulses[1] = (n_pulses >> 8) & 0xff;
     hdr.csw2.totNoPulses[2] = (n_pulses >> 16) & 0xff;
@@ -313,27 +320,10 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath, int sampleFreq)
 
     // Clear samples to secure that future encodings start without any initial samples
     mPulses.clear();
-
-    if (mVerbose)
-        cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
-
-    return true;
-
 }
 
-bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath, int sampleFreq)
+bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
 {
-
-    mFS = sampleFreq;
-
-    if (!Utility::setBitTiming(mTapeTiming.baudRate, mTargetMachine, mStartBitCycles,
-        mLowDataBitCycles, mHighDataBitCycles, mStopBitCycles)
-        ) {
-
-        throw invalid_argument("Unsupported baud rate " + mTapeTiming.baudRate);
-    }
-    mHighSamples = (double)mFS / F2_FREQ;
-    mLowSamples = (double)mFS / F1_FREQ;
 
     double lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;
     double other_block_lead_tone_duration = mTapeTiming.nomBlockTiming.otherBlockLeadToneDuration;
@@ -376,7 +366,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath, int sampleFreq)
         // Write a lead tone for the block
         if (mUseOriginalTiming) {
             lead_tone_duration = (ATM_block_iter->leadToneCycles) / high_tone_freq;
-            mPhase = ATM_block_iter->phaseShift;
+            mTapeTiming.phaseShift = ATM_block_iter->phaseShift;
         }
         if (!writeTone(lead_tone_duration)) {
             printf("Failed to write lead tone of duration %f s\n", lead_tone_duration);
@@ -439,7 +429,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath, int sampleFreq)
         // Encode the header bytes
         BytesIter hdr_iter = header_data.begin();
         while (hdr_iter < header_data.end())
-            writeByte(*hdr_iter++);
+            writeByte(*hdr_iter++, atomDefaultDataEncoding);
 
         if (mVerbose)
             cout << "HDR : ";
@@ -475,7 +465,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath, int sampleFreq)
         // Encode the block data bytes
         BytesIter data_iter = block_data.begin();
         while (data_iter < block_data.end())
-            writeByte(*data_iter++);
+            writeByte(*data_iter++, atomDefaultDataEncoding);
 
         //
         // Write CRC
@@ -483,7 +473,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath, int sampleFreq)
 
         // Encode CRC byte
 
-        if (!writeByte(mCRC & 0xff)) {
+        if (!writeByte(mCRC & 0xff, atomDefaultDataEncoding)) {
             printf("Failed to encode CRC!%s\n", "");
             return false;
         }
@@ -530,10 +520,10 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath, int sampleFreq)
     hdr.csw2.compType = 0x02; // (Z - RLE) - ZLIB compression of data stream
     hdr.csw2.flags = 0; // Initial polarity (specified by bit b0) is LOW
     hdr.csw2.hdrExtLen = 0;
-    hdr.csw2.sampleRate[0] = mFS & 0xff;
-    hdr.csw2.sampleRate[1] = (mFS >> 8) & 0xff;
-    hdr.csw2.sampleRate[2] = (mFS >> 16) & 0xff;
-    hdr.csw2.sampleRate[3] = (mFS >> 24) & 0xff;
+    hdr.csw2.sampleRate[0] = mBitTiming.fS & 0xff;
+    hdr.csw2.sampleRate[1] = (mBitTiming.fS >> 8) & 0xff;
+    hdr.csw2.sampleRate[2] = (mBitTiming.fS >> 16) & 0xff;
+    hdr.csw2.sampleRate[3] = (mBitTiming.fS >> 24) & 0xff;
     int n_pulses = (int) mPulses.size();
     hdr.csw2.totNoPulses[0] = n_pulses & 0xff;
     hdr.csw2.totNoPulses[1] = (n_pulses >> 8) & 0xff;
@@ -564,7 +554,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath, int sampleFreq)
 
 }
 
-bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, HalfCycle& firstHalfCycle)
+bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, HalfCycle& firstHalfCycle)
 { 
     ifstream fin(CSWFileName, ios::in | ios::binary | ios::ate);
 
@@ -610,7 +600,7 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, HalfC
             return false;
         }
         compressed = (csw2_hdr.compType == 0x02);
-        sampleFreq = csw2_hdr.sampleRate[0] + (csw2_hdr.sampleRate[1] << 8) + (csw2_hdr.sampleRate[2] << 16) + (csw2_hdr.sampleRate[3] << 24);
+        mBitTiming.fS = csw2_hdr.sampleRate[0] + (csw2_hdr.sampleRate[1] << 8) + (csw2_hdr.sampleRate[2] << 16) + (csw2_hdr.sampleRate[3] << 24);
         n_pulses = csw2_hdr.totNoPulses[0] + (csw2_hdr.totNoPulses[1] << 8) + (csw2_hdr.totNoPulses[2] << 16) + (csw2_hdr.totNoPulses[3] << 24);
         firstHalfCycle = ((csw2_hdr.flags & 0x01) == 0x01 ? HighHalfCycle : LowHalfCycle);
         char s[16];
@@ -629,7 +619,7 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, HalfC
             return false;
         }
         compressed = false;
-        sampleFreq = csw1_hdr.sampleRate[0] + (csw1_hdr.sampleRate[1] << 8);
+        mBitTiming.fS = csw1_hdr.sampleRate[0] + (csw1_hdr.sampleRate[1] << 8);
         n_pulses = -1; // unspecified and therefore undefined for CSW format 1.1
         firstHalfCycle = ((csw1_hdr.flags & 0x01) == 0x01 ? HighHalfCycle : LowHalfCycle);
     }
@@ -646,7 +636,7 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, int& sampleFreq, HalfC
     if (mVerbose) {
         cout << "CSW v" << (int)common_hdr.majorVersion << "." << (int)common_hdr.minorVersion << " format with settings:\n";
         cout << "compressed: " << (compressed ? "Z-RLE" : "RLE") << "\n";
-        cout << "sample frequency: " << (int)sampleFreq << "\n";
+        cout << "sample frequency: " << (int)mBitTiming.fS << "\n";
         cout << "no of pulses: " << (int)n_pulses << "\n";
         cout << "initial polarity: " << _HALF_CYCLE(firstHalfCycle) << "\n";
         cout << "encoding app: " << encoding_app << "\n";
@@ -711,24 +701,35 @@ bool CSWCodec::isCSWFile(string& CSWFileName)
     return true;
 }
 
-bool CSWCodec::writeByte(Byte byte)
+bool CSWCodec::writeByte(Byte byte, DataEncoding encoding)
 {
     if (!writeStartBit())
         return false;
 
+    int n_data_bits = encoding.bitsPerPacket;
+
     Byte b = byte;
-    for (int i = 0; i < 8; i++) {
+    int parity = 0;
+    for (int i = 0; i < n_data_bits; i++) {
         if (!writeDataBit(b & 0x1)) {
             printf("Failed to encode '%d' data bit #%d\n", b & 0x1, i);
             return false;
         }
         b = b >> 1;
+        parity += (b & 0x1) % 2;
+    }
+    if (encoding.parity == Parity::ODD)
+        parity = 1 - parity;
+
+    if (encoding.parity != Parity::NO_PAR && !writeDataBit(parity)) {
+        cout << "Failed to write " << _PARITY(encoding.parity) << " bit\n";
+        return false;
     }
 
-    if (!writeStopBit())
+    if (!writeStopBit(encoding))
         return false;
 
-    Utility::updateCRC(mTargetMachine, mCRC, byte);
+    FileBlock::updateCRC(mTargetMachine, mCRC, byte);
 
     return true;
 
@@ -740,11 +741,11 @@ bool CSWCodec::writeDataBit(int bit)
     bool high_frequency;
 
     if (bit != 0) {
-        n_cycles = mHighDataBitCycles;
+        n_cycles = mBitTiming.highDataBitCycles;
         high_frequency = true;
     }
     else {
-        n_cycles = mLowDataBitCycles;
+        n_cycles = mBitTiming.lowDataBitCycles;
         high_frequency = false;
     }
 
@@ -760,7 +761,7 @@ bool CSWCodec::writeDataBit(int bit)
 
 bool CSWCodec::writeStartBit()
 {
-    int n_cycles = mStartBitCycles;
+    int n_cycles = mBitTiming.startBitCycles;
 
     if (!writeCycle(false, n_cycles)) {
         printf("Failed to encode start bit%s\n", "");
@@ -770,9 +771,10 @@ bool CSWCodec::writeStartBit()
     return true;
 }
 
-bool CSWCodec::writeStopBit()
+bool CSWCodec::writeStopBit(DataEncoding encoding)
 {
-    int n_cycles = mStopBitCycles;
+    int n_cycles = mBitTiming.stopBitCycles * encoding.nStopBits + (encoding.extraShortWave ? 1 : 0);
+
 
     if (!writeCycle(true, n_cycles)) {
         printf("Failed to encode stop bit%s\n", "");
@@ -786,7 +788,7 @@ bool CSWCodec::writeStopBit()
 bool CSWCodec::writeTone(double duration)
 {
     
-    int n_cycles = (int)round((double)duration * F2_FREQ);
+    int n_cycles = (int)round((double)duration * mTapeTiming.baseFreq * 2);
 
     if (!writeCycle(true, n_cycles)) {
         printf("Failed to encode %lf duration (%d cycles) tone.\n", duration, n_cycles);
@@ -802,7 +804,7 @@ bool CSWCodec::writeTone(double duration)
 bool CSWCodec::writeGap(double duration)
 {
 
-    unsigned n_samples = (unsigned) round(duration * mFS);
+    unsigned n_samples = (unsigned) round(duration * mBitTiming.fS);
 
     if (n_samples == 0)
         return true;
@@ -837,10 +839,10 @@ bool CSWCodec::writeCycle(bool highFreq, unsigned n)
 
     double n_samples_per_half_cycle;
     if (highFreq) {
-        n_samples_per_half_cycle = mHighSamples / 2;
+        n_samples_per_half_cycle = mBitTiming.F2Samples / 2;
     }
     else {
-        n_samples_per_half_cycle = mLowSamples / 2;       
+        n_samples_per_half_cycle = mBitTiming.F1Samples / 2;
     }
 
     double sample_no = 0;
@@ -865,5 +867,34 @@ bool CSWCodec::writeCycle(bool highFreq, unsigned n)
 
     }
  
+    return true;
+}
+
+bool CSWCodec::setBaseFreq(double baseFreq)
+{
+    mTapeTiming.baseFreq = baseFreq;
+
+    // Update bit timing as impacted by the change in Base frequency
+    BitTiming new_bit_timing(mBitTiming.fS, mTapeTiming.baseFreq, mTapeTiming.baudRate, mTargetMachine);
+    mBitTiming = new_bit_timing;
+
+    return true;
+}
+
+bool CSWCodec::setBaudRate(int baudrate)
+{
+    mTapeTiming.baudRate = baudrate;
+
+    // Update bit timing as impacted by the change in Baudrate
+    BitTiming new_bit_timing(mBitTiming.fS, mTapeTiming.baseFreq, mTapeTiming.baudRate, mTargetMachine);
+    mBitTiming = new_bit_timing;
+
+    return true;
+}
+
+bool CSWCodec::setPhase(int phase)
+{
+    //mBitTiming.
+    mTapeTiming.phaseShift = phase;
     return true;
 }

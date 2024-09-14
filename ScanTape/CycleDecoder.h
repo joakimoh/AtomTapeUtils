@@ -29,7 +29,7 @@ protected:
 
 	bool mTracing;
 
-	int mFS; // sample frequency (normally 44 100 Hz for WAV files)
+	int mFS = 44100; // sample frequency (normally 44 100 Hz for WAV files)
 	double mTS; // sample duration = 1 / sample frequency
 
 	CycleSample mCycleSample = { Frequency::NoCarrierFrequency, 0, 0 };
@@ -77,6 +77,8 @@ public:
 
 	CycleDecoder(ArgParser argParser) : mArgParser(argParser) {};
 
+	// Get the sample frequency
+	int getSampleFreq() { return mFS;  }
 
 	// Get the current phaseshift (in degrees)
 	int getPhaseShift() { return mPhaseShift;  }
@@ -91,7 +93,10 @@ public:
 	virtual int stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime, Frequency &lastHalfCycleFrequency) = 0;
 
 	// Get duration (in samples) of one F2 cycle
-	double getF2Duration() { return (double) mFS / F2_FREQ;  }
+	double getF2Samples() { return (double) mFS / F2_FREQ;  }
+
+	// Get duration (in samples) of one F2 cycle
+	double getF2Duration() { return (double) 1 / F2_FREQ; }
 
 	// Get the next cycle (which is ether a low - F1 - or high - F2 - tone cycle)
 	virtual bool getNextCycle(CycleSample& cycleSample) = 0;

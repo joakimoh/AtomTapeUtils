@@ -11,59 +11,30 @@
 
 using namespace std;
 
-bool WavEncoder::init()
-{
-    if (!Utility::setBitTiming(mTapeTiming.baudRate, mTargetMachine, mStartBitCycles,
-        mLowDataBitCycles, mHighDataBitCycles, mStopBitCycles)
-        ) {
-        throw invalid_argument("Unsupported baud rate " + mTapeTiming.baudRate);
-    }
-    mHighSamples = (double)mFS / F2_FREQ;
-    mLowSamples = (double)mFS / F1_FREQ;
-    if (mVerbose) {
-        cout << "Baudrate: " << dec << mTapeTiming.baudRate << " Hz\n";
-        cout << "mStartBitCycles: " << mStartBitCycles << "\n";
-        cout << "mLowDataBitCycles: " << mLowDataBitCycles << "\n";
-        cout << "mHighDataBitCycles: " << mHighDataBitCycles << "\n";
-        cout << "mStopBitCycles: " << mStopBitCycles << "\n";
-        cout << "\n";
-    }
-
-    return true;
-}
-
 WavEncoder::WavEncoder(
-    bool useOriginalTiming, int sampleFreq, bool verbose, TargetMachine targetMachine
-): mUseOriginalTiming(useOriginalTiming), mFS(sampleFreq), mVerbose(verbose), mTargetMachine(targetMachine)
+    bool useOriginalTiming, int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine
+): mUseOriginalTiming(useOriginalTiming), mBitTiming(sampleFreq, tapeTiming.baseFreq, tapeTiming.baudRate, targetMachine),
+    mVerbose(verbose), mTargetMachine(targetMachine)
 {
     if (targetMachine <= BBC_MASTER)
         mTapeTiming = bbmTiming;
-    else
+    else if (targetMachine == ACORN_ATOM)
         mTapeTiming = atomTiming;
-    if (!init()) {
-        cout << "Failed to initialise the WavEncoder\n";
-    };
+    else
+        mTapeTiming = defaultTiming;
+
 }
 
-WavEncoder::WavEncoder(int sampleFreq, bool verbose, TargetMachine targetMachine) : mFS(sampleFreq), mVerbose(verbose), mTargetMachine(targetMachine)
+WavEncoder::WavEncoder(int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine) :
+    mBitTiming(sampleFreq, tapeTiming.baseFreq, tapeTiming.baudRate, targetMachine), mVerbose(verbose), mTargetMachine(targetMachine)
 {
     if (!targetMachine)
         mTapeTiming = atomTiming;
+    else if (targetMachine == ACORN_ATOM)
+        mTapeTiming = atomTiming;
     else
-        mTapeTiming = bbmTiming;
-    if (!init()) {
-        cout << "Failed to initialise the WavEncoder\n";
-    }
-}
+        mTapeTiming = defaultTiming;
 
-bool WavEncoder::setTapeTiming(TapeProperties tapeTiming)
-{
-    mTapeTiming = tapeTiming;
-    if (mVerbose) {
-
-        Utility::logTapeTiming(mTapeTiming);
-    }
-    return true;
 }
 
 bool WavEncoder::encode(TapeFile& tapeFile, string& filePath)
@@ -130,7 +101,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
             if (!writeTone(prelude_lead_tone_duration)) { // Normally 4 initial cycles
                 printf("Failed to write lead tone of duration %f s\n", lead_tone_duration);
             }
-            writeByte(0xaa); // dummy byte
+            writeByte(0xaa, bbmDefaultDataEncoding); // dummy byte
         }
         if (!writeTone(lead_tone_duration)) { // remaining cycles
             printf("Failed to write lead tone of duration %f s\n", lead_tone_duration);
@@ -165,15 +136,15 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
         
 
         // Store header bytes
-        if (!Utility::encodeTapeHdr(file_block_type, *block_iter, block_no, n_blocks, header_data)) {
-            cout << "Failed to encode header bytes for block #" << block_no << "\n";
+        if (!block_iter->encodeTapeHdr(header_data)) {
+             cout << "Failed to encode header bytes for block #" << block_no << "\n";
             return false;
         }
 
         // Encode the header bytes
         BytesIter hdr_iter = header_data.begin();
         while (hdr_iter < header_data.end())
-            writeByte(*hdr_iter++);
+            writeByte(*hdr_iter++, bbmDefaultDataEncoding);
 
         //
         // Write the header CRC
@@ -181,7 +152,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
 
         // Encode CRC byte
         Word header_CRC = mCRC;
-        if (!writeByte(header_CRC / 256) || !writeByte(header_CRC % 256)) {
+        if (!writeByte(header_CRC / 256, bbmDefaultDataEncoding) || !writeByte(header_CRC % 256, bbmDefaultDataEncoding)) {
             printf("Failed to encode header CRC!%s\n", "");
             return false;
         }
@@ -215,7 +186,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
         // Encode the block data bytes
         BytesIter data_iter = block_data.begin();
         while (data_iter < block_data.end())
-            writeByte(*data_iter++);
+            writeByte(*data_iter++, bbmDefaultDataEncoding);
 
 
         //
@@ -223,7 +194,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
         //
 
         Word data_CRC = mCRC;
-        if (!writeByte(data_CRC / 256) || !writeByte(data_CRC % 256)) {
+        if (!writeByte(data_CRC / 256, atomDefaultDataEncoding) || !writeByte(data_CRC % 256, atomDefaultDataEncoding)) {
             printf("Failed to encode data CRC!%s\n", "");
             return false;
         }
@@ -287,18 +258,28 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
     }
 
     // Write samples to WAV file
-    Samples samples_v[] = { mSamples };
-    if (!writeSamples(filePath, samples_v, 1, mFS, mVerbose)) {
+    if (!writeSamples(filePath)) {
         printf("Failed to write samples!%s\n", "");
         return false;
     }
 
+    if (mVerbose)
+        cout << "\nDone encoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
+
+    return true;
+}
+
+bool WavEncoder::writeSamples(string& filePath)
+{
+    // Write samples to WAV file
+    Samples samples_v[] = { mSamples };
+    if (!PcmFile::writeSamples(filePath, samples_v, 1, mBitTiming.fS, mVerbose)) {
+        printf("Failed to write samples!%s\n", "");
+        return false;
+    }
 
     // Clear samples to secure that future encodings start without any initial samples
     mSamples.clear();
-
-    if (mVerbose)
-        cout << "\nDone encoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
 
     return true;
 }
@@ -379,7 +360,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
             header_data.push_back(0x2a);
 
         // Store header bytes
-        if (!Utility::encodeTapeHdr(file_block_type, *block_iter, block_no, n_blocks, header_data)) {
+        if (!block_iter->encodeTapeHdr(header_data)) {
             cout << "Failed to encode header for block #" << block_no << "\n";
             return false;
         }
@@ -388,7 +369,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
         // Encode the header bytes
         BytesIter hdr_iter = header_data.begin();
         while (hdr_iter < header_data.end())
-            writeByte(*hdr_iter++);
+            writeByte(*hdr_iter++, atomDefaultDataEncoding);
 
 
         if (mVerbose)
@@ -429,7 +410,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
         // Encode the block data bytes
         BytesIter data_iter = block_data.begin();
         while (data_iter < block_data.end())
-            writeByte(*data_iter++);
+            writeByte(*data_iter++, atomDefaultDataEncoding);
 
 
 
@@ -443,7 +424,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
 
         // Encode CRC byte
 
-        if (!writeByte(mCRC & 0xff)) {
+        if (!writeByte(mCRC & 0xff, atomDefaultDataEncoding)) {
             printf("Failed to encode CRC!%s\n", "");
             return false;
         }
@@ -493,15 +474,11 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
 
 
     // Write samples to WAV file
-    Samples samples_v[] = { mSamples };
-    if (!writeSamples(filePath, samples_v, 1, mFS, mVerbose)) {
+    if (!writeSamples(filePath)) {
         printf("Failed to write samples!%s\n", "");
         return false;
     }
-
-
-    // Clear samples to secure that future encodings start without any initial samples
-    mSamples.clear();
+ 
 
     if (mVerbose)
         cout << "\nDone encoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
@@ -510,24 +487,37 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
 }
 
 
-bool WavEncoder::writeByte(Byte byte)
+bool WavEncoder::writeByte(Byte byte, DataEncoding encoding)
 {
     if (!writeStartBit())
         return false;
 
+    int n_data_bits = encoding.bitsPerPacket;
+
     Byte b = byte;
-    for (int i = 0; i < 8; i++) {
+    int parity = 0;
+    for (int i = 0; i < n_data_bits; i++) {
         if (!writeDataBit(b & 0x1)) {
             printf("Failed to encode '%d' data bit #%d\n", b & 0x1, i);
             return false;
         }
         b = b >> 1;
+        parity += (b & 0x1) % 2;
     }
 
-    if (!writeStopBit())
+    if (encoding.parity == Parity::ODD)
+        parity = 1 - parity;
+
+    if (encoding.parity != Parity::NO_PAR && !writeDataBit(parity)) {
+        cout << "Failed to write " << _PARITY(encoding.parity) << " bit\n";
+        return false;
+    }
+
+    if (!writeStopBit(encoding))
         return false;
 
-    Utility::updateCRC(mTargetMachine, mCRC, byte);
+    FileBlock block = FileBlock(mTargetMachine);
+    block.updateCRC(mCRC, byte);
 
     return true;
 
@@ -540,11 +530,11 @@ bool WavEncoder::writeDataBit(int bit)
     bool high_frequency;
 
     if (bit != 0) {
-        n_cycles = mHighDataBitCycles;
+        n_cycles = mBitTiming.highDataBitCycles;
         high_frequency = true;
     }
     else {
-        n_cycles = mLowDataBitCycles;
+        n_cycles = mBitTiming.lowDataBitCycles;
         high_frequency = false;
     }  
 
@@ -560,7 +550,7 @@ bool WavEncoder::writeDataBit(int bit)
 
 bool WavEncoder::writeStartBit()
 {
-    int n_cycles = mStartBitCycles;
+    int n_cycles = mBitTiming.startBitCycles;
 
     if (!writeCycle(false, n_cycles)) {
         printf("Failed to encode start bit%s\n", "");
@@ -570,9 +560,9 @@ bool WavEncoder::writeStartBit()
     return true;
 }
 
-bool WavEncoder::writeStopBit()
+bool WavEncoder::writeStopBit(DataEncoding encoding)
 {
-    int n_cycles = mStopBitCycles;
+    int n_cycles = mBitTiming.stopBitCycles * encoding.nStopBits + (encoding.extraShortWave?1:0);
 
     if (!writeCycle(true, n_cycles)) {
         printf("Failed to encode stop bit%s\n", "");
@@ -585,7 +575,7 @@ bool WavEncoder::writeStopBit()
 
 bool WavEncoder::writeTone(double duration)
 {
-    int n_cycles = (int) round((double) duration * F2_FREQ);
+    int n_cycles = (int) round((double) duration * mTapeTiming.baseFreq * 2);
 
     if (!writeCycle(true, n_cycles)) {
         printf("Failed to encode %lf duration (%d cycles) tone.\n", duration, n_cycles);
@@ -602,7 +592,7 @@ bool WavEncoder::writeTone(double duration)
 
 bool WavEncoder::writeGap(double duration)
 {
-    unsigned n_samples = (int) round(duration * mFS);
+    unsigned n_samples = (int) round(duration * mBitTiming.fS);
 
     if (n_samples == 0)
         return true;
@@ -622,7 +612,7 @@ bool WavEncoder::writeCycle(bool highFreq, unsigned n)
     const double PI = 3.14159265358979323846;
     int n_samples;
     if (highFreq) {
-        n_samples = (int) round(mHighSamples * n);
+        n_samples = (int) round(mBitTiming.F2Samples * n);
         /*
         if (mVerbose)
             printf("%d cycles of F2\n", n);
@@ -633,7 +623,7 @@ bool WavEncoder::writeCycle(bool highFreq, unsigned n)
         if (mVerbose)
             printf("%d cycles of F1\n", n);
         */
-        n_samples = (int) round(mLowSamples * n);
+        n_samples = (int) round(mBitTiming.F1Samples * n);
     }
 
     double half_cycle = ((mPhase + 180) % 360) * PI / 180;
@@ -643,5 +633,34 @@ bool WavEncoder::writeCycle(bool highFreq, unsigned n)
         Sample y = (Sample) round(sin(s * f + half_cycle) * mMaxSampleAmplitude);
         mSamples.push_back(y);
     }
+    return true;
+}
+
+bool WavEncoder::setBaseFreq(double baseFreq)
+{
+    mTapeTiming.baseFreq = baseFreq;
+
+    // Update bit timing as impacted by the change in Base frequency
+    BitTiming new_bit_timing(mBitTiming.fS, mTapeTiming.baseFreq, mTapeTiming.baudRate, mTargetMachine);
+    mBitTiming = new_bit_timing;
+
+    return true;
+}
+
+bool WavEncoder::setBaudRate(int baudrate)
+{
+    mTapeTiming.baudRate = baudrate;
+
+    // Update bit timing as impacted by the change in Baudrate
+    BitTiming new_bit_timing(mBitTiming.fS, mTapeTiming.baseFreq, mTapeTiming.baudRate, mTargetMachine);
+    mBitTiming = new_bit_timing;
+
+    return true;
+}
+
+bool WavEncoder::setPhase(int phase)
+{
+    //mBitTiming.
+    mTapeTiming.phaseShift = phase;
     return true;
 }

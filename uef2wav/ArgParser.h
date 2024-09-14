@@ -7,7 +7,7 @@
 #include <map>
 #include <vector>
 #include "../shared/TapeProperties.h"
-#include "BlockTypes.h"
+#include "FileBlock.h"
 
 
 using namespace std;
@@ -23,7 +23,7 @@ public:
 	bool mPreserveOriginalTiming = false;
 	int mSampleFreq = 44100;
 	bool verbose = false;
-	TargetMachine targetMachine = ACORN_ATOM;
+	TargetMachine targetMachine = UNKNOWN_TARGET;
 
 
 
