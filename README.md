@@ -68,12 +68,12 @@ Optionally, you could do all this (except for the WAV & CSW files generation) wi
 - tap2abc: Convert TAP/MMC file into an Acorn Atom program text file
 - tap2dat: Convert TAP/MMC file into a hex dump file
 - uef2csw: Convert UEF file into a CSW file - this has no machine contect and can be used independently of the target machine*
-- uef2wav: Combert UEF file into WAW file (44.1kHz/16-bit/mono PCM) (this has no machine contect and can be used independently of the target machine)
+- uef2wav: Combert UEF file into WAW file (44.1kHz/16-bit/mono PCM) - this has no machine contect and can be used independently of the target machine*
 - uef2dat: Convert UEF file into a hex dump file
 - inspectfile: hex dump of a file content
-- inspectEUF: Display information of chunks in the EUF file + hex dump of content from all data chunks - this has no machine contect and can be used indeptenly of the target machine
+- inspectEUF: Display information of chunks in the EUF file + hex dump of content from all data chunks - this has no machine contect and can be used independently of the target machine
 
-* Although the conversion from EUF to CSW/WAV is in theory machine-independent, the use of simple data chunks can cause a problem as a default data byte encoding is assumed (8N1), if you suspect there a such cunks a target machine (-atm for Acorn Atom and -bbm for BBC Micro) could be still be specified to tell what format shall be used for such chunks.
+\* Although the conversion from EUF to CSW/WAV is in theory machine-independent, the use of simple data chunks can cause a problem as a default data byte encoding is assumed (8N1), if you suspect there a such cunks a target machine (-atm for Acorn Atom and -bbm for BBC Micro) could be still be specified to tell what format shall be used for such chunks.
 ### Utility program flags
 There are many possibilities to tailor especially the tape filtering and tape scannning. Write *utility name* and press enter to get information about the command line flags you can provide to do this tailoring. One useful feature (enabled by flag '-m') is e.g. the ability to generate a WAV file that includes both the original audio and the filtered audio for manual inspection when you are experiencing difficulties with some tapes (i.e. they are not successfully decoded with ScanTape later on). This WAV file cannot be used by ScanTape though as ScanTape expects only one channel with audio data. You could also turn on logging of detected faults during decoding of a tape (flag '-t') that will tell you at what points in time the decoding fails (like preamble byte #2 read failure).
 To have more verbose output (each utility as default runs in silent mode with none or very little output), the flag '-v' can be used. For detection/generation of BBC Micro programs, use flag '-bbm'.
