@@ -703,6 +703,7 @@ bool CSWCodec::isCSWFile(string& CSWFileName)
 
 bool CSWCodec::writeByte(Byte byte, DataEncoding encoding)
 {
+
     if (!writeStartBit())
         return false;
 

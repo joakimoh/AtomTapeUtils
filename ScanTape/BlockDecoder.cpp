@@ -186,13 +186,14 @@ bool BlockDecoder::readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock
 
 	// For Atom, detect micro tone before reading data bytes
 	if (readBlock.targetMachine == ACORN_ATOM) {
-
-		if (!mReader.consumeCarrier(0, readBlock.microToneCycles)) {
+		double waiting_time;
+		if (!mReader.waitForCarrier(100, waiting_time, readBlock.microToneCycles)) {
+		//if (!mReader.consumeCarrier(0.1, readBlock.microToneCycles)) {
 			if (mTracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to detect micro tone for file '%s'!\n", readBlock.blockName().c_str());
 		}
 
-		double micro_tone_duration = readBlock.microToneCycles * mReader.carrierFreq();
+		double micro_tone_duration = readBlock.microToneCycles / mReader.carrierFreq();
 		if (mVerbose)
 			cout << micro_tone_duration << "s (" << dec << readBlock.microToneCycles << " cycles) micro tone detected at " << Utility::encodeTime(getTime()) << "\n";
 	}
@@ -270,6 +271,7 @@ bool BlockDecoder::readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock
 		// After detection, there will be a roll back to the end of the block
 		// so that the next block detection will not miss the lead tone.
 		checkpoint();
+		FileBlock saved_block = readBlock;
 		int carrier_cycles;
 		double waiting_time;
 		double next_block_lead_tone_duration;
@@ -281,8 +283,7 @@ bool BlockDecoder::readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock
 		if (readBlock.targetMachine == ACORN_ATOM) {
 			if (!mReader.waitForCarrier(next_block_lead_tone_cycles, waiting_time, carrier_cycles))
 				// If no gap detected (probably because the tape has ended), use a default gap of 2s
-				readBlock.blockGap = 2.0;
-			readBlock.blockGap = waiting_time; // gap detected - record it
+				waiting_time = 2.0;
 		}
 		else { // BBC Machine
 			if (readBlock.lastBlock()) {
@@ -291,13 +292,14 @@ bool BlockDecoder::readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock
 					readBlock.preludeToneCycles, readBlock.leadToneCycles
 				))
 					// If no gap detected (probably because the tape has ended), use a default gap of 2s
-					readBlock.blockGap = 2.0;
-				readBlock.blockGap = waiting_time; // gap detected - record it
+					waiting_time = 2.0;
 			}
 			else
-				readBlock.blockGap = 0.0; // No gap between BBC Machine blocks
+				waiting_time = 0.0; // No gap between BBC Machine blocks
 		}
 		rollback();
+		readBlock = saved_block;
+		readBlock.blockGap = waiting_time;
 
 		if (mVerbose)
 			cout << readBlock.blockGap << " s gap after block, starting at " << Utility::encodeTime(getTime()) << "\n";
@@ -342,4 +344,16 @@ bool BlockDecoder::updateCRC(FileBlock block, Word& crc, Bytes data)
 	for(int i = 0; i < data.size(); block.updateCRC(crc,data[i++]));
 
 	return true;
+}
+
+// Save the current file position
+bool BlockDecoder::checkpoint()
+{
+	return mReader.checkpoint();
+}
+
+// Roll back to a previously saved file position
+bool BlockDecoder::rollback()
+{
+	return mReader.rollback();
 }

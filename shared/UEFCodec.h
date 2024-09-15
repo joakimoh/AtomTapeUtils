@@ -45,6 +45,15 @@ public:
 	}
 
 	void init() { bitsPerPacket = 8; parity = Parity::NO_PAR; nStopBits = 1; extraShortWave = false; }
+
+	void log() {
+		cout << dec << bitsPerPacket;
+		cout << (parity == NO_PAR ? "N" : (parity == ODD ? "O" : "E"));
+		if (extraShortWave)
+			cout << "-";
+		cout << nStopBits;
+		cout << "\n";
+	}
 };
 
 const DataEncoding atomDefaultDataEncoding(8, Parity::NO_PAR, 1, true); // 8N-1

@@ -44,10 +44,10 @@ public:
 	double getTime() { return mReader.getTime(); }
 
 	// Save the current file position
-	bool checkpoint() { return mReader.checkpoint(); }
+	bool checkpoint();
 
 	// Roll back to a previously saved file position
-	bool rollback() { return mReader.rollback(); }
+	bool rollback();
 
 protected:
 

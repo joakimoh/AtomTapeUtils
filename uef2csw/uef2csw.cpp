@@ -63,7 +63,7 @@ int main(int argc, const char* argv[])
             break;
         case ChunkInfoType::DATA:
             for (int i = 0; i < chunk_info.data.size(); i++) {
-                if (!CSW_codec.writeByte(chunk_info.data[i], chunk_info.dataEncoding))
+               if (!CSW_codec.writeByte(chunk_info.data[i], chunk_info.dataEncoding))
                     return false;
             }
             break;

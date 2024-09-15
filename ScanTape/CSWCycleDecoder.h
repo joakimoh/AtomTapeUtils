@@ -74,6 +74,10 @@ public:
 
 	// Roll back to a previously saved cycle
 	bool rollback();
+
+	// Return carrier frequency [Hz]
+	double carrierFreq();
+
 };
 
 #endif

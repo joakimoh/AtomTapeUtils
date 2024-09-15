@@ -48,7 +48,7 @@ bool BitTiming::setBitTiming(int sampleFreq, double baseFreq, int baudRate, Targ
     return true;
 }
 
-void BitTiming::logBitTiming()
+void BitTiming::log()
 {
     cout << "Sample frequecny: " << fS << " Hz\n";
     cout << "startBitCycles: " << startBitCycles << "\n";

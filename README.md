@@ -1,5 +1,5 @@
 # AtomTapeUtils
-This is a set of utilities mainly targeting decoding and encoding of Acorn Atom BASIC programs. Some utilites (like filtering of tape files) could be useful also for other applications.
+This is a set of utilities mainly targeting decoding and encoding of Acorn Atom & BBC Micro BASIC programs. Some utilites (like filtering of tape files) could be useful also for other applications.
 
 ## Prerequisites
 You need to have cmake and zlib installed on your computer before trying to install AtomTapeUtils.
@@ -7,7 +7,7 @@ You need to have cmake and zlib installed on your computer before trying to inst
 ## Description of the utilities
 All utilites are run from command line (DOS or Linux). There are many utilities and the easiest way to explain them is to decsribe a few typical usages. 
 
-### You have a tape with old Acorn Atom programs that you have digitalised into a WAV file and you want to extract the programs from it.
+### You have a tape with old Acorn Atom/BBC Micro programs that you have digitalised into a WAV file and you want to extract the programs from it.
 
 The WAV file must be a 16-bit/mono PCM file (preferable 44.1 kHz but other samplein rates could be used as well).
 Filter the WAV file *my_tape.wav* to clean it up a bit before trying to decode it.
@@ -19,18 +19,18 @@ Then extract programs from it
 
 `> ScanTape my_filtered_tape.wav -g my_files_dir`
 
-The ScanTape utility can also take a CSW file as input should you previously have converted your WAV files into CSW files.
-The utility will automatically detect whether it is a WAV or CSW file.
+The ScanTape utility can also take a CSW ro an UEF file as input should you previously have converted your WAV files into CSW/UEF files.
+The utility will automatically detect whether it is a UEF, WAV or CSW file. Default is to detect Acorn Atom program data. For detection of BBC Micro programs, use flag '-bbm'.
 
-For each detected Acorn Atom program file, the following files will be generated and stored in the directory *my_files_dir*:
-- *program name*.abc - text file with the BASIC program (looks as it would appear when listed on the Acorn Atom)
+For each detected Acorn Atom/BBC Micro program file, the following files will be generated and stored in the directory *my_files_dir*:
+- *program name*.abc - text file with the BASIC program (looks as it would appear when listed on the Acorn Atom/BBC Micro)
 - *program name*.dat - hex dump of the same program file (useful if the program includes binary data)
-- *program name*.uef - UEF file that can be loaded into an Acorn Atom emulator like Atomulator
-- *program name* - TAP/MMC "ATM" ("Wouter Ras" format) file that can be stored on an SD memory card (or in the MMC directory of Atomulator) for use with an AtoMMC device connected to an Acorn Atom. Please note that the TAP and MMC is one and the same format. A TAP/MMC file can also be loaded into the Acorn Atom emulator from Wouter Ras
+- *program name*.uef - UEF file that can be loaded into an emulator like Atomulator (for Acorn Atom) or BeenEm (for BBC Micro)
+- *program name* - TAP/MMC "ATM" ("Wouter Ras" format) file (Acorn Atom only) that can be stored on an SD memory card (or in the MMC directory of Atomulator) for use with an AtoMMC device connected to an Acorn Atom. Please note that the TAP and MMC is one and the same format. A TAP/MMC file can also be loaded into the Acorn Atom emulator from Wouter Ras
 
 The program name will be used as the file name. Any detected non-alphanumeric characters will however be replaced with \_XX in the generated file's name where XX is the hex code for the character. If the decoded file is corrupted, then only the .abc and .dat files are generated and the file name base will be *program name*\_incomplete*\_*n1*\_*n2* where n1 and n2 tell which blocks of the program were detected (from block n1 to block n2). If a block is just partially detected, the missing data bytes will be replaced with zeroes in the generated files. Thus, it is possible to recover partially read files to some extent.
 
-The utility ScanTAP is similar to ScanTape but instead takes a TAP file as input and extracts the included Atom Tape Files in the same way as ScanTape does.
+The utility ScanTAP (Acorn Atom only) is similar to ScanTape but instead takes a TAP file as input and extracts the included Atom Tape Files in the same way as ScanTape does.
 
 ### You have written a program on your desktop (myprog.abc) and want to encode it as something that can be run on an emulator or loaded into an Acorn Atom
 
@@ -40,7 +40,7 @@ Convert to UEF format (for loading into emulator)
 
 Convert to CSW format (for loading into emulator; you need first to generate the UEF file)
 
-`> uef2csw myprog.uef -o myprog.uef`
+`> uef2csw myprog.uef -o myprog.csw`
 
 Convert to TAP/MMC format (for loading into emulator or onto memory card of an AtoMMC device)
 
@@ -56,23 +56,27 @@ Optionally, you could do all this (except for the WAV & CSW files generation) wi
 
 ### Other utilities
 
-- abc2dat: Convert an Acorn Atom program text file into a hex dump file (showing how the program will be stored on an Acorn Atom)
-- dat2abc: Convert hex dump file into text file with Acorn Atom program
+- abc2bin: Convert an Acorn Atom/BBC Micro program into a binary data (as it would be stored on the target machine)
+- abc2dat: Convert an Acorn Atom/BBC Micro program text file into a hex dump file (showing how the program will be stored on an Acorn Atom)
+- bin2abc: Convert a binary data file into an Acorn Atom/BBC Micro program
+- csw2wav: Convert a CSW file to a WAV file (44.1kHz/16-bit/mono PCM) - this has no machine contect and can be used independently of the target machine
+- dat2abc: Convert hex dump file into text file with an Acorn Atom/BBC Micro program
 - dat2bin: Convert hex dump file into binary file (useful if you want to disassemble machine code)
-- dat2tap: Convert hex dump file into a TAP/MMC file
+- dat2tap: Convert hex dump file into a TAP/MMC file (Acorn Atom only)
 - dat2uef: Convert hex dump file into  an UEF file
 - dat2wav: Convert hex dump file into a WAV file (16-bit PCM WAV for Acorn Atom)
 - tap2abc: Convert TAP/MMC file into an Acorn Atom program text file
 - tap2dat: Convert TAP/MMC file into a hex dump file
-- uef2abc: Convert UEF file into an Acorn Atom program text file
-- uef2wav: Combert UEF file into WAW file (44.1kHz/16-bit/mono PCM)
+- uef2csw: Convert UEF file into a CSW file - this has no machine contect and can be used independently of the target machine**
+- uef2wav: Combert UEF file into WAW file (44.1kHz/16-bit/mono PCM) (this has no machine contect and can be used independently of the target machine)
 - uef2dat: Convert UEF file into a hex dump file
-- csw2wav: Convert CSW file into WAW file (44.1kHz/16-bit/mono PCM)
 - inspectfile: hex dump of a file content
+- inspectEUF: Display information of chunks in the EUF file + hex dump of content from all data chunks - this has no machine contect and can be used indeptenly of the target machine
 
+** although the conversion from EUF to CSW/WAV is in theory machine-independent, the use of simple data chunks can cause a problem as a default data byte encoding is assumed (8N1), if you suspect there a such cunks a target machine (-atm for Acorn Atom and -bbm for BBC Micro) could be still be specified to tell what format shall be used for such chunks.
 ### Utility program flags
 There are many possibilities to tailor especially the tape filtering and tape scannning. Write *utility name* and press enter to get information about the command line flags you can provide to do this tailoring. One useful feature (enabled by flag '-m') is e.g. the ability to generate a WAV file that includes both the original audio and the filtered audio for manual inspection when you are experiencing difficulties with some tapes (i.e. they are not successfully decoded with ScanTape later on). This WAV file cannot be used by ScanTape though as ScanTape expects only one channel with audio data. You could also turn on logging of detected faults during decoding of a tape (flag '-t') that will tell you at what points in time the decoding fails (like preamble byte #2 read failure).
-To have more verbose output (each utility as default runs in silent mode with none or very little output), the flag '-v' can be used.
+To have more verbose output (each utility as default runs in silent mode with none or very little output), the flag '-v' can be used. For detection/generation of BBC Micro programs, use flag '-bbm'.
 
 # FilterTape
 This utility filters tape audio. The filtering is made in two steps. The picture below shows how an original tape audio is filtered and reshaped.

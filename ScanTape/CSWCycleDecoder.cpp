@@ -11,7 +11,7 @@ using namespace std;
 // Constructor
 CSWCycleDecoder::CSWCycleDecoder(
 	int sampleFreq, HalfCycle firstHalfCycle, Bytes& pulses, ArgParser& argParser, bool verbose
-) : CycleDecoder(argParser), mPulses(pulses), mVerbose(verbose)
+) : CycleDecoder(sampleFreq, argParser), mPulses(pulses), mVerbose(verbose)
 {
 
 	// Initialise pulse data
@@ -23,33 +23,6 @@ CSWCycleDecoder::CSWCycleDecoder(
 
 	mTracing = argParser.tracing;
 
-	mFS = sampleFreq;
-	mTS = 1.0 / mFS;
-
-	// Min & max durations of F1 & F2 frequency low/high 1/2 cycles
-	mMinNSamplesF1Cycle = (int)round((1 - mArgParser.freqThreshold) * mFS / F1_FREQ); // Min duration of an F1 cycle
-	mMaxNSamplesF1Cycle = (int)round((1 + mArgParser.freqThreshold) * mFS / F1_FREQ); // Max duration of an F1 cycle
-	int n_samples_F1 = (int) round(mFS / F1_FREQ);
-	mMinNSamplesF2Cycle = (int)round((1 - mArgParser.freqThreshold) * mFS / F2_FREQ); // Min duration of an F2 cycle
-	mMaxNSamplesF2Cycle = (int)round((1 + mArgParser.freqThreshold) * mFS / F2_FREQ); // Max duration of an F2 cycle
-	int n_samples_F2 = (int)round(mFS / F2_FREQ);
-
-	mMinNSamplesF12Cycle = (int)round((1 - mArgParser.freqThreshold) * 3 * mFS / (F2_FREQ * 2));// Min duration of a 3T/2 cycle where T = 1/F2
-	int n_samples_F12 = (int)round(3 * mFS / (F2_FREQ * 2));
-	mMaxNSamplesF12Cycle = (int)round((1 + mArgParser.freqThreshold) * 3 * mFS / (F2_FREQ * 2)); // Min duration of a 3T/2 cycle where T = 1/F2
-
-	mMinNSamplesF1HalfCycle = (int)round((1 - mArgParser.freqThreshold) * mFS / (F1_FREQ * 2));
-	mMaxNSamplesF1HalfCycle = (int)round((1 + mArgParser.freqThreshold) * mFS / (F1_FREQ * 2));
-	mMinNSamplesF2HalfCycle = (int)round((1 - mArgParser.freqThreshold) * mFS / (F2_FREQ * 2));
-	mMaxNSamplesF2HalfCycle = (int)round((1 + mArgParser.freqThreshold) * mFS / (F2_FREQ * 2));
-
-	mSamplesThresholdHalfCycle = (int)round((mFS / F1_FREQ + mFS / F2_FREQ) / 4);
-
-	if (mVerbose) {
-		printf("F1 with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F1, mMinNSamplesF1Cycle, mMaxNSamplesF1Cycle);
-		printf("F2 with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F2, mMinNSamplesF2Cycle, mMaxNSamplesF2Cycle);
-		printf("transitional cycles (F1->F2 or F2->F1) with a nominal cycle duration of %d shall be in the range [%d, %d]\n", n_samples_F12, mMinNSamplesF12Cycle, mMaxNSamplesF12Cycle);
-	}
 	mCycleSample = { Frequency::NoCarrierFrequency, 0, 0 };
 
 }
@@ -122,7 +95,7 @@ bool CSWCycleDecoder::getNextPulse()
 
 	if (mVerbose && mPulseLength > 100) {
 		cout << (mPulseLevel == HalfCycle::HighHalfCycle ? "HIGH" : "LOW") << " pulse of duration " << mPulseLength;
-		cout << " samples (" << (double) mPulseLength * mTS << " s)\n";
+		cout << " samples (" << (double) mPulseLength * mCT.tS << " s)\n";
 	}
 	// Update pulse level (invert it)
 	mPulseLevel = (mPulseLevel == HalfCycle::HighHalfCycle? HalfCycle::LowHalfCycle: HalfCycle::HighHalfCycle);
@@ -186,8 +159,8 @@ int CSWCycleDecoder::countHalfCycles(int nSamples, int& half_cycles, Frequency& 
 // Consume as many 1/2 cycles of frequency f as possible
 int CSWCycleDecoder::consumeHalfCycles(Frequency f, int& nHalfCycles, Frequency& lastHalfCycleFrequency)
 {
-	int min_d = (f == Frequency::F1 ? mMinNSamplesF1HalfCycle : mMinNSamplesF2HalfCycle);
-	int max_d = (f == Frequency::F1 ? mMaxNSamplesF1HalfCycle : mMaxNSamplesF2HalfCycle);
+	int min_d = (f == Frequency::F1 ? mCT.mMinNSamplesF1HalfCycle : mCT.mMinNSamplesF2HalfCycle);
+	int max_d = (f == Frequency::F1 ? mCT.mMaxNSamplesF1HalfCycle : mCT.mMaxNSamplesF2HalfCycle);
 
 	nHalfCycles = 0;
 	bool stop = false;
@@ -214,8 +187,8 @@ int CSWCycleDecoder::consumeHalfCycles(Frequency f, int& nHalfCycles, Frequency&
 // Stop at first occurrence of n 1/2 cycles of frequency f 
 int CSWCycleDecoder::stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime, Frequency& lastHalfCycleFrequency)
 {
-	int min_d = (f == Frequency::F1 ? mMinNSamplesF1HalfCycle : mMinNSamplesF2HalfCycle);
-	int max_d = (f == Frequency::F1 ? mMaxNSamplesF1HalfCycle : mMaxNSamplesF2HalfCycle);
+	int min_d = (f == Frequency::F1 ? mCT.mMinNSamplesF1HalfCycle : mCT.mMinNSamplesF2HalfCycle);
+	int max_d = (f == Frequency::F1 ? mCT.mMaxNSamplesF1HalfCycle : mCT.mMaxNSamplesF2HalfCycle);
 
 	double t_start = getTime();
 	double t_end;
@@ -284,21 +257,21 @@ bool CSWCycleDecoder::getNextCycle(CycleSample& cycleSample)
 
 	int n_samples = n_samples_first_half_cycle + n_samples_second_half_cycle;
 
-	if (n_samples >= mMinNSamplesF1Cycle && n_samples <= mMaxNSamplesF1Cycle) {
+	if (n_samples >= mCT.mMinNSamplesF1Cycle && n_samples <= mCT.mMaxNSamplesF1Cycle) {
 		// An F1 frequency CYCLE (which has a LONG duration)
 		freq = Frequency::F1;
 		if (mPrevcycle == Frequency::F2)
 			mPhaseShift = 180; // record the half_cycle when shifting frequency)
 		mPrevcycle = freq;
 	}
-	else if (n_samples >= mMinNSamplesF2Cycle && n_samples <= mMaxNSamplesF2Cycle) {
+	else if (n_samples >= mCT.mMinNSamplesF2Cycle && n_samples <= mCT.mMaxNSamplesF2Cycle) {
 		// An F2 frequency CYCLE (which has a SHORT duration)
 		freq = Frequency::F2;
 		if (mPrevcycle == Frequency::F1)
 			mPhaseShift = 180; // record the half_cycle when shifting frequency
 		mPrevcycle = freq;
 	}
-	else if (n_samples >= mMinNSamplesF12Cycle && n_samples <= mMaxNSamplesF12Cycle) {
+	else if (n_samples >= mCT.mMinNSamplesF12Cycle && n_samples <= mCT.mMaxNSamplesF12Cycle) {
 		// One F1 half_cycle followed by one F2 half_cycle. Treat this as an F2 cycle.
 		if (mCycleSample.freq == Frequency::F1) {
 			freq = Frequency::F2;
@@ -384,7 +357,7 @@ bool CSWCycleDecoder::waitUntilCycle(Frequency freq, CycleSample& cycleSample) {
 */
 bool CSWCycleDecoder::waitForTone(double minDuration, double &duration, double& waitingTime, int& highToneCycles, Frequency & lastHalfCycleFrequency) {
 
-	int n_min_half_cycles = (int) round(minDuration * F2_FREQ * 2);
+	int n_min_half_cycles = (int) round(minDuration * carrierFreq() * 2);
 	int n_remaining_half_cycles;
 
 	double t_start = getTime();
@@ -406,5 +379,12 @@ bool CSWCycleDecoder::waitForTone(double minDuration, double &duration, double& 
 
 double CSWCycleDecoder::getTime()
 {
-	return (mSampleIndex * mTS);
+	return (mSampleIndex * mCT.tS);
+}
+
+
+// Return carrier frequency [Hz]
+double CSWCycleDecoder::carrierFreq()
+{
+	return mCT.baseFreq * 2;
 }

@@ -67,7 +67,7 @@ public:
 	// Get phase shift
 	int getPhaseShift();
 
-	// Get duration of one carrier cycle
+	// Return carrier frequency [Hz]
 	double carrierFreq();
 };
 

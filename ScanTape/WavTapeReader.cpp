@@ -54,15 +54,15 @@ bool WavTapeReader::readByte(Byte& byte)
 bool WavTapeReader::waitForCarrier(int minCycles, double& waitingTime, int& cycles)
 {
 	// Wait for lead tone of a min duration but still 'consume' the complete tone (including dummy byte if applicable)
-	double duration;
+	double duration = -1;
 
-	double lead_tone_duration = (double) minCycles / F2_FREQ;
+	double lead_tone_duration = (double) minCycles / mCycleDecoder.carrierFreq();
 	if (!mCycleDecoder.waitForTone(lead_tone_duration, duration, waitingTime, cycles, mLastHalfCycleFrequency)) {
 		// This is not necessarily an error - it could be because the end of the tape as been reached...
 		return false;
 	}
 	if (mVerbose)
-		cout << duration << "s lead tone detected at " << Utility::encodeTime(getTime()) << " after wating " << waitingTime << "s\n";
+		cout << duration << "s (min " << lead_tone_duration << " s/ " << dec << minCycles << " cycles) lead tone detected at " << Utility::encodeTime(getTime()) << " after waiting " << waitingTime << "s\n";
 
 	return true;
 }
@@ -97,7 +97,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 	// Wait for lead tone of a min duration but still 'consume' the complete tone (including dummy byte if applicable)
 	double duration;
 
-	double prelude_tone_duration = (double) minPreludeCycles / F2_FREQ;
+	double prelude_tone_duration = (double) minPreludeCycles / mCycleDecoder.carrierFreq();
 	if (!mCycleDecoder.waitForTone(prelude_tone_duration, duration, waitingTime, preludeCycles, mLastHalfCycleFrequency)) {
 		// This is not necessarily an error - it could be because the end of the tape as been reached...
 		return false;
@@ -116,14 +116,14 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 		cout << "dummy byte 0x" << hex << (int) dummy_byte << " (as part of lead carrier) detected at " << Utility::encodeTime(getTime()) << "\n";
 
 	// Get postlude part of lead tone
-	double postlude_tone_duration = (double)minPostludeCycles / F2_FREQ;
+	double postlude_tone_duration = (double)minPostludeCycles / mCycleDecoder.carrierFreq();
 	double waiting_time;
 	if (!mCycleDecoder.waitForTone(postlude_tone_duration, duration, waiting_time, postludecycles, mLastHalfCycleFrequency)) {
 		// This is not necessarily an error - it could be because the end of the tape as been reached...
 		return false;
 	}
 	
-	duration = (double) postludecycles / F2_FREQ;
+	duration = (double) postludecycles / mCycleDecoder.carrierFreq();
 	if (mVerbose)
 		cout << duration << "s postlude lead tone detected at " << Utility::encodeTime(getTime()) << "\n";
 
@@ -198,7 +198,8 @@ bool WavTapeReader::getStartBit()
 
 	DEBUG_PRINT(
 		getTime(), DBG,
-		"start bit detected after waiting %d 1/2 F2 cycles before the first F1 cycle\n", (int)round(waiting_time / (F2_FREQ * 2))
+		"start bit detected after waiting %d 1/2 F2 cycles before the first F1 cycle\n",
+		(int)round(waiting_time / (mCycleDecoder.carrierFreq() * 2))
 	);
 
 	return true;
@@ -250,8 +251,8 @@ int WavTapeReader::getPhaseShift()
 	return mCycleDecoder.getPhaseShift();
 }
 
-// Get duration of one carrier cycle
+// Return carrier frequency [Hz]
 double WavTapeReader::carrierFreq()
 {
-	return mCycleDecoder.getF2Duration();
+	return mCycleDecoder.carrierFreq();
 }

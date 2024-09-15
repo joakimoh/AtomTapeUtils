@@ -53,7 +53,7 @@ public:
 	// Roll back to a previously saved file position
 	virtual bool rollback() = 0;
 
-	// Get duration of one carrier cycle
+	// Return carrier frequency [Hz]
 	virtual double carrierFreq() = 0;
 
 };

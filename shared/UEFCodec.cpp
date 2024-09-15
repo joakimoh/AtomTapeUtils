@@ -939,7 +939,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 }
                 chunkInfo.dataEncoding.bitsPerPacket = hdr.bitsPerPacket;
                 chunkInfo.dataEncoding.parity = (hdr.parity == 'N' ? Parity::NO_PAR : (hdr.parity == 'O' ? Parity::ODD : Parity::EVEN));
-                chunkInfo.dataEncoding.nStopBits = n_stop_bits;
+                chunkInfo.dataEncoding.nStopBits = abs(n_stop_bits);
                 chunkInfo.dataEncoding.extraShortWave = extra_short_wave;
 
 

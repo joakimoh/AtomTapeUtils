@@ -41,7 +41,7 @@ bool UEFTapeReader::waitForCarrier(int minCycles, double& waitingTime, int& cycl
 	}
 
 	if (mVerbose)
-		cout << duration << "s lead tone detected at " << Utility::encodeTime(getTime()) << " after wating " << waitingTime << "s\n";
+		cout << duration << "s lead tone detected at " << Utility::encodeTime(getTime()) << " after waiting " << waitingTime << "s\n";
 
 	cycles = (int) round(duration * carrierFreq());
 
@@ -139,7 +139,7 @@ int UEFTapeReader::getPhaseShift()
 	return mUEFCodec.getPhaseShift();
 }
 
-// Get duration of one carrier cycle
+// Return carrier frequency [Hz]
 double UEFTapeReader::carrierFreq()
 {
 	return mUEFCodec.getBaseFreq() * 2;
