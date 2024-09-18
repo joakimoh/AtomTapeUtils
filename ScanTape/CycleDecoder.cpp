@@ -50,7 +50,8 @@ void CycleSampleTiming::set(int sampleFreq, double carrierFreq, double freqTH)
 
 }
 
-CycleDecoder::CycleDecoder(int sampleFreq, ArgParser argParser) : mArgParser(argParser)
+CycleDecoder::CycleDecoder(int sampleFreq, ArgParser &argParser) : mArgParser(argParser), mTracing(argParser.tracing),
+mVerbose(argParser.verbose)
 {
 	mCT.set(sampleFreq, F2_FREQ, mArgParser.freqThreshold);
 }
@@ -60,7 +61,7 @@ void CycleDecoder::updateHalfCycleFreq(int half_cycle_duration, Frequency& lastH
 {
 	if (half_cycle_duration >= mCT.mMinNSamplesF2HalfCycle && half_cycle_duration <= mCT.mSamplesThresholdHalfCycle)
 		lastHalfCycleFrequency = Frequency::F2;
-	else if (half_cycle_duration <= mCT.mMaxNSamplesF1Cycle)
+	else if (half_cycle_duration > mCT.mSamplesThresholdHalfCycle  && half_cycle_duration  <= mCT.mMaxNSamplesF1Cycle)
 		lastHalfCycleFrequency = Frequency::F1;
 	else if (half_cycle_duration > 0)
 		lastHalfCycleFrequency = Frequency::UndefinedFrequency;
@@ -96,4 +97,18 @@ bool CycleDecoder::collectCycles(Frequency freq, CycleSample& lastValidCycleSamp
 
 
 	return true;
+}
+
+
+
+// Return carrier frequency [Hz]
+double CycleDecoder::carrierFreq()
+{
+	return mCT.baseFreq * 2;
+}
+
+// Return carrier frequency [Hz]
+void CycleDecoder::setCarrierFreq(double carrierFreq)
+{
+	mCT.set(carrierFreq);
 }

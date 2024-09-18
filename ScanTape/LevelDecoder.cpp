@@ -10,19 +10,44 @@ using namespace std;
 // Save the current file position
 bool LevelDecoder::checkpoint()
 {
+	// Create checkpoint element
 	CheckPointSample checkpoint_sample = { mSamplesIndex, mState };
+
+	// Add it to checkpoints
 	mCheckPoint.push_back(checkpoint_sample);
+
 	return true;
 }
 
 // Roll back to a previously saved file position
 bool LevelDecoder::rollback()
 {
+	if (mCheckPoint.size() == 0)
+		return false;
+
+	// Get reference to last checkpoint element
 	CheckPointSample checkpoint_sample;
 	checkpoint_sample = mCheckPoint.back();
-	mCheckPoint.pop_back();
+
+	// Copy its content
 	mState = checkpoint_sample.state;
 	mSamplesIndex = checkpoint_sample.index;
+
+	// Dispose of the last checkpoint element
+	mCheckPoint.pop_back();
+
+	return true;
+}
+
+// Remove checkpoint (without rolling back)
+bool LevelDecoder::regretCheckpoint()
+{
+	if (mCheckPoint.size() == 0)
+		return false;
+
+	// Dispose of the last checkpoint element
+	mCheckPoint.pop_back();
+
 	return true;
 }
 

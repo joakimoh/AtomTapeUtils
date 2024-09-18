@@ -10,26 +10,31 @@
 
 class WavTapeReader: public TapeReader {
 
-protected:
+private:
 
 	ArgParser mArgParser;
 
 	CycleDecoder& mCycleDecoder;
 
+	vector<Frequency> mCheckpoints;
+
 	BitTiming mBitTiming;
 
 	Frequency mLastHalfCycleFrequency = Frequency::UndefinedFrequency; // no of samples in last read 1/2 cycle
 
-protected:
 
 	// Detect a start bit by looking for exactly mStartBitCycles low tone (F1) cycles
 	bool getStartBit();
+	bool getStartBit(bool restartAllowed);
 
 	// Get a data bit
 	bool getDataBit(Bit& bit);
 
 	// Get a stop bit
 	bool getStopBit();
+
+	// Read a byte if possible
+	bool readByte(Byte& byte, bool restartAllowed);
 
 public:
 
@@ -45,11 +50,11 @@ public:
 	bool readByte(Byte& byte);
 
 	// Wait for at least minCycles of carrier
-	bool waitForCarrier(int minCycles, double& waitingTime, int& cycles);
+	bool waitForCarrier(int minCycles, double& waitingTime, int& cycles, AfterCarrierType afterCarrierType);
 
-	// Wait for at least minPreludeCycles + minPostludeCycles cycles of carrier with dummy byte (0xaa)
 	bool waitForCarrierWithDummyByte(
-		int minPreludeCycles, int minPostludeCycles, Byte dummyByte, double& waitingTime, int& preludeCycles, int& postludecycles
+		int minCycles, double& waitingTime, int& preludeCycles, int& postludecycles, Byte& foundDummyByte,
+		AfterCarrierType afterCarrierType, bool detectDummyByte = true
 	);
 
 	// Consume a carrier of a min duration
@@ -63,6 +68,9 @@ public:
 
 	// Roll back to a previously saved file position
 	bool rollback();
+
+	// Remove checkpoint (without rolling back)
+	bool regretCheckpoint();
 
 	// Get phase shift
 	int getPhaseShift();

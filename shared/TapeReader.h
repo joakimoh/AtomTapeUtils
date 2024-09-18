@@ -5,6 +5,8 @@
 #include "FileBlock.h"
 
 
+enum AfterCarrierType { GAP_FOLLOWS, STARTBIT_FOLLOWS };
+
 class TapeReader {
 
 protected:
@@ -28,11 +30,12 @@ public:
 	bool readString(string &bs, int nMin, int nMax, Byte terminator, int &n);
 
 	// Wait for at least minCycles of carrier
-	virtual bool waitForCarrier(int minCycles, double& waitingTime, int& cycles) = 0;
+	virtual bool waitForCarrier(int minCycles, double& waitingTime, int& cycles, AfterCarrierType afterCarrierType) = 0;
 
-	// Wait for at least minPreludeCycles + minPostludeCycles cycles of carrier with dummy byte (0xaa)
 	virtual bool waitForCarrierWithDummyByte(
-		int minPreludeCycles, int minPostludeCycles, Byte dummyByte, double& waitingTime, int& preludeCycles, int& postludecycles
+		int minCycles, double& waitingTime, int& preludeCycles, int& postludecycles, Byte& foundDummyByte, 
+		AfterCarrierType afterCarrierType, bool detectDummyByte = true
+		 
 	) = 0;
 
 	// Consume a carrier of min duration and record its duration (no waiting for carrier)
@@ -52,6 +55,9 @@ public:
 
 	// Roll back to a previously saved file position
 	virtual bool rollback() = 0;
+
+	// Remove checkpoint (without rolling back)
+	virtual bool regretCheckpoint() = 0;
 
 	// Return carrier frequency [Hz]
 	virtual double carrierFreq() = 0;

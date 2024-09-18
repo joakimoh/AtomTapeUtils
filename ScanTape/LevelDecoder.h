@@ -67,6 +67,9 @@ public:
 
 	// Roll back to a previously saved file position
 	bool rollback();
+
+	// Remove checkpoint (without rolling back)
+	bool regretCheckpoint();
 };
 
 #endif

@@ -135,11 +135,8 @@ private:
 	TapeProperties mTapeTiming;
 	BitTiming mBitTiming;
 
-	// Pulse data
-	int mPulseIndex;
+	// Current pulse level (writing)
 	HalfCycle mPulseLevel;
-	int mSampleIndex;
-	int mPulseLength;
 
 	// Pulses read or to write
 	Bytes mPulses;

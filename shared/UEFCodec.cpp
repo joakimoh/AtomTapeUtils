@@ -1035,21 +1035,23 @@ bool UEFCodec::detectCarrier(double &waitingTime, double& preludeDuration, doubl
     // Wait until carrier chunk is found (only allow DATA chunks in the sequence if skipData is true)
     while (
         processChunk(chunk_info) &&
-        chunk_info.chunkInfoType != CARRIER && chunk_info.chunkInfoType != CARRIER_DUMMY &&
+        chunk_info.chunkInfoType != CARRIER &&
+        !(acceptDummy && chunk_info.chunkInfoType == CARRIER_DUMMY) &&
         !(!skipData && chunk_info.chunkInfoType == DATA)
-        )
+    )
     {
         if (chunk_info.chunkInfoType == GAP)
             mTime += chunk_info.data1_fp;
     }
 
-    if (skipData && chunk_info.chunkInfoType == DATA)
+    // If stopped at a DATA chunk, then either end of tape or skipping data was not allowed => STOP
+    if (chunk_info.chunkInfoType == DATA)
         return false;
 
     double duration;
     preludeDuration = chunk_info.data1_fp;
     if (chunk_info.chunkInfoType == CARRIER_DUMMY) {
-        postLudeDuration = (double) chunk_info.data2_i * mBaseFrequency * 2;
+        postLudeDuration = (double) chunk_info.data2_i / (mBaseFrequency * 2);
         duration = preludeDuration + postLudeDuration;
     } 
     else {
@@ -1410,15 +1412,34 @@ double UEFCodec::getTime()
 
 bool UEFCodec::rollback()
 {
-    UEFChkPoint cp = checkpoints.back();
-    checkpoints.pop_back();
+    if (checkpoints.size() == 0)
+        return false;
 
+    // Get reference to last  element
+    UEFChkPoint cp = checkpoints.back(); 
+
+    // Restore data iter & time
     mUefDataIter = cp.pos;
     mTime = cp.time;
 
     // Restore the buffered chunk data
     mRemainingData.clear();
     for (int i = 0; i < cp.bufferedData.size(); mRemainingData.push_back(cp.bufferedData[i++]));
+
+    // Dispose of the last element
+    checkpoints.pop_back();
+
+    return true;
+}
+
+// Remove checkpoint (without rolling back)
+bool UEFCodec::regretCheckpoint()
+{
+    if (checkpoints.size() == 0)
+        return false;
+
+    // Remove last checkpoint element
+    checkpoints.pop_back();
 
     return true;
 }
@@ -1429,7 +1450,10 @@ bool UEFCodec::checkpoint()
     Bytes remaining_data;
     for (int i = 0; i < mRemainingData.size(); remaining_data.push_back(mRemainingData[i++]));
 
+    // Create a checkpoint element
     UEFChkPoint cp(mUefDataIter, mTime, remaining_data);
+
+    // Add the element to the checkpoints
     checkpoints.push_back(cp);
 
     return true;

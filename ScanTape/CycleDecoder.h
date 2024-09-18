@@ -67,17 +67,17 @@ public:
 protected:
 
 
-	ArgParser mArgParser;
+	ArgParser &mArgParser;
 	bool mTracing;
+	bool mVerbose = false;
 
+	// Relevant only for waitUntilCycle (via calls to nextCycle)
+	// Not used as detection is currently 1/2 cycle based
 	CycleSample mCycleSample = { Frequency::NoCarrierFrequency, 0, 0 };
 	Frequency mPrevcycle = Frequency::NoCarrierFrequency;
-
 	vector<CycleSample> mCycleSampleCheckpoints;
 
 	CycleSampleTiming mCT;
-
-	
 
 	int mPhaseShift = 180; // half_cycle [degrees] when starting an F1/F2 cycle
 	// For UEF format
@@ -88,7 +88,7 @@ protected:
 
 public:
 
-	CycleDecoder(int SampleFreq, ArgParser argParser);
+	CycleDecoder(int SampleFreq, ArgParser &argParser);
 
 	// Get the sample frequency
 	int getSampleFreq() { return mCT.fS;  }
@@ -114,6 +114,9 @@ public:
 	// Get the next cycle (which is ether a low - F1 - or high - F2 - tone cycle)
 	virtual bool getNextCycle(CycleSample& cycleSample) = 0;
 
+	// Get the next 1/2 cycle (F1, F2 or unknown)
+	virtual bool nextHalfCycle(Frequency& lastHalfCycleFrequency) = 0;
+
 	// Wait until a cycle of a certain frequency is detected
 	virtual bool waitUntilCycle(Frequency freq, CycleSample& cycleSample) = 0;
 
@@ -132,8 +135,14 @@ public:
 	// Roll back to a previously saved cycle
 	virtual bool rollback() = 0;
 
+	// Remove checkpoint (without rolling back)
+	virtual bool regretCheckpoint() = 0;
+
 	// Return carrier frequency [Hz]
-	virtual double carrierFreq() = 0;
+	double carrierFreq();
+
+	// Return carrier frequency [Hz]
+	void setCarrierFreq(double carrierFreq);
 
 protected:
 	void updateHalfCycleFreq(int half_cycle_duration, Frequency& lastHalfCycleFrequency);

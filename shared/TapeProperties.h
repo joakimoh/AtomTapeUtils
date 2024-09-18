@@ -103,7 +103,7 @@ const TapeProperties atomTiming {
 
 const TapeProperties bbmTiming {
 	1201.0f, 180, 1200,
-	{ 3,		0.5,		0.2,	0.0,	0.5,	0.0,		0.0,	0.0 },
+	{ 3,		1.0,		0.2,	0.0,	0.5,	0.0,		0.0,	0.0 },
 	{ 4,		5.1,		0.9,	0.0,	5.3,	0.0,		0.0,	1.8 },
 	false
 };

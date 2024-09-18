@@ -11,27 +11,29 @@
 class CSWCycleDecoder : public CycleDecoder
 {
 
-	typedef struct PulseCheckPoint_struct {
+	class PulseInfo {
+	public:
 		int pulseIndex;
-		int sampleIndex;
+		int sampleIndex; // sample index after the pulse has been read
 		HalfCycle pulseLevel;
-		int pulseLength;
-	} PulseCheckPoint;
+		int pulseLength; // pulse duration (in samples)
+	} ;
 
-	typedef vector<PulseCheckPoint> PulseCheckPoints;
+	typedef vector<PulseInfo> PulseCheckPoints;
 
 private:
 
-	bool mVerbose = false;
+
 
 	Bytes &mPulses;
 	PulseCheckPoints mPulsesCheckpoints;
 
 	// Pulse data
-	int mPulseIndex;
-	HalfCycle mPulseLevel;
-	int mSampleIndex;
-	int mPulseLength;
+	PulseInfo mPulseInfo;
+	//int mPulseIndex;
+	//int mSampleIndex;
+	//HalfCycle mPulseLevel;
+	//int mPulseLength;
 
 	bool getNextPulse();
 
@@ -57,6 +59,9 @@ public:
 	// Get the next cycle (which is ether a low - F1 - or high - F2 - tone cycle)
 	bool getNextCycle(CycleSample& cycleSample);
 
+	// Get the next 1/2 cycle (F1, F2 or unknown)
+	bool nextHalfCycle(Frequency& lastHalfCycleFrequency);
+
 	// Wait until a cycle of a certain frequency is detected
 	bool waitUntilCycle(Frequency freq, CycleSample& cycleSample);
 
@@ -75,8 +80,8 @@ public:
 	// Roll back to a previously saved cycle
 	bool rollback();
 
-	// Return carrier frequency [Hz]
-	double carrierFreq();
+	// Remove checkpoint (without rolling back)
+	bool regretCheckpoint();
 
 };
 

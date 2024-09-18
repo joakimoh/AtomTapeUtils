@@ -15,8 +15,6 @@ WavCycleDecoder::WavCycleDecoder(
 	int sampleFreq, LevelDecoder& levelDecoder, ArgParser& argParser
 ) : CycleDecoder(sampleFreq, argParser), mLevelDecoder(levelDecoder)
 {
-	mTracing = argParser.tracing;
-	mVerbose = mArgParser.verbose;
 
 	
 	mCycleSample = { Frequency::NoCarrierFrequency, 0, 0 };
@@ -34,11 +32,23 @@ bool WavCycleDecoder::checkpoint()
 // Roll back to a previously saved cycle
 bool WavCycleDecoder::rollback()
 {
+
 	mCycleSample = mCycleSampleCheckpoints.back();
 	mCycleSampleCheckpoints.pop_back();
 	mLevelDecoder.rollback();
 	return true;
 
+}
+
+// Remove checkpoint (without rolling back)
+bool WavCycleDecoder::regretCheckpoint()
+{
+	if (mCycleSampleCheckpoints.size() == 0)
+		return false;
+
+	(void) mCycleSampleCheckpoints.pop_back();
+	(void) mLevelDecoder.regretCheckpoint();
+	return true;
 }
 
 // Advance n samples and record the encountered no of 1/2 cycles
@@ -75,7 +85,21 @@ int WavCycleDecoder::countHalfCycles(int nSamples, int& half_cycles, Frequency& 
 	return true;
 }
 
+// Get the next 1/2 cycle (F1, F2 or unknown)
+bool WavCycleDecoder::nextHalfCycle(Frequency& lastHalfCycleFrequency)
+{
+	int half_cycle_duration;
 
+	lastHalfCycleFrequency = Frequency::UndefinedFrequency;
+
+	if (!getSameLevelCycles(half_cycle_duration))
+		return false;
+
+	// Record the frequency of the last 1/2 cycle (but only if a 1/2 cycle was detected)
+	updateHalfCycleFreq(half_cycle_duration, lastHalfCycleFrequency);
+
+	return true;
+}
 
 // Consume as many 1/2 cycles of frequency f as possible
 int WavCycleDecoder::consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency &lastHalfCycleFrequency)
@@ -364,9 +388,3 @@ double WavCycleDecoder::getTime()
 }
 
 
-
-// Return carrier frequency [Hz]
-double WavCycleDecoder::carrierFreq()
-{
-	return mCT.baseFreq * 2;
-}

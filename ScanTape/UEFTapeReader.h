@@ -29,11 +29,11 @@ public:
 	bool readByte(Byte& byte);
 
 	// Wait for at least minCycles of carrier
-	bool waitForCarrier(int minCycles, double& waitingTime, int& cycles);
+	bool waitForCarrier(int minCycles, double& waitingTime, int& cycles, AfterCarrierType afterCarrierType);
 
-	// Wait for at least minPreludeCycles + minPostludeCycles cycles of carrier with dummy byte (0xaa)
 	bool waitForCarrierWithDummyByte(
-		int minPreludeCycles, int minPostludeCycles, Byte dummyByte, double& waitingTime, int& preludeCycles, int& postludecycles
+		int minCycles, double& waitingTime, int& preludeCycles, int& postludecycles, Byte& foundDummyByte,
+		AfterCarrierType afterCarrierType, bool detectDummyByte = true
 	);
 
 	// Consume a carrier of a min duration
@@ -47,6 +47,9 @@ public:
 
 	// Roll back to a previously saved file position
 	bool rollback();
+
+	// Remove checkpoint (without rolling back)
+	bool regretCheckpoint();
 
 	// Get phase shift
 	int getPhaseShift();

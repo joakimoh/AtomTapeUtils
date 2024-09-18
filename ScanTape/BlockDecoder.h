@@ -63,7 +63,7 @@ protected:
 	// Get block name
 	bool getBlockName(Bytes& name);
 
-
+	static int getMinLeadCarrierCycles(bool firstBlock, BlockTiming blockTiming, TargetMachine targetMachine, double carrierFreq);
 
 };
 

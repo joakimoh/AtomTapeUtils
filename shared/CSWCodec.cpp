@@ -320,6 +320,8 @@ bool CSWCodec::writeSamples(string filePath)
 
     // Clear samples to secure that future encodings start without any initial samples
     mPulses.clear();
+
+    return true;
 }
 
 bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)

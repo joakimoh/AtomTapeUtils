@@ -20,7 +20,6 @@ private:
 	// Collect as many samples as possible of the same level (High or Low)
 	bool getSameLevelCycles(int& nSamples);
 
-	bool mVerbose = false;
 
 public:
 
@@ -37,6 +36,9 @@ public:
 
 	// Get the next cycle (which is ether a low - F1 - or high - F2 - tone cycle)
 	bool getNextCycle(CycleSample& cycleSample);
+
+	// Get the next 1/2 cycle (F1, F2 or unknown)
+	bool nextHalfCycle(Frequency& lastHalfCycleFrequency);
 
 	// Wait until a cycle of a certain frequency is detected
 	bool waitUntilCycle(Frequency freq, CycleSample& cycleSample);
@@ -56,8 +58,8 @@ public:
 	// Roll back to a previously saved cycle
 	bool rollback();
 
-	// Return carrier frequency [Hz]
-	double carrierFreq();
+	// Remove checkpoint (without rolling back)
+	bool regretCheckpoint();
 
 };
 

@@ -48,6 +48,22 @@ bool BlockDecoder::getWord(Word* word)
 	return true;
 }
 
+int BlockDecoder::getMinLeadCarrierCycles(bool firstBlock, BlockTiming blockTiming, TargetMachine targetMachine, double carrierFreq)
+{
+	double carrier_duration;
+	int carrierCycles;
+	if (firstBlock) {
+		carrier_duration = blockTiming.firstBlockLeadToneDuration;
+		if (targetMachine <= BBC_MASTER && blockTiming.firstBlockPreludeLeadToneCycles > 0)
+			carrier_duration += (double)blockTiming.firstBlockPreludeLeadToneCycles / carrierFreq;
+		carrierCycles = (int)round(carrier_duration * carrierFreq);
+	}
+	else
+		carrierCycles = (int)round(blockTiming.otherBlockLeadToneDuration * carrierFreq);
+
+	return carrierCycles;
+}
+
 /*
  *
  * Read a complete tape block, starting with the detection of its lead tone and
@@ -81,27 +97,27 @@ bool BlockDecoder::readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock
 	readBlock.targetMachine = mTargetMachine;
 
 	// Wait for carrier
+	Byte dummy_byte = 0x0;
+	int min_carrier_cycles;
 	double waiting_time;
-	if (firstBlock) {
-		int lead_tone_cycles = (int) round(blockTiming.firstBlockLeadToneDuration * mReader.carrierFreq());
-		if (mTargetMachine <= BBC_MASTER) {
-			if (!mReader.waitForCarrierWithDummyByte(
-				blockTiming.firstBlockPreludeLeadToneCycles, lead_tone_cycles, 0xaa, waiting_time,
-				readBlock.preludeToneCycles, readBlock.leadToneCycles
-			))
-				return false;
-		}
-		else {
-			if (!mReader.waitForCarrier(lead_tone_cycles, waiting_time, readBlock.leadToneCycles))
-				return false;
+
+
+	min_carrier_cycles = getMinLeadCarrierCycles(firstBlock, blockTiming, mTargetMachine, mReader.carrierFreq());
+	if (firstBlock && mTargetMachine <= BBC_MASTER) {
+		if (!mReader.waitForCarrierWithDummyByte(
+			min_carrier_cycles, waiting_time, readBlock.preludeToneCycles, readBlock.leadToneCycles, dummy_byte, STARTBIT_FOLLOWS
+		)) {
+			cout << "FAILED at " << Utility::encodeTime(getTime()) << "\n";
+			return false;
 		}
 	}
 	else {
-		int lead_tone_cycles = (int) round(blockTiming.otherBlockLeadToneDuration * mReader.carrierFreq());
-		if (!mReader.waitForCarrier(lead_tone_cycles, waiting_time, readBlock.leadToneCycles))
+		if (!mReader.waitForCarrier(min_carrier_cycles, waiting_time, readBlock.leadToneCycles, STARTBIT_FOLLOWS))
 			return false;
 	}
+
 	leadToneDetected = true;
+
 
 	// Get phaseshift when transitioning from lead tone to start bit.
 	readBlock.phaseShift = mReader.getPhaseShift();
@@ -187,8 +203,7 @@ bool BlockDecoder::readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock
 	// For Atom, detect micro tone before reading data bytes
 	if (readBlock.targetMachine == ACORN_ATOM) {
 		double waiting_time;
-		if (!mReader.waitForCarrier(100, waiting_time, readBlock.microToneCycles)) {
-		//if (!mReader.consumeCarrier(0.1, readBlock.microToneCycles)) {
+		if (!mReader.waitForCarrier(100, waiting_time, readBlock.microToneCycles, STARTBIT_FOLLOWS)) {
 			if (mTracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to detect micro tone for file '%s'!\n", readBlock.blockName().c_str());
 		}
@@ -239,22 +254,27 @@ bool BlockDecoder::readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock
 
 	// Check against calculated CRC
 	if (data_CRC != crc) {
-		if (true||mTracing)
+		if (mTracing)
 			DEBUG_PRINT(getTime(), ERR, "Calculated (data) CRC 0x%x differs from received  CRC 0x%x for file '%s'\n", crc, data_CRC,
 				readBlock.blockName().c_str());
-		return false;
+		//return false;
 	}
 
 
-	if (mVerbose)
+	if (mVerbose && data_CRC == crc)
 		cout << "A correct (data) CRC 0x" << hex << data_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
+	else if (mVerbose)
+		cout << "An incorrect (data) CRC 0x" << hex << data_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
+
 		
 	// For BBC machines, skip trailer tone that only exists for the last block
 	if (readBlock.targetMachine <= BBC_MASTER && readBlock.lastBlock()) {
 		double waiting_time;
 		int trailer_tone_cycles = (int) round(blockTiming.trailerToneDuration * mReader.carrierFreq());
-		if (!mReader.waitForCarrier(trailer_tone_cycles, waiting_time, readBlock.trailerToneCycles)) {
+		if (!mReader.waitForCarrier(trailer_tone_cycles, waiting_time, readBlock.trailerToneCycles, GAP_FOLLOWS)) {
 			// This is not necessarily an error - it could be because the end of the tape as been reached...
+			if (mVerbose)
+				cout << "No trailer tone detected at " << Utility::encodeTime(getTime()) << "\n";
 			return false;
 		}
 
@@ -267,43 +287,38 @@ bool BlockDecoder::readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock
 	// For all Atom blocks and for last BBC machine block, record gap after block
 	if (readBlock.targetMachine == ACORN_ATOM || (readBlock.targetMachine <= BBC_MASTER && readBlock.lastBlock())) {
 
-		// Detect gap to next file by waiting for 100 cycles of the next files's first block's lead tone
+		// Detect gap to next file by waiting for next files's first block's lead tone
 		// After detection, there will be a roll back to the end of the block
 		// so that the next block detection will not miss the lead tone.
 		checkpoint();
 		FileBlock saved_block = readBlock;
-		int carrier_cycles;
+		int min_carrier_cycles, carrier_cycles;
 		double waiting_time;
-		double next_block_lead_tone_duration;
-		if (readBlock.lastBlock())
-			next_block_lead_tone_duration = blockTiming.firstBlockLeadToneDuration;
-		else
-			next_block_lead_tone_duration = blockTiming.otherBlockLeadToneDuration;
-		int  next_block_lead_tone_cycles = (int) round(next_block_lead_tone_duration * mReader.carrierFreq());
+		min_carrier_cycles = getMinLeadCarrierCycles(true, blockTiming, mTargetMachine, mReader.carrierFreq());
 		if (readBlock.targetMachine == ACORN_ATOM) {
-			if (!mReader.waitForCarrier(next_block_lead_tone_cycles, waiting_time, carrier_cycles))
+			if (!mReader.waitForCarrier(min_carrier_cycles, waiting_time, carrier_cycles, STARTBIT_FOLLOWS))
 				// If no gap detected (probably because the tape has ended), use a default gap of 2s
 				waiting_time = 2.0;
 		}
-		else { // BBC Machine
-			if (readBlock.lastBlock()) {
-				if (!mReader.waitForCarrierWithDummyByte(
-					blockTiming.firstBlockPreludeLeadToneCycles, next_block_lead_tone_cycles, 0xaa, waiting_time,
-					readBlock.preludeToneCycles, readBlock.leadToneCycles
-				))
-					// If no gap detected (probably because the tape has ended), use a default gap of 2s
-					waiting_time = 2.0;
+		else { // BBC Machine & last block
+			int next_block_prelude_cycles, next_block_postlude_cycles;
+			if (!mReader.waitForCarrierWithDummyByte(
+				min_carrier_cycles, waiting_time, next_block_prelude_cycles, next_block_postlude_cycles, dummy_byte, STARTBIT_FOLLOWS
+			)) {
+				// If no gap detected (probably because the tape has ended), use a default gap of 2s
+				waiting_time = 2.0;
 			}
-			else
-				waiting_time = 0.0; // No gap between BBC Machine blocks
 		}
 		rollback();
 		readBlock = saved_block;
 		readBlock.blockGap = waiting_time;
 
-		if (mVerbose)
-			cout << readBlock.blockGap << " s gap after block, starting at " << Utility::encodeTime(getTime()) << "\n";
 	}
+	else
+		readBlock.blockGap = 0.0; // No gap between non-last BBC machine blocks
+
+	if (mVerbose)
+		cout << readBlock.blockGap << " s gap after block, starting at " << Utility::encodeTime(getTime()) << "\n";
 
 	return true;
 }

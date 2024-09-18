@@ -3,7 +3,6 @@
 #include "../shared/Utility.h"
 #include <iostream>
 
-
 bool TapeReader::readBytes(Bytes& data, int n, int& read_bytes)
 {
 	for (read_bytes = 0; read_bytes < n; read_bytes++) {

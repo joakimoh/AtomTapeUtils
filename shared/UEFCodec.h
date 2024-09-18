@@ -73,10 +73,13 @@ public:
 	Bytes data;
 	DataEncoding dataEncoding;
 
-	ChunkInfo(ChunkInfoType chunkType, double time1, int time2) : chunkInfoType(chunkType), data1_fp(time1), data2_i(time2) {}
+	ChunkInfo(ChunkInfoType chunkType, double time1, int time2, double t) : chunkInfoType(chunkType), data1_fp(time1),
+		data2_i(time2) {}
 	ChunkInfo() {}
 
-	void init() { chunkInfoType = ChunkInfoType::UNKNOWN; data1_fp = -1.0;  data2_i = -1; data.clear(); dataEncoding.init(); }
+	void init() {
+		chunkInfoType = ChunkInfoType::UNKNOWN; data1_fp = -1.0;  data2_i = -1; data.clear(); dataEncoding.init();
+	}
 };
 
 class UEFCodec
@@ -341,6 +344,9 @@ public:
 	double getTime();
 	bool rollback();
 	bool checkpoint();
+
+	// Remove checkpoint (without rolling back)
+	bool regretCheckpoint();
 
 	int getPhaseShift();
 

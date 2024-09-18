@@ -30,7 +30,7 @@ bool UEFTapeReader::readByte(Byte& byte)
 
 
 // Wait for at least minCycles of carrier
-bool UEFTapeReader::waitForCarrier(int minCycles, double& waitingTime, int& cycles)
+bool UEFTapeReader::waitForCarrier(int minCycles, double& waitingTime, int& cycles, AfterCarrierType afterCarrierType)
 {
 	// Wait for lead tone of a min duration but still 'consume' the complete tone (including dummy byte if applicable)
 	double duration;
@@ -61,52 +61,78 @@ bool UEFTapeReader::consumeCarrier(double minDuration, int& detectedCycles)
 	return true;
 }
 
-// Wait for at least minPreludeCycles + minPostludeCycles cycles of carrier with dummy byte (0xaa)
+// Wait for at least minCycles cycles of carrier, possibly with a dummy byte (0xaa)
 bool UEFTapeReader::waitForCarrierWithDummyByte(
-	int minPreludeCycles, int minPostludeCycles, Byte dummyByte, double& waitingTime, int& preludeCycles, int& postludecycles
-) {
+	int minCycles, double& waitingTime, int& preludeCycles, int& postludecycles, Byte& foundDummyByte,
+	AfterCarrierType afterCarrierType, bool detectDummyByte
+)
+{
 	double duration1, duration2;
 
+
+	double min_duration = (double)minCycles / carrierFreq();
+
 	// Wait for lead tone of a min duration (with or without a dummy byte)
-	double min_prelude_duration = (double)minPreludeCycles / carrierFreq();
-	double min_postlude_duration = (double)postludecycles / carrierFreq();
-	if (!mUEFCodec.detectCarrierWithDummyByte(waitingTime, duration1, duration2) || duration1 < min_prelude_duration) {
+	if (!mUEFCodec.detectCarrierWithDummyByte(waitingTime, duration1, duration2)) {
 		cout << "Failed to detect a carrier (with or without a dummy byte) at " << Utility::encodeTime(getTime()) << "\n";
 		return false;
 	}
-
-	if (mVerbose && duration2 == -1)
-		cout << duration2 << "s prelude lead tone detected at " << Utility::encodeTime(getTime()) << "\n";
-	else if (mVerbose) {
-		cout << minPreludeCycles << " cycles prelude tone and dummy byte 0xaa followed by postlude tone of " << duration2 << "s\n";
+	
+	// If the carrier was without a dummy byte but exceeded the min duration, then completed (dummy byte is optional)
+	if (duration2 == -1 && duration1 >= min_duration) {
+		preludeCycles = -1;
+		postludecycles = (int)round(duration1 * carrierFreq());
+		if (mVerbose)
+			cout << duration1 << "s carrier without dummy byte detected at " << Utility::encodeTime(getTime()) << "\n";
+		return true;
 	}
 
-	// Continue if it was a carrier chunk without a dummy byte
-	if (duration2 == -1) {
-		Bytes dummy_byte_data;
-		if (!mUEFCodec.readfromDataChunk(1, dummy_byte_data) || dummy_byte_data.size() != 1) {
-			cout << "Failed to read dummy byte at " << Utility::encodeTime(getTime()) << "\n";
-			return false;
+	// Check If the carrier included a dummy byte
+	if (duration1 != -1 && duration2 != -1) {
+		if (duration1 + duration2 > min_duration) {
+			// The carrier included a dummy byte and exceeded the min duration => completed
+			preludeCycles = (int)round(duration1 * carrierFreq());
+			postludecycles = (int)round(duration2 * carrierFreq());
+			if (mVerbose)
+				cout << preludeCycles << " cycles prelude tone, an implicit dummy byte (0xaa) followed by a " << duration2 << "s postlude tone\n";
+			return true;
 		}
-
-		if (mVerbose)
-			cout << "dummy byte " << hex << (int) dummy_byte_data[0] << " detected at " << Utility::encodeTime(getTime()) << "\n";
-
-		if (!mUEFCodec.detectCarrier(duration2) && duration2 < min_postlude_duration) {
-			cout << "Failed to detect a carrier after the dummy byte at " << Utility::encodeTime(getTime()) << "\n";
+		else
+			// Too short carrier with dummy byte => FAILED
 			return false;
-		}
+	}
 
-		if (mVerbose)
-			cout << duration2 << "s postlude lead tone detected at " << Utility::encodeTime(getTime()) << "\n";
+	// The carrier didn't include a dummy byte and has a duration below the min duration => assume an explicit dummy byte will follow
+
+
+	Bytes dummy_byte_data;
+	if (!mUEFCodec.readfromDataChunk(1, dummy_byte_data) || dummy_byte_data.size() != 1) {
+		cout << "Failed to read dummy byte at " << Utility::encodeTime(getTime()) << "\n";
+		return false;
+	}
+
+	if (mVerbose)
+		cout << "dummy byte " << hex << (int) dummy_byte_data[0] << " detected at " << Utility::encodeTime(getTime()) << "\n";
+
+	if (!mUEFCodec.detectCarrier(duration2) && duration1 + duration2 < min_duration) {
+		cout << "Failed to detect a long enough carrier (" << duration1 << "+" << duration2 << "/" << min_duration << "s) after the dummy byte at " << Utility::encodeTime(getTime()) << "\n";
+		return false;
 	}
 
 	preludeCycles = (int)round(duration1 * carrierFreq());
 	postludecycles = (int)round(duration2 * carrierFreq());
 
+	if (mVerbose) {
+		cout << preludeCycles << " cycles prelude tone, a dummy byte 0x" << hex << (int)dummy_byte_data[0] <<
+			dec << " followed by a " << duration2 << "s postlude tone\n";
+	}
+	
 
 	return true;
 }
+
+
+
 
 // Get tape time
 double UEFTapeReader::getTime()
@@ -127,10 +153,13 @@ bool UEFTapeReader::checkpoint()
 // Roll back to a previously saved file position
 bool UEFTapeReader::rollback()
 {
-	if (!mUEFCodec.rollback()) {
-		return false;
-	}
-	return true;
+	return mUEFCodec.rollback();
+}
+
+// Remove checkpoint (without rolling back)
+bool UEFTapeReader::regretCheckpoint()
+{
+	return mUEFCodec.regretCheckpoint();
 }
 
 // Get phase shift
