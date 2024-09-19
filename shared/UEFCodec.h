@@ -94,10 +94,13 @@ private:
 	//
 
 	enum CHUNK_ID {
-		ORIGIN_CHUNK = 0x0000, SIMPLE_DATA_CHUNK = 0x100, COMPLEX_DATA_CHUNK = 0x0104,
-		CARRIER_TONE_CHUNK = 0x0110, CARRIER_TONE_WITH_DUMMY_BYTE = 0x0111, PHASE_CHUNK = 0x0115, BAUD_RATE_CHUNK = 0x117, SECURITY_CHUNK = 0x0114,
-		BAUDWISE_GAP_CHUNK = 0x0112, FLOAT_GAP_CHUNK = 0x0116, BASE_FREQ_CHUNK = 0x113,
-		TARGET_CHUNK = 0x0005, UNKNOWN_CHUNK = 0xffff
+		ORIGIN_CHUNK = 0x0000, TARGET_CHUNK = 0x0005,
+		SIMPLE_DATA_CHUNK = 0x100, COMPLEX_DATA_CHUNK = 0x0104,
+		CARRIER_TONE_CHUNK = 0x0110, CARRIER_TONE_WITH_DUMMY_BYTE = 0x0111,
+		INTEGER_GAP_CHUNK = 0x0112,
+		BASE_FREQ_CHUNK = 0x113, SECURITY_CHUNK = 0x0114, PHASE_CHUNK = 0x0115, FLOAT_GAP_CHUNK = 0x0116, 
+		BAUD_RATE_CHUNK = 0x117,
+		UNKNOWN_CHUNK = 0xffff
 	} ;
 #define CHUNK_ID_BYTES(x) {x & 0xff, (x >> 8) & 0xff}
 #define _CHUNK_ID(x) \
@@ -108,7 +111,7 @@ private:
 	(x==PHASE_CHUNK?"PHASE_CHUNK":\
 	(x==BAUD_RATE_CHUNK?"BAUD_RATE_CHUNK":\
 	(x==SECURITY_CHUNK?"SECURITY_CHUNK":\
-	(x==BAUDWISE_GAP_CHUNK?"BAUDWISE_GAP_CHUNK":\
+	(x==INTEGER_GAP_CHUNK?"INTEGER_GAP_CHUNK":\
 	(x==FLOAT_GAP_CHUNK?"FLOAT_GAP_CHUNK":\
 	(x==BASE_FREQ_CHUNK?"BASE_FREQ_CHUNK":\
 	(x==TARGET_CHUNK?"TARGET_CHUNK":\
@@ -136,10 +139,10 @@ private:
 	} BaseFreqChunk;
 
 	// UEF gap chunk type 112
-	typedef struct BaudwiseGapChunk_struct {
-		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(BAUDWISE_GAP_CHUNK), {2, 0, 0, 0}};
-		Byte gap[2] = { 32, 3 }; // in (1 / (baud rate * 2))ths of a second : 800 / (300 *2) = 1.3 s
-	} BaudwiseGapChunk;
+	typedef struct IntegerGapChunk_struct {
+		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(INTEGER_GAP_CHUNK), {2, 0, 0, 0}};
+		Byte gap[2] = { 32, 3 }; // A value of n indicates a gap of n/(2*base frequency) seconds
+	} IntegerGapChunk;
 
 	// UEF gap chunk type 116
 	typedef struct FPGapChunk_struct {
@@ -234,6 +237,7 @@ private:
 	bool writeIntPrecGapChunk(ogzstream& fout, double duration);
 	bool writeSecurityCyclesChunk(ogzstream&fout, int nCycles, Byte firstPulse, Byte lastPulse, Bytes cycles);
 	string decode_security_cycles(SecurityCyclesChunkHdr& hdr, Bytes cycles);
+	double UEFCodec::security_cycles_length(string cycles);
 	bool writeBaudrateChunk(ogzstream&fout);
 	bool writePhaseChunk(ogzstream&fout);
 	bool writeCarrierChunk(ogzstream&fout, double duration);
@@ -314,7 +318,9 @@ private:
 	Bytes mRemainingData;
 	Bytes mUefData;
 	BytesIter mUefDataIter;
-	double mTime = 0.0;
+
+	double mTime = 0.0; // Tape 'time' when reading or writing an UEF file
+
 	vector <UEFChkPoint> checkpoints;
 
 	ostream* mFout = &cout;

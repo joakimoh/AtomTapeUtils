@@ -47,71 +47,43 @@ int main(int argc, const char* argv[])
 
     // Iterate over read UEF file chunks and write them to CSW file
     ChunkInfo chunk_info;
-    double t = 0.0;
     while (UEF_codec.processChunk(chunk_info)) {
         switch (chunk_info.chunkInfoType) {
         case ChunkInfoType::CARRIER_DUMMY:
-            t += chunk_info.data1_fp + (double)chunk_info.data2_i / (2 * UEF_codec.getBaseFreq());
             if (!WAV_encoder.writeTone(chunk_info.data1_fp))
                 return false;
             if (!WAV_encoder.writeByte(0xaa, bbmDefaultDataEncoding)) // Only BBC Machines uses dummy bytes
                 return false;
             if (!WAV_encoder.writeTone((double)chunk_info.data2_i / (2 * UEF_codec.getBaseFreq())))
                 return false;
-            if (arg_parser.verbose)
-                cout << "wrote a carrier with dummy byte 0xaa of duration " <<
-                chunk_info.data1_fp << "s + " << (double)chunk_info.data2_i / (2 * UEF_codec.getBaseFreq()) << "s at " <<
-                Utility::encodeTime(t) << "\n";
             break;
         case ChunkInfoType::CARRIER:
-            t += chunk_info.data1_fp;
             if (!WAV_encoder.writeTone(chunk_info.data1_fp))
                 return false;
-            if (arg_parser.verbose)
-                cout << "Wrote a carrier of duration " << chunk_info.data1_fp << "s at " <<
-                Utility::encodeTime(t) << "\n";
-            break;
             break;
         case ChunkInfoType::DATA:
-            t += chunk_info.data1_fp;
             for (int i = 0; i < chunk_info.data.size(); i++) {
                 if (!WAV_encoder.writeByte(chunk_info.data[i], chunk_info.dataEncoding))
                     return false;
             }
-            if (arg_parser.verbose) {
-                cout << "Wrote " << dec << chunk_info.data.size() << " bytes at " <<
-                    Utility::encodeTime(t) << "\n";
-                break;
-                BytesIter bi = chunk_info.data.begin();
-                Utility::logData(0x0, bi, chunk_info.data.size());
-            }
             break;
         case ChunkInfoType::GAP:
-            t += chunk_info.data1_fp;
             if (!WAV_encoder.writeGap(chunk_info.data1_fp))
                 return false;
-            if (arg_parser.verbose)
-                cout << "Wrote a gap of duration " << chunk_info.data1_fp << "s at " <<
-                Utility::encodeTime(t) << "\n";
             break;
             break;
         case ChunkInfoType::BASE_FREQ:
             if (!WAV_encoder.setBaseFreq(chunk_info.data1_fp))
                 return false;
-            if (arg_parser.verbose)
-                cout << "Wrote a base frequency of " << chunk_info.data1_fp << " Hz\n";
             break;
         case ChunkInfoType::BAUDRATE:
             if (!WAV_encoder.setBaudRate(chunk_info.data2_i))
                 return false;
-            if (arg_parser.verbose)
-                cout << "Wrote a Baudrate of " << chunk_info.data2_i << "\n";
             break;
         case ChunkInfoType::PHASE:
             if (!WAV_encoder.setPhase(chunk_info.data2_i))
                 return false;
-            if (arg_parser.verbose)
-                cout << "Wrote a phase of " << chunk_info.data2_i << "\n";
+
             break;
         default:
             break;

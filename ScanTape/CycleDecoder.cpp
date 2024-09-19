@@ -9,10 +9,23 @@ void CycleSampleTiming::log()
 	int n_samples_F2 = (int)round(fS / f2);
 	int n_samples_F12 = (int)round(3 * fS / (f2 * 2));
 
-	cout << "F1 with a nominal cycle duration of " << n_samples_F1 << " shall be in the range [" <<
-		mMinNSamplesF1Cycle << ", " << mMaxNSamplesF1Cycle << "]\n";
-	cout << "F2 with a nominal cycle duration of " << n_samples_F2 << " shall be in the range [" <<
-		mMinNSamplesF2Cycle << ", " << mMaxNSamplesF2Cycle << "]\n";
+	mMinNSamplesF1HalfCycle = 2;
+	cout << "Sampling Frequency: " << this->fS << " [Hz]\n";
+	cout << "Sampling period: " << this->tS << " [s]\n";
+	cout << "Frequency threshold: " << this->freqThreshold << "\n";
+	cout << "Base Frequency: " << this->baseFreq << " [Hz]\n";
+	cout << "min samples per F12 cycle: " << this->mMinNSamplesF12Cycle << "\n";
+	cout << "max samples per F12 cycle: " << this->mMaxNSamplesF12Cycle << "\n";
+	cout << "min samples per F1 cycle: " << this->mMinNSamplesF1Cycle << "\n";
+	cout << "max samples per F1 cycle: " << this->mMaxNSamplesF1Cycle << "\n";
+	cout << "max samples per F2 cycle: " << this->mMaxNSamplesF2Cycle << "\n";
+	cout << "min samples per F2 cycle: " << this->mMinNSamplesF2Cycle << "\n";
+	cout << "min samples per F1 1/2 cycle: " << this->mMinNSamplesF1HalfCycle << "\n";
+	cout << "max samples per F1 1/2 cycle: " << this->mMaxNSamplesF1HalfCycle << "\n";
+	cout << "min samples per F2 1/2 cycle: " << this->mMinNSamplesF2HalfCycle << "\n";
+	cout << "max samples per F2 1/2 cycle: " << this->mMaxNSamplesF2HalfCycle << "\n";
+	cout << "samples threshold for 1/2 cycle: " << this->mSamplesThresholdHalfCycle << "\n";
+
 }
 
 

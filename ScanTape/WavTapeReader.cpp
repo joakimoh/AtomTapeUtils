@@ -244,6 +244,8 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 	double base_freq_av = carrier_cycle_freq_av / 2;
 
 	// Update bit timing based on new measured carrier frequency
+	if (mVerbose)
+		cout << "Detected  a carrier frequency of " << carrier_cycle_freq_av << " - updating bit timing and cycle decoder with this!\n";
 	mCycleDecoder.setCarrierFreq(carrier_cycle_freq_av);
 	BitTiming updated_bit_timing(mCycleDecoder.getSampleFreq(), base_freq_av, mArgParser.tapeTiming.baudRate, mArgParser.targetMachine);
 	mBitTiming = updated_bit_timing;
