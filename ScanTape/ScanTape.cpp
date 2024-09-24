@@ -145,41 +145,43 @@ int main(int argc, const char* argv[])
     
     // Read complete tape files using the File Decoder
     bool read_file;
-    while ((read_file = fileDecoder.readFile(fout, tape_file))) {
+    bool selected_file_found = false;
+    while ((read_file = fileDecoder.readFile(fout, tape_file, arg_parser.find_file_name))) {
 
-        if (tape_file.blocks.size() > 0) {
+        if (tape_file.blocks.size() > 0 && (arg_parser.find_file_name == "" || tape_file.blocks[0].blockName() == arg_parser.find_file_name)) {
 
-                if (!read_file) {
-                    cout << "Failed to scan the WAV file!\n";
-                    //return -1;
-                }
-                if (arg_parser.verbose)
-                    cout << (tape_file.fileType == ACORN_ATOM ?"Atom":"BBC Micro") << " Tape File '" << tape_file.blocks.front().blockName() <<
-                        "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
+            selected_file_found = true;
+            if (!read_file) {
+                cout << "Failed to scan the WAV file!\n";
+                //return -1;
+            }
+            if (arg_parser.verbose)
+                cout << (tape_file.fileType == ACORN_ATOM ?"Atom":"BBC Micro") << " Tape File '" << tape_file.blocks.front().blockName() <<
+                    "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
 
-                DataCodec DATA_codec = DataCodec(arg_parser.verbose);
-                string DATA_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "dat");
-                if (!DATA_codec.encode(tape_file, DATA_file_name)) {
-                    cout << "Failed to write the DATA file!\n";
-                    //return -1;
-                }
+            DataCodec DATA_codec = DataCodec(arg_parser.verbose);
+            string DATA_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "dat");
+            if (!DATA_codec.encode(tape_file, DATA_file_name)) {
+                cout << "Failed to write the DATA file!\n";
+                //return -1;
+            }
 
-                AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.targetMachine);
-                string ABC_file_name;
-                if (tape_file.fileType == ACORN_ATOM)
-                    ABC_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "abc");
-                else if (tape_file.fileType <= BBC_MASTER)
-                    ABC_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "bbc");
-                else {
-                    cout << "Unknwon target machine " << hex << tape_file.fileType << "\n";
-                    return -1;
-                }
-                if (!ABC_codec.encode(tape_file, ABC_file_name)) {
-                    cout << "Failed to write the program file!\n";
-                    //return -1;
-                }
+            AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.targetMachine);
+            string ABC_file_name;
+            if (tape_file.fileType == ACORN_ATOM)
+                ABC_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "abc");
+            else if (tape_file.fileType <= BBC_MASTER)
+                ABC_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "bbc");
+            else {
+                cout << "Unknwon target machine " << hex << tape_file.fileType << "\n";
+                return -1;
+            }
+            if (!ABC_codec.encode(tape_file, ABC_file_name)) {
+                cout << "Failed to write the program file!\n";
+                //return -1;
+            }
 
-                if (tape_file.complete) { // Only generate files if the Tape file was completed (without missing blocks)
+            if (tape_file.complete) { // Only generate files if the Tape file was completed (without missing blocks)
 
                     // Create TAP file (Acorn Atom only)
                     if (arg_parser.targetMachine == ACORN_ATOM) {
@@ -209,15 +211,13 @@ int main(int argc, const char* argv[])
 
                 }
 
-                
-
-                
-
+   
             }
 
-    
-
     }
+
+    if (arg_parser.find_file_name != "" && !selected_file_found)
+        cout << "Couldn't find tape file '" << arg_parser.find_file_name << "!'\n";
 
     fout.close();
 

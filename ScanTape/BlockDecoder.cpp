@@ -82,8 +82,12 @@ int BlockDecoder::getMinLeadCarrierCycles(bool firstBlock, BlockTiming blockTimi
  * values than above are used to have some margin.
  * 
  */
-bool BlockDecoder::readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock& readBlock, bool& leadToneDetected)
+bool BlockDecoder::readBlock(
+	BlockTiming blockTiming, bool firstBlock, FileBlock& readBlock, bool& leadToneDetected, BlockError& readStatus
+)
 {
+	readStatus = BLOCK_OK;
+
 	nReadBytes = 0;
 	leadToneDetected = false;
 
@@ -190,7 +194,7 @@ bool BlockDecoder::readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock
 				DEBUG_PRINT(getTime(), ERR, "Calculated header CRC 0x%x differs from received CRC 0x%x for file '%s'\n", crc, hdr_CRC,
 					readBlock.blockName().c_str());
 			}
-			return false;
+			readStatus |= BLOCK_HDR_CRC_ERR;
 		}
 
 		if (mVerbose)
@@ -206,6 +210,7 @@ bool BlockDecoder::readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock
 		if (!mReader.waitForCarrier(100, waiting_time, readBlock.microToneCycles, STARTBIT_FOLLOWS)) {
 			if (mTracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to detect micro tone for file '%s'!\n", readBlock.blockName().c_str());
+			return false;
 		}
 
 		double micro_tone_duration = readBlock.microToneCycles / mReader.carrierFreq();
@@ -257,7 +262,10 @@ bool BlockDecoder::readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock
 		if (mTracing)
 			DEBUG_PRINT(getTime(), ERR, "Calculated (data) CRC 0x%x differs from received  CRC 0x%x for file '%s'\n", crc, data_CRC,
 				readBlock.blockName().c_str());
-		//return false;
+		if (readBlock.targetMachine <= BBC_MASTER)
+			readStatus |= BLOCK_DATA_CRC_ERR;
+		else
+			readStatus |= BLOCK_CRC_ERR;
 	}
 
 

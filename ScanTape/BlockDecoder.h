@@ -14,7 +14,25 @@
 
 
 
+enum BlockError {
+	BLOCK_OK = 0, BLOCK_DATA_CRC_ERR = 0x2, BLOCK_HDR_CRC_ERR = 0x4, BLOCK_CRC_ERR = 0x6
+};
 
+inline BlockError operator|(BlockError left, BlockError right) {
+	return static_cast<BlockError>(static_cast<uint8_t>(left) | static_cast<uint8_t>(right));
+}
+
+inline BlockError operator&(BlockError left, BlockError right) {
+	return static_cast<BlockError>(static_cast<uint8_t>(left) & static_cast<uint8_t>(right));
+}
+
+inline BlockError &operator|=(BlockError &left, BlockError right) {
+	return left = left | right;
+}
+
+inline BlockError& operator&=(BlockError& left, BlockError right) {
+	return left = left & right;
+}
 
 class BlockDecoder
 {
@@ -38,7 +56,7 @@ public:
 
 	BlockDecoder(TapeReader& tapeReader, ArgParser& argParser);
 
-	bool readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock& readBlock, bool& leadToneDetected);
+	bool readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock& readBlock, bool& leadToneDetected, BlockError &readStatus);
 
 	// Get tape time
 	double getTime() { return mReader.getTime(); }

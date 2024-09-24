@@ -11,6 +11,10 @@ enum TargetMachine { BBC_MODEL_A = 0, ELECTRON = 1, BBC_MODEL_B = 2, BBC_MASTER 
 #define _TARGET_MACHINE(x) (x==BBC_MODEL_A?"BBC_MODEL_A": \
 	(x==ELECTRON?"ELECTRON":(x==BBC_MODEL_B?"BBC_MODEL_B":(x==BBC_MASTER?"BBC_MASTER":(x==ACORN_ATOM?"ACORN_ATOM":"???")))))
 
+enum BlockType { First = 0x1, Last = 0x2, Other = 0x4, Single = 0x3, Unknown = 0x4 };
+
+#define _BLOCK_ORDER(x) (x==BlockType::First?"First":(x==BlockType::Last?"Last":(x==BlockType::Other?"Other":(x==BlockType::Single?"Single":"Unknown"))))
+
 
 class FileBlock {
 
@@ -115,7 +119,9 @@ public:
 
 	vector<FileBlock> blocks;
 
-	bool complete = false; // true if all blocks were successfully detected
+	bool complete = true; // true if all blocks were successfully detected
+
+	bool corrupted = false; // true if at least one block could be corrupted (CRC was incorrect)
 
 	int firstBlock; // first encountered block's no
 	int lastBlock; // last encountered block's no
@@ -130,6 +136,7 @@ public:
 
 	void logTAPFileHdr(ostream* fout);
 	void logTAPFileHdr();
+	void init();
 
 };
 

@@ -179,7 +179,7 @@ bool MMCCodec::decode(string& mmcFileName, TapeFile& tapeFile)
     // Create TAP file structure
     //
     FileBlock block(ACORN_ATOM);
-    tapeFile.blocks.clear();
+    tapeFile.init();
     tapeFile.complete = true;
     tapeFile.validFileName = block.filenameFromBlockName(atom_filename);
     tapeFile.isBasicProgram = true;

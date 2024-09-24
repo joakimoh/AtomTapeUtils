@@ -36,7 +36,7 @@ public:
 		ArgParser& argParser
 	);
 
-	bool readFile(ofstream& logFile, TapeFile& tapFile);
+	bool readFile(ofstream& logFile, TapeFile& tapFile, string searchName);
 
 
 

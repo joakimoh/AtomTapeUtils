@@ -6,6 +6,20 @@
 #include <filesystem>
 #include "WaveSampleTypes.h"
 
+void TapeFile::init()
+{
+    fileType = TargetMachine::UNKNOWN_TARGET;
+    blocks.clear();
+    complete = false;
+    corrupted = false;
+    firstBlock = -1;
+    lastBlock = -1;
+    validFileName = "FAILED";
+    isBasicProgram = false;
+    validTiming = false;
+    baudRate = 300;
+}
+
 FileBlock::FileBlock(TargetMachine bt) {
     targetMachine = bt;
 }
@@ -380,7 +394,8 @@ bool FileBlock::logHdr(ostream* fout)
             hex << setfill('0') << setw(4) << load_adr + block_sz - 1 << " " <<
             hex << setfill('0') << setw(4) << exec_adr << " " <<
             dec << setfill(' ') << setw(4) << dec << blockNo << " " <<
-            hex << setfill('0') << setw(4) << block_sz << " " << setfill(' ');
+            hex << setfill('0') << setw(4) << block_sz << " " << setfill(' ') << " " <<
+            setw(8) << _BLOCK_ORDER(this->blockType);
         if (leadToneCycles != -1 || microToneCycles != -1 || blockGap != -1) {
             *fout << Utility::roundedPD(" LEAD TONE ", (double)leadToneCycles / F2_FREQ, ": ") <<
                 Utility::roundedPD("MICRO TONE ", (double)microToneCycles / F2_FREQ, ": ") <<
@@ -400,7 +415,8 @@ bool FileBlock::logHdr(ostream* fout)
             hex << setfill('0') << setw(8) << exec_adr << " " <<
             dec << setfill(' ') << setw(4) << dec << block_no << " " <<
             hex << setfill('0') << setw(4) << block_sz << " " <<
-            hex << setfill('0') << setw(2) << hex << (int)flag << setfill(' ');
+            hex << setfill('0') << setw(2) << hex << (int)flag << setfill(' ') << " " <<
+            setw(8) << _BLOCK_ORDER(this->blockType);
         if (leadToneCycles != -1 || trailerToneCycles != -1 || blockGap != -1) {
             *fout <<
                 " PRELUDE LEAD " << setw(5) << (preludeToneCycles > 0 ? to_string(preludeToneCycles) : "-") << " cycles: " <<

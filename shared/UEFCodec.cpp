@@ -925,7 +925,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 if (mVerbose) {
                     *mFout << "Simple data chunk 0100 of size " << chunk_sz << ":";
                     BytesIter di = chunkInfo.data.begin();
-                    Utility::logData(mFout, 0x0, di, chunkInfo.data.size());
+                    Utility::logData(mFout, 0x0, di, (int) chunkInfo.data.size());
                 }
                 break;
             }
@@ -958,7 +958,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                     *mFout << "Complex data chunk 0104 of size " << chunk_sz << " and with encoding " <<
                         dec << (int) hdr.bitsPerPacket  << hdr.parity << n_stop_bits << ":";
                     BytesIter di = chunkInfo.data.begin();
-                    Utility::logData(mFout, 0x0, di, chunkInfo.data.size());
+                    Utility::logData(mFout, 0x0, di, (int) chunkInfo.data.size());
                 }
 
 
@@ -1312,6 +1312,7 @@ double UEFCodec::security_cycles_length(string cycles)
         else // error
             return -1;
     }
+    return t;
 }
 
 // write baudrate 
@@ -1419,7 +1420,7 @@ bool UEFCodec::writeComplexDataChunk(ogzstream &fout, Byte bitsPerPacket, Byte p
         *mFout << "Data chunk 0104 of size " << dec << block_size << " and encoding " << 
             (int)bitsPerPacket << parity << (int) stopBitInfo << " written:";
         BytesIter di = data.begin();
-        Utility::logData(mFout, 0x0, di, data.size());
+        Utility::logData(mFout, 0x0, di, (int) data.size());
     }
 
     mTime += block_size * mBitTiming.F2CyclesPerByte / (2 * mBaseFrequency);;
@@ -1450,7 +1451,7 @@ bool UEFCodec::writeSimpleDataChunk(ogzstream &fout, Bytes data, Word &CRC)
     if (mVerbose) {
         *mFout << "Data chunk 0100 of size " << dec << block_size << " written:";
         BytesIter di = data.begin();
-        Utility::logData(mFout, 0x0, di, data.size());
+        Utility::logData(mFout, 0x0, di, (int) data.size());
     }
 
     mTime += block_size * mBitTiming.F2CyclesPerByte / (2 * mBaseFrequency);

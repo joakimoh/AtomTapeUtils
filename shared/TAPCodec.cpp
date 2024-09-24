@@ -19,6 +19,7 @@ TAPCodec::TAPCodec(bool verbose) : mVerbose(verbose)
 }
 bool TAPCodec::bytes2TAP(Bytes& data, TargetMachine targetMachine, string tapeFileName, uint32_t fileLoadAdr, uint32_t execAdr, TapeFile& tapeFile)
 {
+    tapeFile.init();
 
     if (targetMachine) {
         tapeFile.fileType = BBC_MODEL_B;

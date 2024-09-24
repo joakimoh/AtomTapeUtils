@@ -444,7 +444,7 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
     if (mVerbose)
         cout << "\nDecoding ABC/BBC Micro file '" << fullPathFileName << "'...\n\n";
 
-    tapeFile.blocks.clear();
+    tapeFile.init();
     tapeFile.complete = true;
     tapeFile.validFileName = file_name;
     tapeFile.isBasicProgram = true;

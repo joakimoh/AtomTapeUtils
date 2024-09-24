@@ -29,6 +29,8 @@ public:
 
 	TargetMachine targetMachine = ACORN_ATOM;
 
+	string find_file_name = "";
+
 private:
 
 	void printUsage(const char *);

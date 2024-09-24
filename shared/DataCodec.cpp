@@ -297,7 +297,7 @@ bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine t
         file_load_adr = 0x2900;
     }
 
-    tapeFile.blocks.clear();
+    tapeFile.init();
     tapeFile.complete = true;
     tapeFile.validFileName = file_name;
     tapeFile.isBasicProgram = true;
