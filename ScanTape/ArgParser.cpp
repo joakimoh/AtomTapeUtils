@@ -16,7 +16,7 @@ void ArgParser::printUsage(const char *name)
 {
 	cout << "Usage:\t" << name << " <WAV/CSW/UEF file> [-g <generate dir path] [-d <debug start time> <debug stop time>] [-b <b>]\n";
 	cout << "\t[-f <freq tolerance>] [-l <level tolerance>] [-s <start time> ] [-e] [-t] [-pot]\n";
-	cout << " \t[-lt <duration>] [-slt <duration>] [-ml <duration>] [-v] [-bbm] [-n <tape file name>]\n";
+	cout << " \t[-lt <duration>] [-slt <duration>] [-ml <duration>] [-v] [-bbm] [-n <tape file name>] [-c]\n";
 	cout << "\n";
 	cout << "<WAV/CSW/UEF file>:\n\t16-bit PCM WAV/CSW/UEF file to analyse\n\n";
 	cout << "\n";
@@ -37,6 +37,7 @@ void ArgParser::printUsage(const char *name)
 	cout << "-v:\n\tVerbose mode\n\n";
 	cout << "-bbm:\nScan for BBC Micro (default is Acorn Atom)\n\n";
 	cout << "-n name:\nLimit scan to a single tape file\n\n";
+	cout << "-c:\nOnly output a catalogue of the files found on the tape\n\n";
 	cout << "\n";
 }
 
@@ -72,7 +73,10 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	// Now look for remaining options
 	ac = 2;
 	while (ac < argc) {
-		if (strcmp(argv[ac], "-n") == 0) {
+		if (strcmp(argv[ac], "-c") == 0) {
+			cat = true;
+		}
+		else if (strcmp(argv[ac], "-n") == 0) {
 			find_file_name = argv[ac + 1];
 			ac++;
 		}
@@ -181,6 +185,11 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			return;
 		}
 		ac++;
+	}
+
+	if (cat && argc < 3) {
+		printUsage(argv[0]);
+		return;
 	}
 
 	mParseSuccess = true;

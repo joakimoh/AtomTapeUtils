@@ -22,6 +22,8 @@ public:
 	double levelThreshold = 0;
 	string wavFile;
 
+	bool cat = false;
+
 	bool mErrorCorrection = false;
 	bool tracing = false;
 

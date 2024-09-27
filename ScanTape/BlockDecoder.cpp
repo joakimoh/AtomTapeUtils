@@ -111,7 +111,6 @@ bool BlockDecoder::readBlock(
 		if (!mReader.waitForCarrierWithDummyByte(
 			min_carrier_cycles, waiting_time, readBlock.preludeToneCycles, readBlock.leadToneCycles, dummy_byte, STARTBIT_FOLLOWS
 		)) {
-			cout << "FAILED at " << Utility::encodeTime(getTime()) << "\n";
 			return false;
 		}
 	}

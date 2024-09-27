@@ -22,6 +22,8 @@ protected:
 
 	bool mTracing;
 	bool mVerbose;
+	bool mCat = false;
+
 	TargetMachine mTarget;
 	BlockDecoder mBlockDecoder;
 
@@ -33,10 +35,10 @@ public:
 
 	FileDecoder(
 		BlockDecoder& blockDecoder,
-		ArgParser& argParser
+		ArgParser& argParser, bool catOnly = false
 	);
 
-	bool readFile(ofstream& logFile, TapeFile& tapFile, string searchName);
+	bool readFile(ostream& logFile, TapeFile& tapFile, string searchName);
 
 
 

@@ -95,7 +95,7 @@ bool TAPCodec::tap2Bytes(TapeFile& tapeFile, uint32_t& loadAdress, Bytes& data)
 /*
  * Encode TAP File structure as TAP file
  */
-bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
+bool TAPCodec::encode(TapeFile& tapeFile, string& filePath)
 {
 
     if (tapeFile.blocks.empty())
@@ -111,8 +111,10 @@ bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
     FileBlockIter ATM_block_iter = tapeFile.blocks.begin();
     unsigned block_no = 0;
 
-    if (mVerbose)
+    if (mVerbose) {
+        cout << "\n";
         tapeFile.logTAPFileHdr();
+    }
 
     if (mVerbose)
         cout << "\nEncoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a TAP file...\n\n";
@@ -155,6 +157,7 @@ bool TAPCodec::encode(TapeFile &tapeFile, string& filePath)
     fout.close();
 
     if (mVerbose) {
+        cout << "\n";
         tapeFile.logTAPFileHdr();
         cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a TAP file...\n\n";
     }
@@ -317,8 +320,9 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
     }
 
     if (mVerbose) {
+        cout << "\n";
         tapFile.logTAPFileHdr();
-         cout << "\nDone decoding TAP file...\n";
+        cout << "\nDone decoding TAP file...\n";
     }
 
 

@@ -19,25 +19,23 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
         
-    ostream* fout = &cout;
-    ofstream fo;
+    ostream* fout_p = &cout;
     bool write_to_file = false;
     if (arg_parser.dstFileName != "") {
         write_to_file = true;
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
-        fo = ofstream(arg_parser.dstFileName);
-        if (!fout) {
+        fout_p = new ofstream(arg_parser.dstFileName);
+        if (!*fout_p) {
             cout << "can't write to file " << arg_parser.dstFileName << "\n";
             return (-1);
         }
-        fout = &fo;
     }
 
 
     ifstream fin(arg_parser.srcFileName, ios::in | ios::binary | ios::ate);
 
     if (!fin) {
-        *fout << "couldn't open file " << arg_parser.srcFileName << "\n";
+        *fout_p << "couldn't open file " << arg_parser.srcFileName << "\n";
         return (-1);
     }
 
@@ -61,17 +59,17 @@ int main(int argc, const char* argv[])
         vector<uint8_t>::iterator line_iter = data_iter;
         char s[32];
         sprintf_s(s, "%4.4x ", pos);
-        *fout << s;
+        *fout_p << s;
         int i;
         for (i = 0; i < 16 && line_iter < data.end(); i++) {
             char s[32];
             sprintf_s(s, "%2.2x ", (int)*line_iter++);
-            *fout << s;
+            *fout_p << s;
         }
         for (int j = i; j < 16; j++) {
             char s[32];
             sprintf_s(s, "   ");
-            *fout << s;
+            *fout_p << s;
         }
         line_iter = data_iter;
         for (int i = 0; i < 16 && line_iter < data.end(); i++) {
@@ -81,19 +79,20 @@ int main(int argc, const char* argv[])
                 sprintf_s(s, "%2c ", c);
             else
                 sprintf_s(s, "  .");
-            *fout << s;
+            *fout_p << s;
             data_iter++;
         }
-        *fout << "\n";
+        *fout_p << "\n";
 
         count++;
 
         pos += 16;
     }
     
-    if (write_to_file)
-        fo.close();
-    
+    if (write_to_file) {
+        ((ofstream*)fout_p)->close();
+        delete fout_p;
+    }
 
     return 0;
 

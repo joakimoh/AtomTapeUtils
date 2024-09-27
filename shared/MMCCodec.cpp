@@ -79,8 +79,10 @@ bool MMCCodec::encode(TapeFile &tapeFile, string& filePath)
     
     string atom_filename = ATM_block_iter->atomHdr.name;
 
-    if (mVerbose)
+    if (mVerbose) {
+        cout << "\n";
         tapeFile.logTAPFileHdr();
+    }
 
 
     int block_no = 0;

@@ -660,8 +660,11 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
  
     if (mUefDataIter < mUefData.end()) {
 
-            int chunk_id = chunk_hdr.chunkId[0] + chunk_hdr.chunkId[1] * 256;
-            long chunk_sz = chunk_hdr.chunkSz[0] + (chunk_hdr.chunkSz[1] << 8) + (chunk_hdr.chunkSz[2] << 16) + (chunk_hdr.chunkSz[3] << 24);
+            uint16_t chunk_id = chunk_hdr.chunkId[0] + chunk_hdr.chunkId[1] * 256;
+            uint32_t chunk_sz = chunk_hdr.chunkSz[0] + (chunk_hdr.chunkSz[1] << 8) + (chunk_hdr.chunkSz[2] << 16) + (chunk_hdr.chunkSz[3] << 24);
+
+            chunkInfo.chunkId = chunk_id;
+            chunkInfo.chunkSz = chunk_sz;
 
             if (mVerbose)
                 *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
@@ -967,15 +970,21 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 break;
             }
 
-            default: // Unknown chunk
+            default: // Unsupported chunk
             {
-                if (mVerbose)
-                    *mFout << "Unknown chunk " << hex << setfill(' ') << chunk_id << dec << setfill(' ') <<
-                    " of size " << chunk_sz <<  ".\n";
-
-                mUefDataIter += chunk_sz;
-
+                // Still store the chunk data
                 chunkInfo.chunkInfoType = ChunkInfoType::IGNORE;
+                for (int i = 0; i < chunk_sz - 3; i++) {
+                    Byte byte;
+                    if (!readBytes(&byte, 1)) return false;
+                    chunkInfo.data.push_back(byte);
+                }
+
+                if (mVerbose) {
+                    *mFout << "Unsupported chunk " << chunkInfo.chunkId << " of size " << chunk_sz << " and with data:\n";
+                    BytesIter di = chunkInfo.data.begin();
+                    Utility::logData(mFout, 0x0, di, (int)chunkInfo.data.size());
+                }
 
                 break;
             }

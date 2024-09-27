@@ -169,6 +169,7 @@ bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
     fout.close();
 
     if (mVerbose) {
+        cout << "\n";
         tapeFile.logTAPFileHdr();
         cout << "\nDone encoding program '" << tapeFile.blocks[0].bbmHdr.name << "' as a DATA file...\n\n";
     }
@@ -253,6 +254,7 @@ bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
     fout.close();
 
     if (mVerbose) {
+        cout << "\n";
         tapeFile.logTAPFileHdr();
         cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a DATA file...\n\n";
     }
@@ -355,8 +357,10 @@ bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine t
 
     //if (DEBUG_LEVEL == DBG && mVerbose) Utility::logData(load_address, block_iterator, block.data.size());
 
-    if (mVerbose)
+    if (mVerbose) {
+        cout << "\n";
         tapeFile.logTAPFileHdr();
+    }
 
     if (mVerbose)
         cout << "\nDone decoding DATA file '" << dataFileName << "'...\n\n";

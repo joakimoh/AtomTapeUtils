@@ -443,10 +443,11 @@ void TapeFile::logTAPFileHdr()
 
 void TapeFile::logTAPFileHdr(ostream* fout)
 {
-    if (fout == NULL)
+    if (fout == NULL || blocks.size() == 0)
         return;
 
     FileBlock& block = blocks[0];
+    FileBlock& last_block = blocks[blocks.size()-1];
 
     if (fileType == ACORN_ATOM) {
         uint32_t exec_adr = block.atomHdr.execAdrHigh * 256 + block.atomHdr.execAdrLow;
@@ -455,8 +456,8 @@ void TapeFile::logTAPFileHdr(ostream* fout)
         uint32_t file_sz = 0;
         for (uint32_t i = 0; i < n_blocks; i++)
             file_sz += blocks[i].atomHdr.lenHigh * 256 + blocks[i].atomHdr.lenLow;
-        *fout << "\n" << setw(13) << block.atomHdr.name << " " << hex << setw(4) << load_adr << " " <<
-            load_adr + file_sz - 1 << " " << exec_adr << " " << n_blocks << "\n";
+        *fout << setw(13) << block.atomHdr.name << " " << hex << setw(4) << load_adr << " " <<
+            load_adr + file_sz - 1 << " " << exec_adr << " " << n_blocks;
     }
     else if (fileType <= BBC_MASTER) {
         uint32_t exec_adr = Utility::bytes2uint(&block.bbmHdr.execAdr[0], 4, true);
@@ -466,13 +467,16 @@ void TapeFile::logTAPFileHdr(ostream* fout)
         uint32_t n_blocks = (uint32_t)blocks.size();
         for (uint32_t i = 0; i < n_blocks; i++)
             file_sz += Utility::bytes2uint(&blocks[i].bbmHdr.blockLen[0], 2, true);
-        *fout << "\n" << setw(10) << block.bbmHdr.name << " " << hex << setw(8) << load_adr << " " << load_adr + file_sz - 1 << " " <<
+        *fout << setw(10) << block.bbmHdr.name << " " << hex << setw(8) << load_adr << " " << load_adr + file_sz - 1 << " " <<
             exec_adr << " " <<
             setw(4) << dec << n_blocks << " " <<
-            setw(4) << setfill('0') << hex << file_sz << "\n" << setfill(' ');
+            setw(4) << setfill('0') << hex << file_sz;
     }
     else {
     }
+
+    *fout << setfill(' ') << " " << Utility::encodeTime(block.tapeStartTime) << " => " << Utility::encodeTime(last_block.tapeEndTime) << "\n";
+
 }
 
 bool FileBlock::encodeTAPHdr(

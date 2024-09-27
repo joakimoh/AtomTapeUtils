@@ -120,35 +120,45 @@ int main(int argc, const char* argv[])
     BlockDecoder block_decoder(*tape_reader, arg_parser);
 
     // Create a File Decoder used to detect and read a complete Tape File
-    FileDecoder fileDecoder(block_decoder, arg_parser);
+    FileDecoder fileDecoder(block_decoder, arg_parser, arg_parser.cat);
 
     // Create a log file
-    string fout_name = "tape.log";
-    filesystem::path fout_p = arg_parser.genDir;
-    fout_p /= fout_name;
-    string fout_path = fout_p.string();
+    ostream* fout_p = &cout;
+    if (!arg_parser.cat) {
 
-    ofstream fout(fout_path);
-    if (!fout) {
-        cout << "can't write to log file " << fout_name << "\n";
-        return false;
+        string fout_name = "tape.log";
+        filesystem::path fout_d = arg_parser.genDir;
+        fout_d /= fout_name;
+        string fout_path = fout_d.string();
+
+        fout_p = new ofstream(fout_path);
+        if (!*fout_p) {
+            cout << "can't write to log file " << fout_name << "\n";
+            return false;
+        }
     }
 
-    fout << "Input file = '" << arg_parser.wavFile << "'\n";
-    fout << "Start time = " << arg_parser.startTime << "\n";
-    fout << "Baudrate = " << arg_parser.tapeTiming.baudRate << "\n";
-    fout << "Frequency tolerance = " << arg_parser.freqThreshold << "\n";
-    fout << "Schmitt-trigger level tolerance = " << arg_parser.levelThreshold << "\n";
-    fout << "Min lead tone duration of first block= " << arg_parser.tapeTiming.minBlockTiming.firstBlockLeadToneDuration << " s\n";
-    fout << "Min lead tone duration of subsequent blocks = " << arg_parser.tapeTiming.minBlockTiming.otherBlockLeadToneDuration << " s\n";
-    fout << "Tape timing when generating UEF files = " << (arg_parser.tapeTiming.preserve?"Original":"Standard") << "\n";
-    
+    if (!arg_parser.cat) {
+        *fout_p << "Input file = '" << arg_parser.wavFile << "'\n";
+        *fout_p << "Start time = " << arg_parser.startTime << "\n";
+        *fout_p << "Baudrate = " << arg_parser.tapeTiming.baudRate << "\n";
+        *fout_p << "Frequency tolerance = " << arg_parser.freqThreshold << "\n";
+        *fout_p << "Schmitt-trigger level tolerance = " << arg_parser.levelThreshold << "\n";
+        *fout_p << "Min lead tone duration of first block= " << arg_parser.tapeTiming.minBlockTiming.firstBlockLeadToneDuration << " s\n";
+        *fout_p << "Min lead tone duration of subsequent blocks = " << arg_parser.tapeTiming.minBlockTiming.otherBlockLeadToneDuration << " s\n";
+        *fout_p << "Tape timing when generating UEF files = " << (arg_parser.tapeTiming.preserve ? "Original" : "Standard") << "\n";
+    }
+
     // Read complete tape files using the File Decoder
     bool read_file;
     bool selected_file_found = false;
-    while ((read_file = fileDecoder.readFile(fout, tape_file, arg_parser.find_file_name))) {
+    while ((read_file = fileDecoder.readFile(*fout_p, tape_file, arg_parser.find_file_name))) {
 
-        if (tape_file.blocks.size() > 0 && (arg_parser.find_file_name == "" || tape_file.blocks[0].blockName() == arg_parser.find_file_name)) {
+        if (
+            !arg_parser.cat &&
+            tape_file.blocks.size() > 0 &&
+            (arg_parser.find_file_name == "" || tape_file.blocks[0].blockName() == arg_parser.find_file_name)
+            ) {
 
             selected_file_found = true;
             if (!read_file) {
@@ -156,8 +166,8 @@ int main(int argc, const char* argv[])
                 //return -1;
             }
             if (arg_parser.verbose)
-                cout << (tape_file.fileType == ACORN_ATOM ?"Atom":"BBC Micro") << " Tape File '" << tape_file.blocks.front().blockName() <<
-                    "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
+                cout << (tape_file.fileType == ACORN_ATOM ? "Atom" : "BBC Micro") << " Tape File '" << tape_file.blocks.front().blockName() <<
+                "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
 
             DataCodec DATA_codec = DataCodec(arg_parser.verbose);
             string DATA_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "dat");
@@ -183,44 +193,46 @@ int main(int argc, const char* argv[])
 
             if (tape_file.complete) { // Only generate files if the Tape file was completed (without missing blocks)
 
-                    // Create TAP file (Acorn Atom only)
-                    if (arg_parser.targetMachine == ACORN_ATOM) {
-                        TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
-                        string TAP_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "tap");
-                        if (!TAP_codec.encode(tape_file, TAP_file_name)) {
-                            cout << "Failed to write the TAP file!\n";
-                            //return -1;
-                        }
-                    }
-
-                    // Create UEF file
-                    UEFCodec UEF_codec = UEFCodec(arg_parser.tapeTiming.preserve, arg_parser.verbose, arg_parser.targetMachine);
-                    string UEF_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "uef");
-                    if (!UEF_codec.encode(tape_file, UEF_file_name)) {
-                        cout << "Failed to write the UEF file!\n";
+                // Create TAP file (Acorn Atom only)
+                if (arg_parser.targetMachine == ACORN_ATOM) {
+                    TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
+                    string TAP_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "tap");
+                    if (!TAP_codec.encode(tape_file, TAP_file_name)) {
+                        cout << "Failed to write the TAP file!\n";
                         //return -1;
                     }
-
-                    // Create binary file
-                    string BIN_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "");
-                    if (!TAPCodec::data2Binary(tape_file, BIN_file_name)) {
-                        cout << "can't create Binary file " << BIN_file_name << "\n";
-                        //return -1;
-                    }
-
-
                 }
 
-   
+                // Create UEF file
+                UEFCodec UEF_codec = UEFCodec(arg_parser.tapeTiming.preserve, arg_parser.verbose, arg_parser.targetMachine);
+                string UEF_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "uef");
+                if (!UEF_codec.encode(tape_file, UEF_file_name)) {
+                    cout << "Failed to write the UEF file!\n";
+                    //return -1;
+                }
+
+                // Create binary file
+                string BIN_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "");
+                if (!TAPCodec::data2Binary(tape_file, BIN_file_name)) {
+                    cout << "can't create Binary file " << BIN_file_name << "\n";
+                    //return -1;
+                }
+
+
             }
+
+
+        }
+        else if (arg_parser.cat && tape_file.blocks.size() > 0) {
+            tape_file.logTAPFileHdr();
+        }
 
     }
 
     if (arg_parser.find_file_name != "" && !selected_file_found)
         cout << "Couldn't find tape file '" << arg_parser.find_file_name << "!'\n";
 
-    fout.close();
-
+    
     if (tape_reader != NULL)
         delete tape_reader;
 
@@ -229,6 +241,13 @@ int main(int argc, const char* argv[])
 
     if (level_decoder_p != NULL)
         delete level_decoder_p;
+
+    return 0;
+
+    if (fout_p != &cout) {
+        ((ofstream *) fout_p) -> close();
+        delete fout_p;
+    }
 
     return 0;
 }

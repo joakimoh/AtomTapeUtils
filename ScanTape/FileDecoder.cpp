@@ -18,8 +18,8 @@ using namespace std;
 
 FileDecoder::FileDecoder(
     BlockDecoder& blockDecoder,
-    ArgParser& argParser
-) : mArgParser(argParser), mBlockDecoder(blockDecoder)
+    ArgParser& argParser, bool catOnly
+) : mArgParser(argParser), mBlockDecoder(blockDecoder), mCat(catOnly)
 {
     mTracing = argParser.tracing;
     mVerbose = argParser.verbose;
@@ -36,7 +36,7 @@ string FileDecoder::timeToStr(double t) {
     return string(t_str);
 }
 
-bool FileDecoder::readFile(ofstream& logFile, TapeFile& tapFile, string searchName)
+bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchName)
 {
     tapFile.init();
     tapFile.fileType = mTarget;
@@ -243,7 +243,7 @@ bool FileDecoder::readFile(ofstream& logFile, TapeFile& tapFile, string searchNa
 
             last_block_no = block_no;
 
-            if (file_selected)
+            if (file_selected && !mCat)
                 read_block.logHdr(&logFile);
 
             if (mArgParser.verbose && file_selected)
@@ -278,7 +278,7 @@ bool FileDecoder::readFile(ofstream& logFile, TapeFile& tapFile, string searchNa
                 tapFile.complete = false;
             if (corrupted_block)
                 tapFile.corrupted = true;
-            if (file_selected) {
+            if (file_selected && !mCat) {
                 printf(
                     "At least one block missing or corrupted for file '%s' [%s,%s]\n",
                     tapFile.validFileName.c_str(),
@@ -299,14 +299,16 @@ bool FileDecoder::readFile(ofstream& logFile, TapeFile& tapFile, string searchNa
 
         tapFile.baudRate = mArgParser.tapeTiming.baudRate;
 
-        if (file_selected) {
-            tapFile.logTAPFileHdr(&logFile);
+        if (file_selected && !mCat) {
             logFile << "\n";
+            tapFile.logTAPFileHdr(&logFile);
+            logFile << "\n\n";
         }
 
         if (mArgParser.verbose && file_selected) {
-            tapFile.logTAPFileHdr();
             cout << "\n";
+            tapFile.logTAPFileHdr();
+            cout << "\n\n";
         }
 
 

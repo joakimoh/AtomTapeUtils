@@ -73,6 +73,10 @@ public:
 	Bytes data;
 	DataEncoding dataEncoding;
 
+	// The info below is kept mainly for unsupported chunks
+	uint32_t chunkSz;
+	uint16_t chunkId;
+
 	ChunkInfo(ChunkInfoType chunkType, double time1, int time2, double t) : chunkInfoType(chunkType), data1_fp(time1),
 		data2_i(time2) {}
 	ChunkInfo() {}

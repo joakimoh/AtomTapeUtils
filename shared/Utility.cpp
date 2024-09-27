@@ -149,8 +149,16 @@ string Utility::encodeTime(double t) {
     int t_h = (int)trunc(t / 3600);
     int t_m = (int)trunc((t - t_h * 3600) / 60);
     double t_s = t - t_h * 3600 - t_m * 60;
-    sprintf_s(t_str, "%dh:%dm:%.6fs (%fs)", t_h, t_m, t_s, t);
-    return string(t_str);
+    int t_si = (int) t_s;
+    int t_sf = round((t_s - t_si) * 10000);
+    stringstream s;
+    s <<
+        right << setw(2) << setfill('0') << t_h << ":" <<
+        right << setw(2) << setfill('0') << t_m << ":" <<
+        right << setw(2) << setfill('0') << t_si << "." <<
+        right << setw(4) << setfill('0') << t_sf << " " <<
+        right << setfill(' ') << "(" << setprecision(4) << setw(5) << t << "s)";
+    return s.str();
 }
 
 char Utility::digitToHex(int d)

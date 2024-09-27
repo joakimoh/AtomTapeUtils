@@ -248,6 +248,7 @@ bool AtomBasicCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& 
         printf("Program '%s' didn't terminate with 0xff!\n", tapeFile.blocks.front().atomHdr.name);
 
     if (mVerbose) {
+        cout << "\n";
         tapeFile.logTAPFileHdr();
         cout << "\nDone encoding program '" << tapeFile.blocks.front().atomHdr.name << " ' as an ABC file...\n\n";
     }
@@ -345,8 +346,10 @@ bool AtomBasicCodec::decodeAtom(Bytes &data, TapeFile& tapeFile, string file_nam
         int exec_adr = tapeFile.blocks[0].atomHdr.execAdrHigh * 256 + tapeFile.blocks[0].atomHdr.execAdrLow;
         int load_adr = tapeFile.blocks[0].atomHdr.loadAdrHigh * 256 + tapeFile.blocks[0].atomHdr.loadAdrLow;
         string tape_filename = tapeFile.blocks[0].atomHdr.name;
-        if (mVerbose) 
+        if (mVerbose) {
+            cout << "\n";
             tapeFile.logTAPFileHdr();
+        }
         cout << "\nDone decoding ABC file '" << file_name << "'...\n\n'";
     }
 
@@ -419,6 +422,7 @@ bool AtomBasicCodec::decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name
 
 
     if (mVerbose) {
+        cout << "\n";
         tapeFile.logTAPFileHdr();
         cout << "\nDone decoding BBC Micro Tape File '" << file_name << "'...\n\n";
     }
