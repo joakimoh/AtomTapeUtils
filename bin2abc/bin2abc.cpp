@@ -5,6 +5,7 @@
 #include <sstream>
 #include <vector>
 #include <filesystem>
+#include <cstdint>
 
 #include <math.h>
 #include "../shared/CommonTypes.h"

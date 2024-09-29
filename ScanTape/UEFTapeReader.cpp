@@ -1,6 +1,7 @@
 #include "UEFTapeReader.h"
 #include "../shared/Debug.h"
 #include "../shared/Utility.h"
+#include <cmath>
 
 
 UEFTapeReader::UEFTapeReader(UEFCodec& uefCodec, ArgParser &argParser) :
@@ -87,7 +88,7 @@ bool UEFTapeReader::waitForCarrierWithDummyByte(
 		return true;
 	}
 
-	// Check If the carrier included a dummy byte
+	// Check if the carrier included a dummy byte
 	if (duration1 != -1 && duration2 != -1) {
 		if (duration1 + duration2 > min_duration) {
 			// The carrier included a dummy byte and exceeded the min duration => completed

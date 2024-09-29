@@ -5,8 +5,8 @@
 #include "ArgParser.h"
 #include "../shared/WaveSampleTypes.h"
 #include "../shared/Utility.h"
-
 #include <iostream>
+#include <cmath>
 
 using namespace std;
 
@@ -52,14 +52,15 @@ bool WavCycleDecoder::regretCheckpoint()
 }
 
 // Advance n samples and record the encountered no of 1/2 cycles
-int WavCycleDecoder::countHalfCycles(int nSamples, int& half_cycles, Frequency& lastHalfCycleFrequency)
+int WavCycleDecoder::countHalfCycles(int nSamples, int& halfCycles, int& maxHalfCycleDuration, Frequency& lastHalfCycleFrequency)
 {
 	Level level_p = mLevel;
 
-	half_cycles = 0;
+	halfCycles = 0;
 	int sample_no;
 	int n_samples = 0;
 	int half_cycle_duration = 0;
+	maxHalfCycleDuration = -1;
 
 	for (int n = 0; n < nSamples && !mLevelDecoder.endOfSamples(); n++) {
 		if (!mLevelDecoder.getNextSample(mLevel, sample_no)) // can fail for too long level duration or end of of samples
@@ -67,10 +68,12 @@ int WavCycleDecoder::countHalfCycles(int nSamples, int& half_cycles, Frequency& 
 		n_samples++;
 		if (mLevel != level_p) {
 			half_cycle_duration = n_samples;
+			if (half_cycle_duration > maxHalfCycleDuration)
+				maxHalfCycleDuration = half_cycle_duration;
 			n_samples = 0;
-			half_cycles++;
+			halfCycles++;
 			level_p = mLevel;
-			if (half_cycles == 1) { // Decide phaseshift based on first 1/2 cycle's level
+			if (halfCycles == 1) { // Decide phaseshift based on first 1/2 cycle's level
 				if (mLevel == Level::LowLevel)
 					mPhaseShift = 0;
 				else
@@ -80,7 +83,7 @@ int WavCycleDecoder::countHalfCycles(int nSamples, int& half_cycles, Frequency& 
 	}
 
 	// Record the frequency of the last 1/2 cycle (but only if a 1/2 cycle was detected)
-	updateHalfCycleFreq(half_cycles, lastHalfCycleFrequency);
+	updateHalfCycleFreq(halfCycles, lastHalfCycleFrequency);
 
 	return true;
 }
@@ -104,8 +107,6 @@ bool WavCycleDecoder::nextHalfCycle(Frequency& lastHalfCycleFrequency)
 // Consume as many 1/2 cycles of frequency f as possible
 int WavCycleDecoder::consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency &lastHalfCycleFrequency)
 {
-	int min_d = (f == Frequency::F1 ? mCT.mMinNSamplesF1HalfCycle : mCT.mMinNSamplesF2HalfCycle);
-	int max_d = (f == Frequency::F1 ? mCT.mMaxNSamplesF1HalfCycle : mCT.mMaxNSamplesF2HalfCycle);
 	int half_cycle_duration;
 
 	nHalfCycles = 0;
@@ -117,7 +118,7 @@ int WavCycleDecoder::consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency 
 			return false;
 
 		// Is it of the expected duration?
-		if (half_cycle_duration >= min_d && half_cycle_duration <= max_d) {
+		if (strictValidHalfCycleRange(f, half_cycle_duration)) {
 			nHalfCycles++;
 		}
 		else {
@@ -137,8 +138,6 @@ int WavCycleDecoder::consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency 
 int WavCycleDecoder::stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime, Frequency &lastHalfCycleFrequency)
 {
 	int half_cycle_duration = 0;
-	int min_d = (f == Frequency::F1 ? mCT.mMinNSamplesF1HalfCycle : mCT.mMinNSamplesF2HalfCycle);
-	int max_d = (f == Frequency::F1 ? mCT.mMaxNSamplesF1HalfCycle : mCT.mMaxNSamplesF2HalfCycle);
 
 	double t_start = getTime();
 	double t_end;
@@ -155,8 +154,8 @@ int WavCycleDecoder::stopOnHalfCycles(Frequency f, int nHalfCycles, double &wait
 		if (!getSameLevelCycles(half_cycle_duration))
 			return false;
 
-		// Is it of the expected duration?
-		if (half_cycle_duration >= min_d && half_cycle_duration <= max_d) {
+		// Is it of the expected duration?\n
+;		if (strictValidHalfCycleRange(f, half_cycle_duration)) {
 			n++;
 			if (n == 1) { // Decide phaseshift based on first 1/2 cycle's level
 				if (initial_level == Level::LowLevel)

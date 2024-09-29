@@ -2,6 +2,7 @@
 #define BBM_BLOCK_TYPES_H
 
 #include <string>
+#include <cstdint>
 #include "CommonTypes.h"
 
 //
@@ -26,7 +27,12 @@ typedef struct {
 	Byte blockFlag; // b7 = last block, b6 = empty block, b0 = locked block
 	Byte nextFileAdr[4]; // always 0x0000 for tape files (only used for paged ROMs) - therefore not  saved to BBM Block
 } BBMTapeBlockHdr;
-
+#define BBM_TAPE_BLOCK_LOAD_ADR 0
+#define BBM_TAPE_BLOCK_EXEC_ADR 4
+#define BBM_TAPE_BLOCK_NO 8
+#define BBM_TAPE_BLOCK_LEN 10
+#define BBM_TAPE_BLOCK_FLAGS 12
+#define BBM_TAPE_BLOCK_NEXT_ADR 13
 //
 // BBC Micro File structure
 // 

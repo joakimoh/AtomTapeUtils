@@ -31,7 +31,6 @@ void ArgParser::printUsage(const char *name)
 	cout << "-slt <d>:\n\tThe duration of the subsequent block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.otherBlockLeadToneDuration << " s\n\n";
 	cout << "-ml <d>:\n\tThe duration of a micro lead tone preceeding a data block\n\t- default is " << tapeTiming.nomBlockTiming.microLeadToneDuration << " s\n\n";
 	cout << "-b baudrate:\n\tBaudrate (300 or 1200)\n\t- default is " << tapeTiming.baudRate << "\n\n";
-	cout << "-e:\n\tApply error correction\n\n";
 	cout << "-t:\n\tTurn on tracing showing detected faults.\n\n";
 	cout << "-pot:\n\tPreserve original tape timing when generating UEF & CSW files - default is " << tapeTiming.preserve << "\n\n";
 	cout << "-v:\n\tVerbose mode\n\n";
@@ -172,9 +171,6 @@ ArgParser::ArgParser(int argc, const char* argv[])
 				tapeTiming.minBlockTiming.microLeadToneDuration = strtod(argv[ac + 1], NULL);
 				ac++;
 			}
-		}
-		else if (strcmp(argv[ac], "-e") == 0) {
-			mErrorCorrection = true;
 		}
 		else if (strcmp(argv[ac], "-t") == 0) {
 			tracing = true;

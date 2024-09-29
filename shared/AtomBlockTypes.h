@@ -2,6 +2,7 @@
 #define ATOM_BLOCK_TYPES_H
 
 #include <string>
+#include <cstdint>
 #include "CommonTypes.h"
 
 //
@@ -39,7 +40,14 @@ typedef struct {
 	Byte loadAdrHigh;
 	Byte loadAdrLow;
 } AtomTapeBlockHdr;
-
+#define ATOM_TAPE_BLOCK_FLAGS 0
+#define ATOM_TAPE_BLOCK_NO_H 1
+#define ATOM_TAPE_BLOCK_NO_L 2
+#define ATOM_TAPE_BLOCK_LEN 3
+#define ATOM_TAPE_BLOCK_EXEC_ADR_H 4
+#define ATOM_TAPE_BLOCK_EXEC_ADR_L 5
+#define ATOM_TAPE_BLOCK_LOAD_ADR_H 6
+#define ATOM_TAPE_BLOCK_LOAD_ADR_L 7
 
 
 

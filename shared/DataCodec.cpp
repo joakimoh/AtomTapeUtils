@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <cstdint>
 #include "TAPCodec.h"
 #include "UEFCodec.h"
 #include "Utility.h"
@@ -132,13 +133,13 @@ bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
                 if (file_block_iter->data.end() - bi < 16)
                     line_sz = (int) (file_block_iter->data.end() - bi);
                 li = bi;
-                sprintf_s(s, "%.4x ", load_adr);
+                sprintf(s, "%.4x ", load_adr);
                 fout << s;
                 c = 0;
                 new_line = false;
             }
 
-            sprintf_s(s, "%.2x ", int(*bi++));
+            sprintf(s, "%.2x ", int(*bi++));
             fout << s;
 
             if (c == line_sz - 1) {
@@ -217,13 +218,13 @@ bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
                 if (file_block_iter->data.end() - bi < 16)
                     line_sz = (int) (file_block_iter->data.end() - bi);
                 li = bi;
-                sprintf_s(s, "%.4x ", load_adr);
+                sprintf(s, "%.4x ", load_adr);
                 fout << s;
                 c = 0;
                 new_line = false;
             }
 
-            sprintf_s(s, "%.2x ", int(*bi++));
+            sprintf(s, "%.2x ", int(*bi++));
             fout << s;
 
             if (c == line_sz - 1) {

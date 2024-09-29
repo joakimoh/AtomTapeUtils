@@ -12,6 +12,9 @@ class WavTapeReader: public TapeReader {
 
 private:
 
+	double mDataSamples = 0.0;
+	int mBitNo = 0;
+
 	ArgParser mArgParser;
 
 	CycleDecoder& mCycleDecoder;

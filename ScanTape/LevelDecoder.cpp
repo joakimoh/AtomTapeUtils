@@ -3,6 +3,7 @@
 #include "../shared/WaveSampleTypes.h"
 #include <iostream>
 #include "../shared/Debug.h"
+#include <cmath>
 
 using namespace std;
 

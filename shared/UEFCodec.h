@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <string>
+#include <cstdint>
 #include <gzstream.h>
 #include "TAPCodec.h"
 #include "../shared/TapeProperties.h"
@@ -241,7 +242,7 @@ private:
 	bool writeIntPrecGapChunk(ogzstream& fout, double duration);
 	bool writeSecurityCyclesChunk(ogzstream&fout, int nCycles, Byte firstPulse, Byte lastPulse, Bytes cycles);
 	string decode_security_cycles(SecurityCyclesChunkHdr& hdr, Bytes cycles);
-	double UEFCodec::security_cycles_length(string cycles);
+	double security_cycles_length(string cycles);
 	bool writeBaudrateChunk(ogzstream&fout);
 	bool writePhaseChunk(ogzstream&fout);
 	bool writeCarrierChunk(ogzstream&fout, double duration);

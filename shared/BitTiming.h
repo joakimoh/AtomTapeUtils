@@ -24,7 +24,7 @@ public:
     int highDataBitCycles = 8; // Data bit length in cycles of F2 frequency carrier
     int stopBitCycles = 9; // Stop bit length in cycles of F2 frequency carrier
 
-    int dataBitSamples = (int)round(44100 / 2400 * 8); // duration (in samples) of a data bit
+    double dataBitSamples = 44100 / 2400 * 8; // duration (in samples) of a data bit
     int dataBitHalfCycleBitThreshold = 12; // threshold (in 1/2 cycles) between a '0' and a '1'
 
     double F2Samples = 44100 / 2400; // No of samples for a complete F2 cycle

@@ -3,6 +3,7 @@
 #ifndef UTILITY_H
 #define UTILITY_H
 
+#include <cstdint>
 #include "CommonTypes.h"
 #include "FileBlock.h"
 #include "TapeProperties.h"

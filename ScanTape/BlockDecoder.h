@@ -4,6 +4,7 @@
 #define BLOCK_DECODER_H
 
 #include <string>
+#include <cstdint>
 
 #include "../shared/CommonTypes.h"
 #include "../shared/AtomBlockTypes.h"

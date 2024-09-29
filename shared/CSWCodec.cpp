@@ -13,6 +13,7 @@
 #include "WaveSampleTypes.h"
 #include "zpipe.h"
 #include "FileBlock.h"
+#include <cmath>
 
 
 

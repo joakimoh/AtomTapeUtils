@@ -19,7 +19,7 @@ public:
 	int mMaxNSamplesF1HalfCycle; // Max duration of an F1 1/2 cycle
 	int mMinNSamplesF2HalfCycle; // Min duration of an F2 1/2 cycle
 	int mMaxNSamplesF2HalfCycle; // Max duration of an F2 1/2 cycle
-	int mSamplesThresholdHalfCycle; // Threshold between an F1 and an F2 1/2 cycle
+	double mSamplesThresholdHalfCycle; // Threshold between an F1 and an F2 1/2 cycle
 
 	// If each cycle starts with a low half_cycle but the cycle detection expects a cycle to start with a high
 	// half_cycle, then when there is a switch from an F1 to and F2 (or F2 to an F1) cycle, the detected cycle
@@ -64,6 +64,8 @@ public:
 	typedef vector<CycleSample> CycleSamples;
 	typedef CycleSamples::iterator CycleSampleIter;
 
+	CycleSampleTiming mCT;
+
 protected:
 
 
@@ -77,7 +79,7 @@ protected:
 	Frequency mPrevcycle = Frequency::NoCarrierFrequency;
 	vector<CycleSample> mCycleSampleCheckpoints;
 
-	CycleSampleTiming mCT;
+	
 
 	int mPhaseShift = 180; // half_cycle [degrees] when starting an F1/F2 cycle
 	// For UEF format
@@ -97,7 +99,7 @@ public:
 	int getPhaseShift() { return mPhaseShift;  }
 
 	// Advance n samples and record the encountered no of 1/2 cycles
-	virtual int countHalfCycles(int nSamples, int& half_cycles, Frequency& lastHalfCycleFrequency) = 0;
+	virtual int countHalfCycles(int nSamples, int& half_cycles, int& maxHalfCycleDuration, Frequency& lastHalfCycleFrequency) = 0;
 
 	// Consume as many 1/2 cycles of frequency f as possible
 	virtual int  consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency& lastHalfCycleFrequency) = 0;
@@ -144,7 +146,19 @@ public:
 	// Return carrier frequency [Hz]
 	void setCarrierFreq(double carrierFreq);
 
+	// Check for valid range for either an F1 or an F2 1/2 cycle
+	// The valid range for an 1/2 cycle extends to the threshold
+	// between an F1 & F2 1/2 cycle.
+	bool validHalfCycleRange(Frequency f, int duration);
+
+	// Check for valid range for either an F1 or an F2 1/2 cycle
+	// Only the specified tolerance will be used to validate a 1/2 cycle
+	// duration.
+	bool strictValidHalfCycleRange(Frequency f, int duration);
+
 protected:
+
+	// Record the frequency of the last 1/2 cycle (but only if a 1/2 cycle was detected)
 	void updateHalfCycleFreq(int half_cycle_duration, Frequency& lastHalfCycleFrequency);
 
 	// Collect a max no of cycles of a certain frequency

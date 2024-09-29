@@ -3,6 +3,7 @@
 #include <iostream>
 #include "../shared/Debug.h"
 #include "../shared/Utility.h"
+#include <cmath>
 
 
 BlockDecoder::BlockDecoder(
@@ -196,9 +197,12 @@ bool BlockDecoder::readBlock(
 			readStatus |= BLOCK_HDR_CRC_ERR;
 		}
 
-		if (mVerbose)
-			cout << "A correct header CRC 0x" << hex << hdr_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
-
+		if (mVerbose) {
+			if (hdr_CRC == crc)
+				cout << "A correct header CRC 0x" << hex << hdr_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
+			else
+				cout << "*** ERROR *** The read header CRC 0x" << hex << hdr_CRC << " read at " << Utility::encodeTime(getTime()) << " was incorrect\n";
+		}
 		crc = 0x0; // reset CRC for use as data CRC
 
 	}
@@ -218,26 +222,32 @@ bool BlockDecoder::readBlock(
 	}
 
 
-	// Get data bytes
+	// Get data bytes (if they exist)
 	int block_len = readBlock.dataSz();
-	if (!mReader.readBytes(readBlock.data, block_len, n_read_bytes)) {
-		if (mTracing)
-			DEBUG_PRINT(getTime(), ERR, "Failed to read block data for file '%s'!\n", readBlock.blockName().c_str());
+	if (block_len > 0) {
+		if (!mReader.readBytes(readBlock.data, block_len, n_read_bytes)) {
+			if (mTracing)
+				DEBUG_PRINT(getTime(), ERR, "Failed to read block data for file '%s'!\n", readBlock.blockName().c_str());
+			nReadBytes += n_read_bytes;
+			return false;
+		}
+		updateCRC(readBlock, crc, readBlock.data);
 		nReadBytes += n_read_bytes;
-		return false;
+
+		if (mVerbose)
+			cout << dec << n_read_bytes << " bytes of expected " << block_len << " of data bytes read at " << Utility::encodeTime(getTime()) << "\n";
+
+		if (DEBUG_LEVEL == DBG && mTracing && readBlock.data.size() > 0)
+			Utility::logData(readBlock.loadAdr(), &readBlock.data[0], block_len);
 	}
-	updateCRC(readBlock, crc, readBlock.data);
-	nReadBytes += n_read_bytes;
 
-	if (mVerbose)
-		cout << dec << n_read_bytes << " bytes of expected " << block_len << " of data bytes read at " << Utility::encodeTime(getTime()) << "\n";
+	// BBC Micro Machines only have a data CRC if there is data. Acorn Atom's CRC includes the header and
+	// therefore always have a CRC at the end.
+	bool ending_CRC_exists = ((readBlock.targetMachine <= BBC_MASTER && block_len > 0) || readBlock.targetMachine == ACORN_ATOM);
 
-	if (DEBUG_LEVEL == DBG && mTracing)
-		Utility::logData(readBlock.loadAdr(), &readBlock.data[0], block_len);
-
-	// Get data CRC
+	// Get (data) CRC
 	Word data_CRC;
-	if (readBlock.targetMachine <= BBC_MASTER) {
+	if (readBlock.targetMachine <= BBC_MASTER && ending_CRC_exists) {
 		if (!getWord(&data_CRC)) {
 			if (mTracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to read block CRC for file '%s'\n", readBlock.blockName().c_str());
@@ -257,7 +267,7 @@ bool BlockDecoder::readBlock(
 	}
 
 	// Check against calculated CRC
-	if (data_CRC != crc) {
+	if (ending_CRC_exists && data_CRC != crc) {
 		if (mTracing)
 			DEBUG_PRINT(getTime(), ERR, "Calculated (data) CRC 0x%x differs from received  CRC 0x%x for file '%s'\n", crc, data_CRC,
 				readBlock.blockName().c_str());
@@ -267,12 +277,12 @@ bool BlockDecoder::readBlock(
 			readStatus |= BLOCK_CRC_ERR;
 	}
 
-
-	if (mVerbose && data_CRC == crc)
-		cout << "A correct (data) CRC 0x" << hex << data_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
-	else if (mVerbose)
-		cout << "An incorrect (data) CRC 0x" << hex << data_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
-
+	if (mVerbose && ending_CRC_exists) {
+		if (data_CRC == crc)
+			cout << "A correct (data) CRC 0x" << hex << data_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
+		else
+			cout << "*** ERROR *** An incorrect (data) CRC 0x" << hex << data_CRC << "(0x" << crc << ")" << " read at " << Utility::encodeTime(getTime()) << "\n";
+	}
 		
 	// For BBC machines, skip trailer tone that only exists for the last block
 	if (readBlock.targetMachine <= BBC_MASTER && readBlock.lastBlock()) {
@@ -287,7 +297,7 @@ bool BlockDecoder::readBlock(
 
 		if (mVerbose) {
 			double duration = (double) readBlock.trailerToneCycles / mReader.carrierFreq();
-			cout << duration << "s (" << blockTiming.trailerToneDuration << "s) trailer tone detected at " << Utility::encodeTime(getTime()) << "\n";
+			cout << duration << "s (min " << blockTiming.trailerToneDuration << "s) trailer tone detected at " << Utility::encodeTime(getTime()) << "\n";
 		}
 	}
 

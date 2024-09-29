@@ -48,7 +48,7 @@ public:
 	CSWCycleDecoder(int sampleFreq, HalfCycle firstHalfCycle, Bytes &Pulses, ArgParser & argParser, bool verbose);
 
 	// Advance n samples and record the encountered no of 1/2 cycles
-	int countHalfCycles(int nSamples, int& half_cycles, Frequency& lastHalfCycleFrequency);
+	int countHalfCycles(int nSamples, int& nHalfCycles, int & maxHalfCycleDuration, Frequency& lastHalfCycleFrequency);
 
 	// Consume as many 1/2 cycles of frequency f as possible
 	int consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency& lastHalfCycleFrequency);

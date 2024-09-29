@@ -61,8 +61,8 @@ private:
 	static string bbmBlockNameFromFilename(TargetMachine targetMachine, string fn);
 	static string atomBlockNameFromFilename(TargetMachine targetMachine, string fn);
 
-	static string FileBlock::atomFilenameFromBlockName(TargetMachine targetMachine, string fileName);
-	static string FileBlock::bbmFilenameFromBlockName(TargetMachine targetMachine, string fileName);
+	static string atomFilenameFromBlockName(TargetMachine targetMachine, string fileName);
+	static string bbmFilenameFromBlockName(TargetMachine targetMachine, string fileName);
 
 public:
 
@@ -123,8 +123,8 @@ public:
 
 	bool corrupted = false; // true if at least one block could be corrupted (CRC was incorrect)
 
-	int firstBlock; // first encountered block's no
-	int lastBlock; // last encountered block's no
+	int firstBlock = 0; // first encountered block's no
+	int lastBlock = 0; // last encountered block's no
 
 	string validFileName; // file name used in file system
 

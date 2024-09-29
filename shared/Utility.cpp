@@ -5,6 +5,8 @@
 #include "Debug.h"
 #include <filesystem>
 #include "WaveSampleTypes.h"
+#include <cmath>
+#include <cstdint>
 
 
 string Utility::roundedPD(string prefix, double d, string suffix)
@@ -145,12 +147,22 @@ double Utility::decodeTime(string time)
 }
 
 string Utility::encodeTime(double t) {
-    char t_str[64];
     int t_h = (int)trunc(t / 3600);
     int t_m = (int)trunc((t - t_h * 3600) / 60);
     double t_s = t - t_h * 3600 - t_m * 60;
     int t_si = (int) t_s;
-    int t_sf = round((t_s - t_si) * 10000);
+    int t_sf = (int) round((t_s - t_si) * 10000);
+    if (t_sf == 10000) {
+        t_sf = 0;
+        t_si++;
+        if (t_si == 60) {
+            t_si = 0;
+            t_m++;
+            if (t_m == 60) {
+                t_h++;
+            }
+        }
+    }
     stringstream s;
     s <<
         right << setw(2) << setfill('0') << t_h << ":" <<

@@ -3,8 +3,8 @@
 #include "../shared/Debug.h"
 #include "../shared/WaveSampleTypes.h"
 #include "../shared/Utility.h"
-
 #include <iostream>
+#include <cmath>
 
 using namespace std;
 
@@ -127,17 +127,20 @@ int CSWCycleDecoder::nextPulseLength(int & pulseLength)
 }
 
 // Advance n samples and record the encountered no of 1/2 cycles
-int CSWCycleDecoder::countHalfCycles(int nSamples, int& half_cycles, Frequency& lastHalfCycleFrequency)
+int CSWCycleDecoder::countHalfCycles(int nSamples, int& nHalfCycles, int& maxHalfCycleDuration, Frequency& lastHalfCycleFrequency)
 {
 	int initial_sample_index = mPulseInfo.sampleIndex;
 	bool stop = false;
+	maxHalfCycleDuration = -1;
 
-	half_cycles = 0;
+	nHalfCycles = 0;
 
 	for (int n = 0; !stop; ) {
 		if (!getNextPulse()) // fails if there are no more pulses
 			return false;
-		half_cycles++;
+		if (mPulseInfo.pulseLength > maxHalfCycleDuration)
+			maxHalfCycleDuration = mPulseInfo.pulseLength;
+		nHalfCycles++;
 		if (n == 0) {
 			if (mPulseInfo.pulseLevel == HalfCycle::LowHalfCycle)
 				mPhaseShift = 0;
@@ -157,7 +160,7 @@ int CSWCycleDecoder::countHalfCycles(int nSamples, int& half_cycles, Frequency& 
 	}
 
 	// Record the frequency of the last 1/2 cycle (but only if a 1/2 cycle was detected)
-	updateHalfCycleFreq(half_cycles, lastHalfCycleFrequency);
+	updateHalfCycleFreq(nHalfCycles, lastHalfCycleFrequency);
 
 	return true;
 }
@@ -165,8 +168,6 @@ int CSWCycleDecoder::countHalfCycles(int nSamples, int& half_cycles, Frequency& 
 // Consume as many 1/2 cycles of frequency f as possible
 int CSWCycleDecoder::consumeHalfCycles(Frequency f, int& nHalfCycles, Frequency& lastHalfCycleFrequency)
 {
-	int min_d = (f == Frequency::F1 ? mCT.mMinNSamplesF1HalfCycle : mCT.mMinNSamplesF2HalfCycle);
-	int max_d = (f == Frequency::F1 ? mCT.mMaxNSamplesF1HalfCycle : mCT.mMaxNSamplesF2HalfCycle);
 
 	nHalfCycles = 0;
 	bool stop = false;
@@ -177,7 +178,7 @@ int CSWCycleDecoder::consumeHalfCycles(Frequency f, int& nHalfCycles, Frequency&
 			return false;
 
 		// Is it of the expected duration?
-		if (mPulseInfo.pulseLength >= min_d && mPulseInfo.pulseLength <= max_d) {
+		if (strictValidHalfCycleRange(f, mPulseInfo.pulseLength)) {
 			nHalfCycles++;
 		}
 		else
@@ -193,8 +194,6 @@ int CSWCycleDecoder::consumeHalfCycles(Frequency f, int& nHalfCycles, Frequency&
 // Stop at first occurrence of n 1/2 cycles of frequency f 
 int CSWCycleDecoder::stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime, Frequency& lastHalfCycleFrequency)
 {
-	int min_d = (f == Frequency::F1 ? mCT.mMinNSamplesF1HalfCycle : mCT.mMinNSamplesF2HalfCycle);
-	int max_d = (f == Frequency::F1 ? mCT.mMaxNSamplesF1HalfCycle : mCT.mMaxNSamplesF2HalfCycle);
 
 	double t_start = getTime();
 	double t_end;
@@ -212,7 +211,7 @@ int CSWCycleDecoder::stopOnHalfCycles(Frequency f, int nHalfCycles, double &wait
 			return false;
 		}
 		// Is it of the expected duration?
-		if (mPulseInfo.pulseLength >= min_d && mPulseInfo.pulseLength <= max_d) {
+		if (strictValidHalfCycleRange(f, mPulseInfo.pulseLength)) {
 			n++;
 			if (n == 1) {
 				if (mPulseInfo.pulseLevel == HalfCycle::LowHalfCycle)

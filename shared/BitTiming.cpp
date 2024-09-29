@@ -35,7 +35,7 @@ bool BitTiming::setBitTiming(int sampleFreq, double baseFreq, int baudRate, Targ
         return false;
     }
 
-    dataBitSamples = (int) round( (double)sampleFreq / F2_FREQ * highDataBitCycles); // No of samples for a data bit
+    dataBitSamples = (double)sampleFreq / (2 * baseFreq) * highDataBitCycles; // No of samples for a data bit
 
     // Threshold between no of 1/2 cycles for a '0' and '1' databit
     dataBitHalfCycleBitThreshold = lowDataBitCycles + highDataBitCycles;
@@ -50,7 +50,7 @@ bool BitTiming::setBitTiming(int sampleFreq, double baseFreq, int baudRate, Targ
 
 void BitTiming::log()
 {
-    cout << "Sample frequecny: " << fS << " Hz\n";
+    cout << "Sample frequency: " << fS << " Hz\n";
     cout << "startBitCycles: " << startBitCycles << "\n";
     cout << "lowDataBitCycles: " << lowDataBitCycles << "\n";
     cout << "highDataBitCycles: " << highDataBitCycles << "\n";
@@ -58,5 +58,6 @@ void BitTiming::log()
     cout << "F2Samples: " << F2Samples << "\n";
     cout << "F1Samples: " << F1Samples << "\n";
     cout << "F2CyclesPerByte: " << F2CyclesPerByte << "\n";
+    cout << "dataBitHalfCycleBitThreshold: " << dataBitHalfCycleBitThreshold << "\n";
     cout << "\n";
 }

@@ -139,7 +139,7 @@ bool AtomBasicCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& f
             line_pos = -1;
             int line_no = line_no_high * 256 + line_no_low;
             char line_no_s[7];
-            sprintf_s(line_no_s, "%5d", line_no);
+            sprintf(line_no_s, "%5d", line_no);
             fout << line_no_s;
         }
         else if (b == 0xd) {
@@ -224,7 +224,7 @@ bool AtomBasicCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& 
                 line_pos = -1;
                 int line_no = line_no_high * 256 + line_no_low;
                 char line_no_s[7];
-                sprintf_s(line_no_s, "%5d", line_no);
+                sprintf(line_no_s, "%5d", line_no);
                 fout << line_no_s;
             }
             else if (b == 0xd) {

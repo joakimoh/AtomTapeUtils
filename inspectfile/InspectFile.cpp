@@ -5,6 +5,7 @@
 #include <sstream>
 #include <vector>
 #include <filesystem>
+#include <cstdint>
 #include "ArgParser.h"
 
 
@@ -58,17 +59,17 @@ int main(int argc, const char* argv[])
     while (data_iter < data.end() && count < 1024) {
         vector<uint8_t>::iterator line_iter = data_iter;
         char s[32];
-        sprintf_s(s, "%4.4x ", pos);
+        sprintf(s, "%4.4x ", pos);
         *fout_p << s;
         int i;
         for (i = 0; i < 16 && line_iter < data.end(); i++) {
             char s[32];
-            sprintf_s(s, "%2.2x ", (int)*line_iter++);
+            sprintf(s, "%2.2x ", (int)*line_iter++);
             *fout_p << s;
         }
         for (int j = i; j < 16; j++) {
             char s[32];
-            sprintf_s(s, "   ");
+            sprintf(s, "   ");
             *fout_p << s;
         }
         line_iter = data_iter;
@@ -76,9 +77,9 @@ int main(int argc, const char* argv[])
             char c = *line_iter++;
             char s[32];
             if (c >= 0x20 && c <= 0x7e)
-                sprintf_s(s, "%2c ", c);
+                sprintf(s, "%2c ", c);
             else
-                sprintf_s(s, "  .");
+                sprintf(s, "  .");
             *fout_p << s;
             data_iter++;
         }

@@ -8,6 +8,7 @@
 #include "../shared/Debug.h"
 #include "../shared/Utility.h"
 #include "../shared/TapeProperties.h"
+#include <cmath>
 
 using namespace std;
 

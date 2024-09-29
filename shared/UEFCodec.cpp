@@ -11,6 +11,8 @@
 #include "Utility.h"
 #include "AtomBlockTypes.h"
 #include "BitTiming.h"
+#include <cmath>
+#include <cstdint>
 
 
 
@@ -894,7 +896,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
             case ORIGIN_CHUNK: // Origin Chunk 0000
             {
                 string origin = "";
-                for (int pos = 0; pos < chunk_sz; pos++) {
+                for (uint32_t pos = 0; pos < chunk_sz; pos++) {
                     Byte c;
                     if (!readBytes(&c, 1))
                         return false;
@@ -913,7 +915,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 int count = 0;
                 chunkInfo.chunkInfoType = ChunkInfoType::DATA;
                 chunkInfo.data1_fp = chunk_sz * mBitTiming.F2CyclesPerByte / (2 * mBaseFrequency);
-                for (int i = 0; i < chunk_sz; i++) {
+                for (uint32_t i = 0; i < chunk_sz; i++) {
                     Byte byte;
                     if (!readBytes(&byte, 1)) return false;
                     chunkInfo.data.push_back(byte);
@@ -947,7 +949,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
 
                 chunkInfo.chunkInfoType = ChunkInfoType::DATA;
                 chunkInfo.data1_fp = chunk_sz * mBitTiming.F2CyclesPerByte / (2 * mBaseFrequency);
-                for (int i = 0; i < chunk_sz - 3; i++) {
+                for (uint32_t i = 0; i < chunk_sz - 3; i++) {
                     Byte byte;
                     if (!readBytes(&byte, 1)) return false;
                     chunkInfo.data.push_back(byte);
@@ -974,7 +976,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
             {
                 // Still store the chunk data
                 chunkInfo.chunkInfoType = ChunkInfoType::IGNORE;
-                for (int i = 0; i < chunk_sz - 3; i++) {
+                for (uint32_t i = 0; i < chunk_sz - 3; i++) {
                     Byte byte;
                     if (!readBytes(&byte, 1)) return false;
                     chunkInfo.data.push_back(byte);

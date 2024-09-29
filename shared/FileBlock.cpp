@@ -2,6 +2,7 @@
 #include "Utility.h"
 #include <iostream>
 #include <sstream>
+#include <cstdint>
 #include "Debug.h"
 #include <filesystem>
 #include "WaveSampleTypes.h"
@@ -258,12 +259,12 @@ bool FileBlock::decodeTapeHdr(Bytes& hdr_bytes)
             return false;
 
         // Read rest of header into the ATM Block header
-        atomHdr.loadAdrLow = hdr_bytes[(int)&((AtomTapeBlockHdr*)0)->loadAdrLow];
-        atomHdr.loadAdrHigh = hdr_bytes[(int)&((AtomTapeBlockHdr*)0)->loadAdrHigh];
-        atomHdr.execAdrLow = hdr_bytes[(int)&((AtomTapeBlockHdr*)0)->execAdrLow];
-        atomHdr.execAdrHigh = hdr_bytes[(int)&((AtomTapeBlockHdr*)0)->execAdrHigh];
-        Byte block_sz_M1 = hdr_bytes[(int)&((AtomTapeBlockHdr*)0)->dataLenM1];
-        Byte flags = hdr_bytes[(int)&((AtomTapeBlockHdr*)0)->flags]; // b7: not  last block.; b6: block has data; b5:not 1st block.
+        atomHdr.loadAdrLow = hdr_bytes[ATOM_TAPE_BLOCK_LOAD_ADR_L];
+        atomHdr.loadAdrHigh = hdr_bytes[ATOM_TAPE_BLOCK_LOAD_ADR_H];
+        atomHdr.execAdrLow = hdr_bytes[ATOM_TAPE_BLOCK_EXEC_ADR_L];
+        atomHdr.execAdrHigh = hdr_bytes[ATOM_TAPE_BLOCK_EXEC_ADR_H];
+        Byte block_sz_M1 = hdr_bytes[ATOM_TAPE_BLOCK_LEN];
+        Byte flags = hdr_bytes[ATOM_TAPE_BLOCK_FLAGS]; // b7: not  last block.; b6: block has data; b5:not 1st block.
         int block_sz;
         if ((flags & 0x40) == 0x40)
             block_sz = block_sz_M1 + 1;
@@ -273,8 +274,8 @@ bool FileBlock::decodeTapeHdr(Bytes& hdr_bytes)
         atomHdr.lenHigh = block_sz / 256;
 
         // Extract block no
-        int block_no_H = hdr_bytes[(int)&((AtomTapeBlockHdr*)0)->blockNoHigh];
-        int block_no_L = hdr_bytes[(int)&((AtomTapeBlockHdr*)0)->blockNoLow];
+        int block_no_H = hdr_bytes[ATOM_TAPE_BLOCK_NO_H];
+        int block_no_L = hdr_bytes[ATOM_TAPE_BLOCK_NO_L];
         blockNo = block_no_H * 256 + block_no_L;
 
         // Determine block type (First, Other or Last)
@@ -299,14 +300,14 @@ bool FileBlock::decodeTapeHdr(Bytes& hdr_bytes)
             return false;
 
         // Read rest of header into the BBM Block header
-        for (int i = 0; i < 4; bbmHdr.loadAdr[i++] = hdr_bytes[(int)&((BBMTapeBlockHdr*)0)->loadAdr[0] + i]);
-        for (int i = 0; i < 4; bbmHdr.execAdr[i++] = hdr_bytes[(int)&((BBMTapeBlockHdr*)0)->execAdr[0] + i]);
-        for (int i = 0; i < 2; bbmHdr.blockNo[i++] = hdr_bytes[(int)&((BBMTapeBlockHdr*)0)->blockNo[0] + i]);
-        for (int i = 0; i < 2; bbmHdr.blockLen[i++] = hdr_bytes[(int)&((BBMTapeBlockHdr*)0)->blockLen[0] + i]);
+        for (int i = 0; i < 4; bbmHdr.loadAdr[i++] = hdr_bytes[BBM_TAPE_BLOCK_LOAD_ADR + i]);
+        for (int i = 0; i < 4; bbmHdr.execAdr[i++] = hdr_bytes[BBM_TAPE_BLOCK_EXEC_ADR + i]);
+        for (int i = 0; i < 2; bbmHdr.blockNo[i++] = hdr_bytes[BBM_TAPE_BLOCK_NO + i]);
+        for (int i = 0; i < 2; bbmHdr.blockLen[i++] = hdr_bytes[BBM_TAPE_BLOCK_LEN + i]);
         blockNo = Utility::bytes2uint(&bbmHdr.blockNo[0], 2, true);
 
         // Decode flag - b7 = last block, b6 = empty block, b0 = locked block
-        bbmHdr.blockFlag = hdr_bytes[(int)&((BBMTapeBlockHdr*)0)->blockFlag];
+        bbmHdr.blockFlag = hdr_bytes[BBM_TAPE_BLOCK_FLAGS];
         bbmHdr.locked = (bbmHdr.blockFlag & 0x1) != 0; // b0 = locke0d ;block
         if (bbmHdr.blockFlag & 0x80) {
             if (blockNo == 0)
@@ -646,7 +647,7 @@ string FileBlock::atomBlockNameFromFilename(TargetMachine targetMachine, string 
             else if (len - p >= 2 && isxdigit(fn[p + 1]) && isxdigit(fn[p + 2])) { // '_hh' => ASCII hh
                 string hs = fn.substr(p + 1, 2);
                 int h;
-                sscanf_s(hs.c_str(), "%2x", &h);
+                sscanf(hs.c_str(), "%2x", &h);
                 c = (char)h;
                 p += 2;
             }

@@ -2,6 +2,7 @@
 #include <string>
 #include <iostream>
 #include <filesystem>
+#include <cstdint>
 
 #include "TAPCodec.h"
 #include "Utility.h"

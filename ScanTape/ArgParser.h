@@ -24,7 +24,6 @@ public:
 
 	bool cat = false;
 
-	bool mErrorCorrection = false;
 	bool tracing = false;
 
 	bool verbose = false;

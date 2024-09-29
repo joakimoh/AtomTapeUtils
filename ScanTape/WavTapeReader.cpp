@@ -1,8 +1,9 @@
 
-
 #include "WavTapeReader.h"
 #include "../shared/Debug.h"
 #include "../shared/Utility.h"
+#include <cmath>
+#include <cstdint>
 
 WavTapeReader::WavTapeReader(CycleDecoder& cycleDecoder, double baseFreq, ArgParser argParser) :
 	mArgParser(argParser), TapeReader(argParser.verbose, argParser.tracing), mCycleDecoder(cycleDecoder),
@@ -175,6 +176,9 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 	}
 
 	if (mVerbose) {
+		if (t_dummy_byte_start != -1)
+			cout << "Found dummy byte 0x" << hex << (int)foundDummyByte << "\n";
+
 		cout << "Min carrier" << s << " of length " << (double)carrier_half_cycle_count / 2 << " cycles (" <<
 			(double)carrier_half_cycle_count / 2 / carrierFreq() << "s) detected at " << Utility::encodeTime(getTime()) << "\n";
 	}
@@ -205,8 +209,6 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 			// Either Frequency::UndefinedFrequency <> Gap or very long 1/2 cycle (afterCarrierType == STARTBIT_FOLLOWS) or
 			// Frequency::F1 (afterCarrierType == GAP_FOLLOWS)
 			carrier_half_cycle_count -= (int)round(half_cycle_duration * carrierFreq()); // decrease = time passed in F2 units
-
-		//cout << carrier_half_cycle_count << " " << _FREQUENCY(mLastHalfCycleFrequency)  << " " << Utility::encodeTime(getTime()) << "\n";
 
 		// If the carrier 1/2 cycle count goes below the min duration, then we've lost the carrier => ERROR
 		if (carrier_half_cycle_count < min_half_carrier_cycles) {
@@ -304,6 +306,9 @@ bool WavTapeReader::getStartBit()
 bool WavTapeReader::getStartBit(bool restartAllowed)
 {
 
+	mDataSamples = 0.0;
+	mBitNo = 0;
+
 	// Wait for mStartBitCycles * 2 "1/2 cycles" of low frequency F1 <=> start bit
 	double waiting_time = 0;
 	double t_start = getTime();
@@ -323,6 +328,7 @@ bool WavTapeReader::getStartBit(bool restartAllowed)
 	// If the start bit needs to be continuous with already recorded F1 1/2 cycle, then just read F1 cycles
 
 	if (!restartAllowed) {
+		DEBUG_PRINT(getTime(), DBG, "Wait for a continuous sequence of %d F1 1/2 cycles\n", n_remaining_start_bit_half_cycles);
 		while (n_remaining_start_bit_half_cycles > 0 && mLastHalfCycleFrequency == Frequency::F1 &&
 			mCycleDecoder.nextHalfCycle(mLastHalfCycleFrequency)) {
 			--n_remaining_start_bit_half_cycles;
@@ -367,21 +373,36 @@ bool WavTapeReader::getStartBit(bool restartAllowed)
 bool WavTapeReader::getDataBit(Bit& bit)
 {
 	int n_half_cycles;
+	int n_bit_samples = (int) (round(mDataSamples+ mBitTiming.dataBitSamples) - round(mDataSamples));
+	mDataSamples += mBitTiming.dataBitSamples;
+	mBitNo++;
+	double t_start = getTime();
 
 	// Advance time corresponding to one bit and count the no of transitions (1/2 cycles)
-	if (!mCycleDecoder.countHalfCycles(mBitTiming.dataBitSamples, n_half_cycles, mLastHalfCycleFrequency)) {
+	int max_half_cycle_duration;
+	if (!mCycleDecoder.countHalfCycles(n_bit_samples, n_half_cycles, max_half_cycle_duration, mLastHalfCycleFrequency)) {
 		if (mTracing)
 			DEBUG_PRINT(getTime(), ERR, "Unexpected end of samples when reading data bit%s\n", "");
 		return false; // unexpected end of samples
 	}
 
-	// Decide whether the databit was a '0' or a '1' value based on the no of detected 1/2 cycles
-	if (n_half_cycles < mBitTiming.dataBitHalfCycleBitThreshold)
+	// Decide whether the databit was a '0' or a '1' value based on the no of detected 1/2 cycles and the max 1/2 cycle duration
+	if (n_half_cycles <= mBitTiming.dataBitHalfCycleBitThreshold && mCycleDecoder.strictValidHalfCycleRange(F1, max_half_cycle_duration))
 		bit = LowBit;
-	else
+	else {
 		bit = HighBit;
+		double t_end = getTime();
+		if (mVerbose && !(n_half_cycles >= mBitTiming.dataBitHalfCycleBitThreshold && mCycleDecoder.strictValidHalfCycleRange(F2, max_half_cycle_duration))
+			&& t_end > 10) {
+			cout << "*** WARNING *** Invalid 1/2 cycles: " << n_half_cycles <<
+				" detected with max duration " << max_half_cycle_duration << " for " << n_bit_samples << " samples and at "
+				<< Utility::encodeTime(t_start) << " => " << Utility::encodeTime(t_end) << "\n";
+				mCycleDecoder.mCT.log();
+				mBitTiming.log();
+		}
+	}
 
-	DEBUG_PRINT(getTime(), DBG, "%d 1/2 cycles detected for data bit and therefore classified as a '%d'\n", n_half_cycles, bit);
+	DEBUG_PRINT(getTime(), DBG, "%d 1/2 cycles (of max duration %d) detected for data bit and therefore classified as a '%d'\n", n_half_cycles, max_half_cycle_duration, bit);
 
 	return true;
 
