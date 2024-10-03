@@ -19,11 +19,8 @@ private:
 
 	CycleDecoder& mCycleDecoder;
 
-	vector<Frequency> mCheckpoints;
-
 	BitTiming mBitTiming;
 
-	Frequency mLastHalfCycleFrequency = Frequency::UndefinedFrequency; // no of samples in last read 1/2 cycle
 
 
 	// Detect a start bit by looking for exactly mStartBitCycles low tone (F1) cycles

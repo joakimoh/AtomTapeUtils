@@ -68,13 +68,13 @@ int main(int argc, const char* argv[])
         if (arg_parser.verbose)
             cout << "CSW file detected - scanning it...\n";
         CSWCodec CSW_codec = CSWCodec(false, sample_freq, arg_parser.tapeTiming, arg_parser.verbose, arg_parser.targetMachine);
-        HalfCycle first_half_cycle;
-        if (!CSW_codec.decode(arg_parser.wavFile, pulses, first_half_cycle)) {
+        Level first_half_cycle_level;
+        if (!CSW_codec.decode(arg_parser.wavFile, pulses, first_half_cycle_level)) {
             cout << "Couldn't decode CSW Wave file '" << arg_parser.wavFile << "'\n";
             return -1;
         }
 
-        cycle_decoder_p = new CSWCycleDecoder(sample_freq, first_half_cycle, pulses, arg_parser, arg_parser.verbose);
+        cycle_decoder_p = new CSWCycleDecoder(sample_freq, first_half_cycle_level, pulses, arg_parser, arg_parser.verbose);
     }
     else // If not a CSW file it must be a WAV file
     {

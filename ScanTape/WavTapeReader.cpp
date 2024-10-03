@@ -63,13 +63,13 @@ bool WavTapeReader::consumeCarrier(double minDuration, int& detectedCycles)
 {
 	double waiting_time;
 	int detected_half_cycles = 2;
-	if (!mCycleDecoder.stopOnHalfCycles(Frequency::F2, detected_half_cycles, waiting_time, mLastHalfCycleFrequency)) { // Find the  first 2 1/2 cycles
+	if (!mCycleDecoder.stopOnHalfCycles(Frequency::F2, detected_half_cycles, waiting_time)) { // Find the  first 2 1/2 cycles
 		if (mTracing)
 			DEBUG_PRINT(getTime(), ERR, "Failed to detect a carrier of min duration %f s\n", minDuration);
 		return false;
 	}
 	detectedCycles = 2; // The first found 1/2 cycles
-	if (!mCycleDecoder.consumeHalfCycles(Frequency::F2, detected_half_cycles, mLastHalfCycleFrequency)) { // Consume the remaining 1/2 cycles
+	if (!mCycleDecoder.consumeHalfCycles(Frequency::F2, detected_half_cycles)) { // Consume the remaining 1/2 cycles
 		if (mTracing)
 			DEBUG_PRINT(getTime(), ERR, "Failed to detect a carrier of min duration %f s\n", minDuration);
 		return false;
@@ -134,13 +134,13 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 
 		// Get next 1/2 cycle
 		double t12_start = getTime();
-		if (!mCycleDecoder.nextHalfCycle(mLastHalfCycleFrequency))
+		if (!mCycleDecoder.advanceHalfCycle())
 			return false; // End of tape reached if not 1/2 cycle could be detected => STOP
 
 		double half_cycle_duration = getTime() - t12_start;
 
 		// Increase carrier count for F2 cycle and decrease it for F1/undefined type of 1/2 cycles
-		if (mLastHalfCycleFrequency == Frequency::F2) {
+		if (mCycleDecoder.lastHalfCycleFrequency() == Frequency::F2) {
 			carrier_half_cycle_count++;
 			half_cycle_duration_acc += half_cycle_duration;
 			encountered_carrier_half_cycles++;
@@ -151,7 +151,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 
 		// Check for a dummy byte if at least two consecutive carrier 1/2 cycles have been detected before
 		// the F1 1/2 cycle was detected. An F1 1/2 cycle means it could be the start bit of a dummy byte.
-		if (detectDummyByte && mLastHalfCycleFrequency == Frequency::F1 && carrier_half_cycle_count > 2) {
+		if (detectDummyByte && mCycleDecoder.lastHalfCycleFrequency() == Frequency::F1 && carrier_half_cycle_count > 2) {
 
 			// Check for a dummy byte (0xaa)
 			t_dummy_byte_start = getTime();
@@ -177,7 +177,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 
 	if (mVerbose) {
 		if (t_dummy_byte_start != -1)
-			cout << "Found dummy byte 0x" << hex << (int)foundDummyByte << "\n";
+			cout << "Found dummy byte 0x" << hex << (int)foundDummyByte << " at " << Utility::encodeTime(getTime()) << "\n";
 
 		cout << "Min carrier" << s << " of length " << (double)carrier_half_cycle_count / 2 << " cycles (" <<
 			(double)carrier_half_cycle_count / 2 / carrierFreq() << "s) detected at " << Utility::encodeTime(getTime()) << "\n";
@@ -190,16 +190,16 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 		stopType = Frequency::F1;
 	double t12_start = getTime();
 	checkpoint();
-	while (mCycleDecoder.nextHalfCycle(mLastHalfCycleFrequency) && mLastHalfCycleFrequency != stopType) {
+	while (mCycleDecoder.advanceHalfCycle() && mCycleDecoder.lastHalfCycleFrequency() != stopType) {
 
-		// Create a checkpoint prior to the nexy nextHalfCycle() call to be able to remove the non-F2 cycle (i.e., an F1 cycle or a gap)
+		// Create a checkpoint prior to the nexy advanceHalfCycle() call to be able to remove the non-F2 cycle (i.e., an F1 cycle or a gap)
 		// from the read tape stream before returning.
 		regretCheckpoint();
 		checkpoint();
 		double half_cycle_duration = getTime() - t12_start;
 
 		// Increase carrier count for F2 cycle
-		if (mLastHalfCycleFrequency == Frequency::F2) {
+		if (mCycleDecoder.lastHalfCycleFrequency() == Frequency::F2) {
 			carrier_half_cycle_count++;
 			half_cycle_duration_acc += half_cycle_duration;
 			encountered_carrier_half_cycles++;
@@ -219,7 +219,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 		// Remember time prior to the detection of the next 1/2 cycle
 		t12_start = getTime();
 	}
-	Frequency stop_type = mLastHalfCycleFrequency;
+	Frequency stop_type = mCycleDecoder.lastHalfCycleFrequency();
 
 	// Remove the last read start bit F2 cycle / gap
 	rollback();
@@ -227,7 +227,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 		cout << "Detected carrier" << s << " of length " << (double)carrier_half_cycle_count / 2 << " cycles (" <<
 			(double)carrier_half_cycle_count / 2 / carrierFreq() << "s) at " << Utility::encodeTime(getTime()) << "\n";
 
-		cout << "Next 1/2 cycle is " << _FREQUENCY(mLastHalfCycleFrequency) << "\n";
+		cout << "Next 1/2 cycle is " << _FREQUENCY(mCycleDecoder.lastHalfCycleFrequency()) << "\n";
 	}
 
 	// If no stopType frequency was detected, then the carrier was not followed by a stopType => ERROR
@@ -265,32 +265,19 @@ double WavTapeReader::getTime()
 // Save the current file position
 bool WavTapeReader::checkpoint()
 {
-
-	// Add element to checkpoints
-	mCheckpoints.push_back(mLastHalfCycleFrequency);
 	return mCycleDecoder.checkpoint();
 }
 
 // Roll back to a previously saved file position
 bool WavTapeReader::rollback()
 {
-	
-	// Copy last element
-	mLastHalfCycleFrequency = mCheckpoints.back();
-
-	// Remove last element
-	mCheckpoints.pop_back();
 	return mCycleDecoder.rollback();
 }
 
 // Remove checkpoint (without rolling back)
 bool WavTapeReader::regretCheckpoint()
 {
-
-	// Remove last element
-	mCheckpoints.pop_back();
 	return mCycleDecoder.regretCheckpoint();
-
 }
 
 //
@@ -319,18 +306,17 @@ bool WavTapeReader::getStartBit(bool restartAllowed)
 	// In that case, the first F1 1/2 cycle of the start bit has already been recorded and it remains
 	// only to detect mStartBitCycles * 2 - 1 1/2 cycles.
 	int n = n_remaining_start_bit_half_cycles;
-	if (mLastHalfCycleFrequency == Frequency::F1) {
+	if (mCycleDecoder.lastHalfCycleFrequency() == Frequency::F1) {
 		--n_remaining_start_bit_half_cycles;
 		one_cycle_found = true;
 	}
-	DEBUG_PRINT(getTime(), DBG, "Last 1/2 Cycle was of type %s, waiting for %d 1/2 cycles of F1\n", _FREQUENCY(mLastHalfCycleFrequency),n_remaining_start_bit_half_cycles);
+	DEBUG_PRINT(getTime(), DBG, "Last 1/2 Cycle was of type %s, waiting for %d 1/2 cycles of F1\n", _FREQUENCY(mCycleDecoder.lastHalfCycleFrequency()),n_remaining_start_bit_half_cycles);
 
-	// If the start bit needs to be continuous with already recorded F1 1/2 cycle, then just read F1 cycles
-
+	// If the start bit needs to be continuous with already recorded F1 1/2 cycle, then just read F1 1/2 cycles
 	if (!restartAllowed) {
 		DEBUG_PRINT(getTime(), DBG, "Wait for a continuous sequence of %d F1 1/2 cycles\n", n_remaining_start_bit_half_cycles);
-		while (n_remaining_start_bit_half_cycles > 0 && mLastHalfCycleFrequency == Frequency::F1 &&
-			mCycleDecoder.nextHalfCycle(mLastHalfCycleFrequency)) {
+		while (n_remaining_start_bit_half_cycles > 0 && mCycleDecoder.lastHalfCycleFrequency() == Frequency::F1 &&
+			mCycleDecoder.advanceHalfCycle()) {
 			--n_remaining_start_bit_half_cycles;
 		}
 		if (n_remaining_start_bit_half_cycles != 0)
@@ -338,14 +324,14 @@ bool WavTapeReader::getStartBit(bool restartAllowed)
 		return true;
 	}
 
-	// If the start bit doesn't have to be continuous with already recorded F1 1/2 cycle, then allow restarts of detection until
+	// If the start bit doesn't have to be continuous with an already recorded F1 1/2 cycle, then allow restarts of detection until
 	// a valid start bit is detected.
-	
+
 	int  start_bit_detected = false;
 	// Check for mStartBitCycles * 2 continuous F1 cycles (including the potentially already recorded one)
 	while (!start_bit_detected) {
 		double wt;
-		if (!mCycleDecoder.stopOnHalfCycles(Frequency::F1, n_remaining_start_bit_half_cycles, wt, mLastHalfCycleFrequency)) {
+		if (!mCycleDecoder.stopOnHalfCycles(Frequency::F1, n_remaining_start_bit_half_cycles, wt)) {
 			if (mTracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to detect start bit%s\n", "");
 			return false;
@@ -354,7 +340,8 @@ bool WavTapeReader::getStartBit(bool restartAllowed)
 		if (wt > 0 && one_cycle_found) { // waiting => not continuous with already recorded F1 1/2 cycle => restart detection
 			one_cycle_found = true;
 			n_remaining_start_bit_half_cycles = mBitTiming.startBitCycles * 2 - n_remaining_start_bit_half_cycles;
-			DEBUG_PRINT(getTime(), ERR, "Waited %fs when a first F1 1/2 cycle had already been recorded => restart detection\n", wt);
+			DEBUG_PRINT(getTime(), ERR, "Waited %fs when a first F1 1/2 cycle had already been recorded => restart detection (wait for %d F1 1/2 cycles)\n", wt, n_remaining_start_bit_half_cycles);
+			
 		}
 		else { // mStartBitCycles * 2 continuous 1/2 cycles detected
 			start_bit_detected = true;
@@ -379,27 +366,18 @@ bool WavTapeReader::getDataBit(Bit& bit)
 	double t_start = getTime();
 
 	// Advance time corresponding to one bit and count the no of transitions (1/2 cycles)
-	int max_half_cycle_duration;
-	if (!mCycleDecoder.countHalfCycles(n_bit_samples, n_half_cycles, max_half_cycle_duration, mLastHalfCycleFrequency)) {
+	int min_half_cycle_duration, max_half_cycle_duration;
+	if (!mCycleDecoder.countHalfCycles(n_bit_samples, n_half_cycles, min_half_cycle_duration, max_half_cycle_duration)) {
 		if (mTracing)
 			DEBUG_PRINT(getTime(), ERR, "Unexpected end of samples when reading data bit%s\n", "");
 		return false; // unexpected end of samples
 	}
 
 	// Decide whether the databit was a '0' or a '1' value based on the no of detected 1/2 cycles and the max 1/2 cycle duration
-	if (n_half_cycles <= mBitTiming.dataBitHalfCycleBitThreshold && mCycleDecoder.strictValidHalfCycleRange(F1, max_half_cycle_duration))
+	if (n_half_cycles <= mBitTiming.dataBitHalfCycleBitThreshold &&  mCycleDecoder.strictValidHalfCycleRange(F1, max_half_cycle_duration))
 		bit = LowBit;
 	else {
 		bit = HighBit;
-		double t_end = getTime();
-		if (mVerbose && !(n_half_cycles >= mBitTiming.dataBitHalfCycleBitThreshold && mCycleDecoder.strictValidHalfCycleRange(F2, max_half_cycle_duration))
-			&& t_end > 10) {
-			cout << "*** WARNING *** Invalid 1/2 cycles: " << n_half_cycles <<
-				" detected with max duration " << max_half_cycle_duration << " for " << n_bit_samples << " samples and at "
-				<< Utility::encodeTime(t_start) << " => " << Utility::encodeTime(t_end) << "\n";
-				mCycleDecoder.mCT.log();
-				mBitTiming.log();
-		}
 	}
 
 	DEBUG_PRINT(getTime(), DBG, "%d 1/2 cycles (of max duration %d) detected for data bit and therefore classified as a '%d'\n", n_half_cycles, max_half_cycle_duration, bit);
@@ -414,13 +392,13 @@ bool WavTapeReader::getStopBit()
 	// searching for a start bit for the next byte
 
 	double waiting_time;
-	if (!mCycleDecoder.stopOnHalfCycles(Frequency::F2, 2, waiting_time, mLastHalfCycleFrequency)) {
+	if (!mCycleDecoder.stopOnHalfCycles(Frequency::F2, 2, waiting_time)) {
 		if (mTracing)
 			DEBUG_PRINT(getTime(), ERR, "Failed to detect stop bit%s\n", "");
 		return false;
 	}
 
-	DEBUG_PRINT(getTime(), DBG, "Stop bit consumed with last 1/2 cycle being %s\n", _FREQUENCY(mLastHalfCycleFrequency));
+	DEBUG_PRINT(getTime(), DBG, "Stop bit consumed with last 1/2 cycle being %s\n", _FREQUENCY(mCycleDecoder.lastHalfCycleFrequency()));
 
 	return true;
 }

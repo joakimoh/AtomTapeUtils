@@ -9,11 +9,6 @@
 
 class CycleSampleTiming {
 public:
-	// Min & max durations of F1 & F2 frequency cycles
-	int mMinNSamplesF1Cycle; // Min duration of an F1 cycle
-	int mMaxNSamplesF1Cycle; // Max duration of an F1 cycle
-	int mMinNSamplesF2Cycle; // Min duration of an F2 cycle
-	int mMaxNSamplesF2Cycle; // Max duration of an F2 cycle
 
 	int mMinNSamplesF1HalfCycle; // Min duration of an F1 1/2 cycle
 	int mMaxNSamplesF1HalfCycle; // Max duration of an F1 1/2 cycle
@@ -35,8 +30,9 @@ public:
 	// |  T    |    3T/2   |      2T      |   3T/2     |  T    |		(2)
 	//
 
-	int mMinNSamplesF12Cycle; // Min duration of a 3T/2 cycle where T = 1/F2
-	int mMaxNSamplesF12Cycle; // Min duration of a 3T/2 cycle where T = 1/F2
+
+	int mMinNSamplesF12HalfCycle; // Min duration of a 3T/4 1/2 cycle where T = 1/F2
+	int mMaxNSamplesF12HalfCycle; // Min duration of a 3T/4 1/2 cycle where T = 1/F2
 
 	int fS = 44100; // sample frequency (normally 44 100 Hz for WAV files)
 	double tS; // sample duration = 1 / sample frequency
@@ -57,12 +53,11 @@ public:
 
 
 	typedef struct {
-		Frequency freq;
-		int sampleStart, sampleEnd;
-	} CycleSample;
-
-	typedef vector<CycleSample> CycleSamples;
-	typedef CycleSamples::iterator CycleSampleIter;
+		Frequency freq; // Frequency of the last 1/2 cycle
+		Level level; // Level of the last 1/2 cycle
+		int duration; // duration of 1/2 cycle
+		int phaseShift; // phaseshift [degrees] when starting an F1/F2 1/2 cycle
+	} HalfCycleInfo;
 
 	CycleSampleTiming mCT;
 
@@ -73,15 +68,10 @@ protected:
 	bool mTracing;
 	bool mVerbose = false;
 
-	// Relevant only for waitUntilCycle (via calls to nextCycle)
-	// Not used as detection is currently 1/2 cycle based
-	CycleSample mCycleSample = { Frequency::NoCarrierFrequency, 0, 0 };
-	Frequency mPrevcycle = Frequency::NoCarrierFrequency;
-	vector<CycleSample> mCycleSampleCheckpoints;
+	// State of the Cycle Decoder - saved when creating a checkpoint
+	HalfCycleInfo mHalfCycle = { Frequency::NoCarrierFrequency, Level::NoCarrierLevel, 0, 0 };
+	vector<HalfCycleInfo> mHalfCycleCheckpoints;
 
-	
-
-	int mPhaseShift = 180; // half_cycle [degrees] when starting an F1/F2 cycle
 	// For UEF format
 	// 0 <=> cycle starts with a LOW level
 	// 180 <=> cycle starts with a HIGH level
@@ -92,20 +82,26 @@ public:
 
 	CycleDecoder(int SampleFreq, ArgParser &argParser);
 
+	Frequency lastHalfCycleFrequency() { return mHalfCycle.freq;  }
+
 	// Get the sample frequency
 	int getSampleFreq() { return mCT.fS;  }
 
 	// Get the current phaseshift (in degrees)
-	int getPhaseShift() { return mPhaseShift;  }
+	int getPhaseShift() { return mHalfCycle.phaseShift;  }
 
 	// Advance n samples and record the encountered no of 1/2 cycles
-	virtual int countHalfCycles(int nSamples, int& half_cycles, int& maxHalfCycleDuration, Frequency& lastHalfCycleFrequency) = 0;
+	virtual int countHalfCycles(int nSamples, int& half_cycles, int &min_half_cycle_duration, int& maxHalfCycleDuration) = 0;
+
+	// Find a window with [minthresholdCycles, maxThresholdCycles] 1/2 cycles and starting with an
+	// 1/2 cycle of frequency type f.
+	virtual bool detectWindow(Frequency f, int nSamples, int minThresholdCycles, int maxThresholdCycles, int& nHalfCycles) = 0;
 
 	// Consume as many 1/2 cycles of frequency f as possible
-	virtual int  consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency& lastHalfCycleFrequency) = 0;
+	virtual int  consumeHalfCycles(Frequency f, int &nHalfCycles) = 0;
 
 	// Stop at first occurrence of n 1/2 cycles of frequency f
-	virtual int stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime, Frequency &lastHalfCycleFrequency) = 0;
+	virtual int stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime) = 0;
 
 	// Get duration (in samples) of one F2 cycle
 	double getF2Samples() { return (double) mCT.fS / carrierFreq();  }
@@ -113,28 +109,16 @@ public:
 	// Get duration (in sec) of one F2 cycle
 	double getF2Duration() { return (double) 1 / carrierFreq(); }
 
-	// Get the next cycle (which is ether a low - F1 - or high - F2 - tone cycle)
-	virtual bool getNextCycle(CycleSample& cycleSample) = 0;
-
 	// Get the next 1/2 cycle (F1, F2 or unknown)
-	virtual bool nextHalfCycle(Frequency& lastHalfCycleFrequency) = 0;
-
-	// Wait until a cycle of a certain frequency is detected
-	virtual bool waitUntilCycle(Frequency freq, CycleSample& cycleSample) = 0;
-
-	// Wait for a high tone (F2)
-	virtual bool  waitForTone(double minDuration, double &duration, double &waitingTime, int &highToneCycles, Frequency& lastHalfCycleFrequency) = 0;
-
-	// Get last sampled cycle
-	virtual CycleSample getCycle() = 0;
+	virtual bool advanceHalfCycle() = 0;
 
 	// Get tape time
 	virtual double getTime() = 0;
 
-	// Save the current cycle
+	// Save the current 1/2 cycle
 	virtual bool checkpoint() = 0;
 
-	// Roll back to a previously saved cycle
+	// Roll back to a previously saved 1/2 cycle
 	virtual bool rollback() = 0;
 
 	// Remove checkpoint (without rolling back)
@@ -159,11 +143,10 @@ public:
 protected:
 
 	// Record the frequency of the last 1/2 cycle (but only if a 1/2 cycle was detected)
-	void updateHalfCycleFreq(int half_cycle_duration, Frequency& lastHalfCycleFrequency);
+	void updateHalfCycleFreq(int halfCycleDuration, Level halfCycleLevel);
 
-	// Collect a max no of cycles of a certain frequency
-	bool collectCycles(Frequency freq, CycleSample& lastValidCycleSample, int maxCycles, int& nCollectedCycles);
-	bool collectCycles(Frequency freq, int nRequiredCycles, CycleSample& lastValidCycleSample, int& nCollectedCycles);
+	// Get phase shift when a frequency shift occurs
+	void updatePhase(Frequency f1, Frequency f2, Level level);
 
 };
 

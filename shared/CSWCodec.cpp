@@ -557,7 +557,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
 
 }
 
-bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, HalfCycle& firstHalfCycle)
+bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, Level& firstHalfCycleLevel)
 { 
     ifstream fin(CSWFileName, ios::in | ios::binary | ios::ate);
 
@@ -605,7 +605,7 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, HalfCycle& firstHalfCy
         compressed = (csw2_hdr.compType == 0x02);
         mBitTiming.fS = csw2_hdr.sampleRate[0] + (csw2_hdr.sampleRate[1] << 8) + (csw2_hdr.sampleRate[2] << 16) + (csw2_hdr.sampleRate[3] << 24);
         n_pulses = csw2_hdr.totNoPulses[0] + (csw2_hdr.totNoPulses[1] << 8) + (csw2_hdr.totNoPulses[2] << 16) + (csw2_hdr.totNoPulses[3] << 24);
-        firstHalfCycle = ((csw2_hdr.flags & 0x01) == 0x01 ? HighHalfCycle : LowHalfCycle);
+        firstHalfCycleLevel = ((csw2_hdr.flags & 0x01) == 0x01 ? Level::HighLevel : Level::LowLevel);
         char s[16];
         strncpy(s, csw2_hdr.encodingApp, 16);
         encoding_app = s;
@@ -624,13 +624,13 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, HalfCycle& firstHalfCy
         compressed = false;
         mBitTiming.fS = csw1_hdr.sampleRate[0] + (csw1_hdr.sampleRate[1] << 8);
         n_pulses = -1; // unspecified and therefore undefined for CSW format 1.1
-        firstHalfCycle = ((csw1_hdr.flags & 0x01) == 0x01 ? HighHalfCycle : LowHalfCycle);
+        firstHalfCycleLevel = ((csw1_hdr.flags & 0x01) == 0x01 ? Level::HighLevel : Level::LowLevel);
     }
 
 
 
     // Assign intial level to pulse (High or Low)
-    mPulseLevel = firstHalfCycle;
+    mPulseLevel = firstHalfCycleLevel;
 
 
     // Get size of pulse data
@@ -641,7 +641,7 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, HalfCycle& firstHalfCy
         cout << "compressed: " << (compressed ? "Z-RLE" : "RLE") << "\n";
         cout << "sample frequency: " << (int)mBitTiming.fS << "\n";
         cout << "no of pulses: " << (int)n_pulses << "\n";
-        cout << "initial polarity: " << _HALF_CYCLE(firstHalfCycle) << "\n";
+        cout << "initial polarity: " << _LEVEL(firstHalfCycleLevel) << "\n";
         cout << "encoding app: " << encoding_app << "\n";
     }
  
@@ -814,7 +814,7 @@ bool CSWCodec::writeGap(double duration)
         return true;
 
     // Insert one very short high pulse if not already an high pulse
-    if (mPulseLevel == HalfCycle::LowHalfCycle)
+    if (mPulseLevel == Level::LowLevel)
         mPulses.push_back(1);
 
     // Insert the long low pulse
@@ -831,7 +831,7 @@ bool CSWCodec::writeGap(double duration)
         mPulses.push_back((n_samples >> 24) % 256);
     }
 
-    mPulseLevel = HalfCycle::LowHalfCycle;
+    mPulseLevel = Level::LowLevel;
 
     return true;
 }

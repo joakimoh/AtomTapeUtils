@@ -15,7 +15,7 @@ class CSWCycleDecoder : public CycleDecoder
 	public:
 		int pulseIndex;
 		int sampleIndex; // sample index after the pulse has been read
-		HalfCycle pulseLevel;
+		Level pulseLevel;
 		int pulseLength; // pulse duration (in samples)
 	} ;
 
@@ -30,10 +30,6 @@ private:
 
 	// Pulse data
 	PulseInfo mPulseInfo;
-	//int mPulseIndex;
-	//int mSampleIndex;
-	//HalfCycle mPulseLevel;
-	//int mPulseLength;
 
 	bool getNextPulse();
 
@@ -45,31 +41,23 @@ private:
 
 public:
 
-	CSWCycleDecoder(int sampleFreq, HalfCycle firstHalfCycle, Bytes &Pulses, ArgParser & argParser, bool verbose);
+	CSWCycleDecoder(int sampleFreq, Level firstHalfCycleLevel, Bytes &Pulses, ArgParser & argParser, bool verbose);
+
+	// Find a window with [minthresholdCycles, maxThresholdCycles] 1/2 cycles and starting with an
+	// 1/2 cycle of frequency type f.
+	bool detectWindow(Frequency f, int nSamples, int minThresholdCycles, int maxThresholdCycles, int& halfCycles);
 
 	// Advance n samples and record the encountered no of 1/2 cycles
-	int countHalfCycles(int nSamples, int& nHalfCycles, int & maxHalfCycleDuration, Frequency& lastHalfCycleFrequency);
+	int countHalfCycles(int nSamples, int& nHalfCycles, int& minHalfCycleDuration, int & maxHalfCycleDuration);
 
 	// Consume as many 1/2 cycles of frequency f as possible
-	int consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency& lastHalfCycleFrequency);
+	int consumeHalfCycles(Frequency f, int &nHalfCycles);
 
 	// Stop at first occurrence of n 1/2 cycles of frequency f
-	int stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime, Frequency &lastHalfCycleFrequency);
-
-	// Get the next cycle (which is ether a low - F1 - or high - F2 - tone cycle)
-	bool getNextCycle(CycleSample& cycleSample);
+	int stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime);
 
 	// Get the next 1/2 cycle (F1, F2 or unknown)
-	bool nextHalfCycle(Frequency& lastHalfCycleFrequency);
-
-	// Wait until a cycle of a certain frequency is detected
-	bool waitUntilCycle(Frequency freq, CycleSample& cycleSample);
-
-	// Wait for a high tone (F2)
-	bool  waitForTone(double minDuration, double& duration, double& waitingTime, int& highToneCycles, Frequency& lastHalfCycleFrequency);
-
-	// Get last sampled cycle
-	CycleSample getCycle();
+	bool advanceHalfCycle();
 
 	// Get tape time
 	double getTime();

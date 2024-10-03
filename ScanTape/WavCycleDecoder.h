@@ -15,39 +15,27 @@ private:
 
 	LevelDecoder& mLevelDecoder;
 
-	Level mLevel = Level::NoCarrierLevel;
-
-	// Collect as many samples as possible of the same level (High or Low)
-	bool getSameLevelCycles(int& nSamples);
-
 
 public:
 
 	WavCycleDecoder(int sampleFreq, LevelDecoder& levelDecoder, ArgParser& argParser);
 
 	// Advance n samples and record the encountered no of 1/2 cycles
-	int countHalfCycles(int nSamples, int& half_cycles, int& maxHalfCycleDuration, Frequency& lastHalfCycleFrequency);
+	int countHalfCycles(int nSamples, int& half_cycles, int& minHalfCycleDuration, int& maxHalfCycleDuration);
+
+	// Find a window with [minthresholdCycles, maxThresholdCycles] 1/2 cycles and starting with an
+	// 1/2 cycle of frequency type f.
+	bool detectWindow(Frequency f, int nSamples, int minThresholdCycles, int maxThresholdCycles, int& nHalfCycles);
 
 	// Consume as many 1/2 cycles of frequency f as possible
-	int consumeHalfCycles(Frequency f, int &nHalfCycles, Frequency& lastHalfCycleFrequency);
+	int consumeHalfCycles(Frequency f, int &nHalfCycles);
 
 	// Stop at first occurrence of n 1/2 cycles of frequency f
-	int stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime, Frequency &lastHalfCycleFrequency);
-
-	// Get the next cycle (which is ether a low - F1 - or high - F2 - tone cycle)
-	bool getNextCycle(CycleSample& cycleSample);
+	int stopOnHalfCycles(Frequency f, int nHalfCycles, double &waitingTime);
 
 	// Get the next 1/2 cycle (F1, F2 or unknown)
-	bool nextHalfCycle(Frequency& lastHalfCycleFrequency);
+	bool advanceHalfCycle();
 
-	// Wait until a cycle of a certain frequency is detected
-	bool waitUntilCycle(Frequency freq, CycleSample& cycleSample);
-
-	// Wait for a high tone (F2)
-	bool  waitForTone(double minDuration, double& duration, double& waitingTime, int& highToneCycles, Frequency& lastHalfCycleFrequency);
-
-	// Get last sampled cycle
-	CycleSample getCycle();
 
 	// Get tape time
 	double getTime();

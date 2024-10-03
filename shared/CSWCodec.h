@@ -115,7 +115,7 @@ public:
 	bool encode(TapeFile &tapeFile, string& filePath);
 
 	 // Decode a CSW file as a vector of pulses
-	bool decode(string &CSWFileName, Bytes &pulses, HalfCycle &firstHalfCycle);
+	bool decode(string &CSWFileName, Bytes &pulses, Level &firstHalfCycleLevel);
 
 	// Tell whether a file is a CSW file
 	static bool isCSWFile(string& CSWFileName);
@@ -136,7 +136,7 @@ private:
 	BitTiming mBitTiming;
 
 	// Current pulse level (writing)
-	HalfCycle mPulseLevel;
+	Level mPulseLevel;
 
 	// Pulses read or to write
 	Bytes mPulses;
