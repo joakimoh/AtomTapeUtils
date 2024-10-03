@@ -107,7 +107,7 @@ void CycleDecoder::updateHalfCycleFreq(int halfCycleDuration, Level halfCycleLev
 	else if (halfCycleDuration > mCT.mMinNSamplesF1HalfCycle && halfCycleDuration <= mCT.mMaxNSamplesF1HalfCycle) {
 		updatePhase(mHalfCycle.freq, Frequency::F1, halfCycleLevel); // record the phase if shifting frequency
 		mHalfCycle.freq = Frequency::F1;
-		strict_f = Frequency::F2;
+		strict_f = Frequency::F1;
 	}
 	else if (halfCycleDuration >= mCT.mMinNSamplesF12HalfCycle && halfCycleDuration <= mCT.mMaxNSamplesF12HalfCycle) {
 		if (mHalfCycle.freq == Frequency::F1) { // One F1 1/2 cycle followed by one F12 1/2 cycle. Treat this as an F2 cycle.

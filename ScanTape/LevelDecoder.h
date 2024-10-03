@@ -25,27 +25,30 @@ private:
 	ArgParser mArgParser;
 
 	Samples& mSamples;
-	int mSamplesIndex;
-
+	
 	bool mTracing;
 	
-
-	Level mState = NoCarrierLevel;
-	
-
 	Sample mHighThreshold;
 	Sample mLowThreshold;
 
-	int mNSamplesLowLevel = 0;
-	int mNSamplesHighLevel = 0;
+	
 
-	typedef struct CheckPointSample_struct { int index; Level state; } CheckPointSample;
+	class LevelInfo
+	{
+	public:
+		int nSamplesLow = 0;
+		int nSamplesHigh = 0;
+		int sampleIndex = 0;
+		Level state = NoCarrierLevel;
+	} ;
+
+	LevelInfo mLevelInfo = { 0, 0, 0, NoCarrierLevel };
 
 	// Checkpoint data for rollback
 	//int mSamplesIndexCheckpoint;
 	//Level mStateCheckpoint;
 
-	vector<CheckPointSample> mCheckPoint;
+	vector<LevelInfo> mCheckPoints;
 	
 
 public:

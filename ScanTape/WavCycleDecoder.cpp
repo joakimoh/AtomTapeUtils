@@ -33,6 +33,9 @@ bool WavCycleDecoder::checkpoint()
 bool WavCycleDecoder::rollback()
 {
 
+	if (mHalfCycleCheckpoints.size() == 0)
+		return false;
+
 	mHalfCycle = mHalfCycleCheckpoints.back();
 	mHalfCycleCheckpoints.pop_back();
 	mLevelDecoder.rollback();

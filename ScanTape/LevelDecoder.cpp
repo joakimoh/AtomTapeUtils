@@ -11,11 +11,9 @@ using namespace std;
 // Save the current file position
 bool LevelDecoder::checkpoint()
 {
-	// Create checkpoint element
-	CheckPointSample checkpoint_sample = { mSamplesIndex, mState };
 
 	// Add it to checkpoints
-	mCheckPoint.push_back(checkpoint_sample);
+	mCheckPoints.push_back(mLevelInfo);
 
 	return true;
 }
@@ -23,19 +21,14 @@ bool LevelDecoder::checkpoint()
 // Roll back to a previously saved file position
 bool LevelDecoder::rollback()
 {
-	if (mCheckPoint.size() == 0)
+	if (mCheckPoints.size() == 0)
 		return false;
 
 	// Get reference to last checkpoint element
-	CheckPointSample checkpoint_sample;
-	checkpoint_sample = mCheckPoint.back();
-
-	// Copy its content
-	mState = checkpoint_sample.state;
-	mSamplesIndex = checkpoint_sample.index;
+	mLevelInfo = mCheckPoints.back();
 
 	// Dispose of the last checkpoint element
-	mCheckPoint.pop_back();
+	mCheckPoints.pop_back();
 
 	return true;
 }
@@ -43,11 +36,11 @@ bool LevelDecoder::rollback()
 // Remove checkpoint (without rolling back)
 bool LevelDecoder::regretCheckpoint()
 {
-	if (mCheckPoint.size() == 0)
+	if (mCheckPoints.size() == 0)
 		return false;
 
 	// Dispose of the last checkpoint element
-	mCheckPoint.pop_back();
+	mCheckPoints.pop_back();
 
 	return true;
 }
@@ -61,7 +54,7 @@ LevelDecoder::LevelDecoder(
 	mLowThreshold = (int) round(mArgParser.levelThreshold * SAMPLE_LOW_MIN);
 	
 	mSamples = samples;
-	mSamplesIndex = 0;
+	mLevelInfo.sampleIndex = 0;
 
 	mFS = sampleFreq;
 	mTS = 1 / mFS;
@@ -71,7 +64,7 @@ LevelDecoder::LevelDecoder(
 
 	// Advance to time startTime before searching for data
 	if (startTime > 0)
-		while (mSamplesIndex < mSamples.size() && (mSamplesIndex * mTS < startTime)) mSamplesIndex++;
+		while (mLevelInfo.sampleIndex < mSamples.size() && (mLevelInfo.sampleIndex * mTS < startTime)) mLevelInfo.sampleIndex++;
 
 	
 }
@@ -79,48 +72,48 @@ LevelDecoder::LevelDecoder(
 
 bool LevelDecoder::getNextSample(Level& level, int& sampleNo) {
 
-	if (mSamplesIndex == mSamples.size())
+	if (mLevelInfo.sampleIndex == mSamples.size())
 		return false;
 
-	sampleNo = mSamplesIndex;
-	Sample sample = mSamples[mSamplesIndex++];
+	sampleNo = mLevelInfo.sampleIndex;
+	Sample sample = mSamples[mLevelInfo.sampleIndex++];
 
-	if ((mState == NoCarrierLevel || mState == LowLevel) && sample > mHighThreshold) {
-		mState = HighLevel;
-		mNSamplesLowLevel = 0;
+	if ((mLevelInfo.state == NoCarrierLevel || mLevelInfo.state == LowLevel) && sample > mHighThreshold) {
+		mLevelInfo.state = HighLevel;
+		mLevelInfo.nSamplesLow = 0;
 	}
-	else if ((mState == NoCarrierLevel || mState == HighLevel) && sample < mLowThreshold) {
-		mState = LowLevel;
-		mNSamplesHighLevel = 0;
+	else if ((mLevelInfo.state == NoCarrierLevel || mLevelInfo.state == HighLevel) && sample < mLowThreshold) {
+		mLevelInfo.state = LowLevel;
+		mLevelInfo.nSamplesHigh = 0;
 	}
 	else if (
-			(mState == LowLevel && mNSamplesLowLevel > mNLevelSamplesMax) ||
-			(mState == HighLevel && mNSamplesHighLevel > mNLevelSamplesMax)
+			(mLevelInfo.state == LowLevel && mLevelInfo.nSamplesLow > mNLevelSamplesMax) ||
+			(mLevelInfo.state == HighLevel && mLevelInfo.nSamplesHigh > mNLevelSamplesMax)
 		) {
-		mState = NoCarrierLevel;
-		mNSamplesLowLevel = 0;
-		mNSamplesHighLevel = 0;
-	} else if (mState == LowLevel) { // Unchanged level => measure time staying at same level
-		mNSamplesLowLevel++;
+		mLevelInfo.state = NoCarrierLevel;
+		mLevelInfo.nSamplesLow = 0;
+		mLevelInfo.nSamplesHigh = 0;
+	} else if (mLevelInfo.state == LowLevel) { // Unchanged level => measure time staying at same level
+		mLevelInfo.nSamplesLow++;
 	}
-	else { // mState == High
-		mNSamplesHighLevel++;
+	else { // mLevelInfo.state == High
+		mLevelInfo.nSamplesHigh++;
 	}
 
 
-	level = mState;
+	level = mLevelInfo.state;
 
 	return true;
 }
 
 
 
-bool LevelDecoder::endOfSamples() { return (mSamplesIndex == mSamples.size()); }
+bool LevelDecoder::endOfSamples() { return (mLevelInfo.sampleIndex == mSamples.size()); }
 
-int LevelDecoder::getSampleNo() { return mSamplesIndex;}
+int LevelDecoder::getSampleNo() { return mLevelInfo.sampleIndex;}
 
 Level LevelDecoder::getLevel() {
-	return mState;
+	return mLevelInfo.state;
 }
 
 double LevelDecoder::getTime()
