@@ -59,7 +59,7 @@ Optionally, you could do all this (except for the WAV & CSW files generation) wi
 - abc2bin: Convert an Acorn Atom/BBC Micro program into a binary data (as it would be stored on the target machine)
 - abc2dat: Convert an Acorn Atom/BBC Micro program text file into a hex dump file (showing how the program will be stored on an Acorn Atom)
 - bin2abc: Convert a binary data file into an Acorn Atom/BBC Micro program
-- csw2wav: Convert a CSW file to a WAV file (44.1kHz/16-bit/mono PCM) - this has no machine contect and can be used independently of the target machine
+- csw2wav: Convert a CSW file to a WAV file (44.1kHz/16-bit/mono PCM) - this has no machine context and can be used independently of the target machine
 - dat2abc: Convert hex dump file into text file with an Acorn Atom/BBC Micro program
 - dat2bin: Convert hex dump file into binary file (useful if you want to disassemble machine code)
 - dat2tap: Convert hex dump file into a TAP/MMC file (Acorn Atom only)
@@ -67,11 +67,12 @@ Optionally, you could do all this (except for the WAV & CSW files generation) wi
 - dat2wav: Convert hex dump file into a WAV file (16-bit PCM WAV for Acorn Atom)
 - tap2abc: Convert TAP/MMC file into an Acorn Atom program text file
 - tap2dat: Convert TAP/MMC file into a hex dump file
-- uef2csw: Convert UEF file into a CSW file - this has no machine contect and can be used independently of the target machine*
-- uef2wav: Combert UEF file into WAW file (44.1kHz/16-bit/mono PCM) - this has no machine contect and can be used independently of the target machine*
+- uef2csw: Convert UEF file into a CSW file - this has no machine context and can be used independently of the target machine*
+- uef2wav: Combert UEF file into WAW file (44.1kHz/16-bit/mono PCM) - this has no machine context and can be used independently of the target machine*
 - uef2dat: Convert UEF file into a hex dump file
+- wav2csw: Convert WAV file into a CSW file - this has no machine context and can be used independently of the target machine
 - inspectfile: hex dump of a file content
-- inspectEUF: Display information of chunks in the EUF file + hex dump of content from all data chunks - this has no machine contect and can be used independently of the target machine
+- inspectEUF: Display information of chunks in the EUF file + hex dump of content from all data chunks - this has no machine context and can be used independently of the target machine
 
 \* Although the conversion from EUF to CSW/WAV is in theory machine-independent, the use of simple data chunks can cause a problem as a default data byte encoding is assumed (8N1). If you suspect there are such chunks, a target machine (-atm for Acorn Atom and -bbm for BBC Micro) could be still be specified to tell what format shall be used for such chunks.
 ### Utility program flags
