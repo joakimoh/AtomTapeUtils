@@ -1,10 +1,9 @@
 
-#include "../shared/CommonTypes.h"
+#include "CommonTypes.h"
 #include "WavCycleDecoder.h"
-#include "../shared/Debug.h"
-#include "ArgParser.h"
-#include "../shared/WaveSampleTypes.h"
-#include "../shared/Utility.h"
+#include "Debug.h"
+#include "WaveSampleTypes.h"
+#include "Utility.h"
 #include <iostream>
 #include <cmath>
 
@@ -12,8 +11,8 @@ using namespace std;
 
 // Constructor
 WavCycleDecoder::WavCycleDecoder(
-	int sampleFreq, LevelDecoder& levelDecoder, ArgParser& argParser
-) : CycleDecoder(sampleFreq, argParser), mLevelDecoder(levelDecoder)
+	int sampleFreq, LevelDecoder& levelDecoder, double freqThreshold, bool verbose, bool tracing, double dbgStart, double dbgEnd
+) : CycleDecoder(sampleFreq, freqThreshold, verbose, tracing, dbgStart, dbgEnd), mLevelDecoder(levelDecoder)
 {
 
 	

@@ -8,7 +8,7 @@
 #include <string>
 #include "TAPCodec.h"
 #include "WaveSampleTypes.h"
-#include "../shared/TapeProperties.h"
+#include "TapeProperties.h"
 #include "BitTiming.h"
 #include "UEFCodec.h"
 

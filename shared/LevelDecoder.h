@@ -3,8 +3,7 @@
 #ifndef LEVEL_DECODER_H
 #define LEVEL_DECODER_H
 
-#include "../shared/WaveSampleTypes.h"
-#include "ArgParser.h"
+#include "WaveSampleTypes.h"
 
 
 class LevelDecoder {
@@ -21,8 +20,6 @@ private:
 	double mTS = 1 / mFS; // sample duration = 1 / sample frequency
 
 	int mNLevelSamplesMax;
-
-	ArgParser mArgParser;
 
 	Samples& mSamples;
 	
@@ -44,16 +41,12 @@ private:
 
 	LevelInfo mLevelInfo = { 0, 0, 0, NoCarrierLevel };
 
-	// Checkpoint data for rollback
-	//int mSamplesIndexCheckpoint;
-	//Level mStateCheckpoint;
-
 	vector<LevelInfo> mCheckPoints;
 	
 
 public:
 
-	LevelDecoder(int sampleFreq, Samples& samples, double startTime, ArgParser &argParser);
+	LevelDecoder(int sampleFreq, Samples& samples, double startTime, double freqThreshold, double levelThreshold, bool tracing);
 
 	bool getNextSample(Level &level, int &sampleNo);
 

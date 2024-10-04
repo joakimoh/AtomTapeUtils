@@ -1,8 +1,8 @@
-#include "../shared/CommonTypes.h"
+#include "CommonTypes.h"
 #include "LevelDecoder.h"
-#include "../shared/WaveSampleTypes.h"
+#include "WaveSampleTypes.h"
 #include <iostream>
-#include "../shared/Debug.h"
+#include "Debug.h"
 #include <cmath>
 
 using namespace std;
@@ -46,12 +46,11 @@ bool LevelDecoder::regretCheckpoint()
 }
 
 LevelDecoder::LevelDecoder(
-	int sampleFreq, Samples &samples, double startTime, ArgParser &argParser
-): mSamples(samples), mArgParser(argParser) { // A reference can only be initialised this way!
+	int sampleFreq, Samples &samples, double startTime, double freqThreshold, double levelThreshold, bool tracing
+): mSamples(samples), mTracing(tracing) { // A reference can only be initialised this way!
 
-	mTracing = argParser.tracing;
-	mHighThreshold = (int) round(mArgParser.levelThreshold * SAMPLE_HIGH_MAX);
-	mLowThreshold = (int) round(mArgParser.levelThreshold * SAMPLE_LOW_MIN);
+	mHighThreshold = (int) round(levelThreshold * SAMPLE_HIGH_MAX);
+	mLowThreshold = (int) round(levelThreshold * SAMPLE_LOW_MIN);
 	
 	mSamples = samples;
 	mLevelInfo.sampleIndex = 0;
@@ -60,7 +59,7 @@ LevelDecoder::LevelDecoder(
 	mTS = 1 / mFS;
 
 	// A half_cycle should never be longer than the max value of half an F1 cycle
-	mNLevelSamplesMax = (int) round((1 + mArgParser.freqThreshold) * mFS / (F1_FREQ * 2)); 
+	mNLevelSamplesMax = (int) round((1 + freqThreshold) * mFS / (F1_FREQ * 2));
 
 	// Advance to time startTime before searching for data
 	if (startTime > 0)

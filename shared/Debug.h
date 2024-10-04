@@ -18,8 +18,8 @@ using namespace std;
 
 #define DEBUG_LEVEL DBG
 
-#define DBG_T1 mArgParser.dbgStart
-#define DBG_T2 mArgParser.dbgEnd
+#define DBG_T1 mDbgStart
+#define DBG_T2 mDbgEnd
 
 #define TIMESTR_ARG(T) ( \
 	T<0?  "": \

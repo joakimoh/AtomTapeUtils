@@ -4,8 +4,7 @@
 #define CYCLE_DECODER_H
 
 #include <vector>
-#include "ArgParser.h"
-#include "../shared/WaveSampleTypes.h"
+#include "WaveSampleTypes.h"
 
 class CycleSampleTiming {
 public:
@@ -63,8 +62,9 @@ public:
 
 protected:
 
+	double mDbgStart = 0.0;
+	double mDbgEnd = 0.0;
 
-	ArgParser &mArgParser;
 	bool mTracing;
 	bool mVerbose = false;
 
@@ -80,7 +80,9 @@ protected:
 
 public:
 
-	CycleDecoder(int SampleFreq, ArgParser &argParser);
+	HalfCycleInfo getHalfCycle() { return mHalfCycle; }
+
+	CycleDecoder(int sampleFreq, double freqThreshold, bool verbose, bool tracing, double dbgStart, double dbgEnd);
 
 	Frequency lastHalfCycleFrequency() { return mHalfCycle.freq;  }
 

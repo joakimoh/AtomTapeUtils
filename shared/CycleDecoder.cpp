@@ -1,8 +1,8 @@
 #include "CycleDecoder.h"
 #include <iostream>
 #include <cmath>
-#include "../shared/Utility.h"
-#include "../shared/Debug.h"
+#include "Utility.h"
+#include "Debug.h"
 
 void CycleSampleTiming::log()
 {
@@ -48,24 +48,29 @@ void CycleSampleTiming::set(int sampleFreq, double carrierFreq, double freqTH)
 	tS = 1.0 / fS;
 	double f1 = baseFreq;
 	double f2 = baseFreq * 2;
+	double f = 1 + freqThreshold;
+	double f_min = 1 - freqThreshold;
+	//double f_min = 1 / f;
+	double f_max = 1 + freqThreshold;
 
-	mMinNSamplesF1HalfCycle = (int)round((1 - freqThreshold) * fS / (f1 * 2)); // Min duration of an F1 1/2 cycle
-	mMaxNSamplesF1HalfCycle = (int)round((1 + freqThreshold) * fS / (f1 * 2)); // Max duration of an F1 1/2 cycle
-	mMinNSamplesF2HalfCycle = (int)round((1 - freqThreshold) * fS / (f2 * 2)); // Min duration of an F2 1/2 cycle
-	mMaxNSamplesF2HalfCycle = (int)round((1 + freqThreshold) * fS / (f2 * 2)); // Max duration of an F2 1/2 cycle
 
-	mMinNSamplesF12HalfCycle = (int)round((1 - freqThreshold) * 3 * fS / (f2 * 4));// Min duration of a 3T/4 1/2 cycle where T = 1/F2	
-	mMaxNSamplesF12HalfCycle = (int)round((1 + freqThreshold) * 3 * fS / (f2 * 4)); // Min duration of a 3T/4 1/2 cycle where T = 1/F2
+	mMinNSamplesF1HalfCycle = (int)round(f_min * fS / (f1 * 2)); // Min duration of an F1 1/2 cycle
+	mMaxNSamplesF1HalfCycle = (int)round(f_max * fS / (f1 * 2)); // Max duration of an F1 1/2 cycle
+	mMinNSamplesF2HalfCycle = (int)round(f_min * fS / (f2 * 2)); // Min duration of an F2 1/2 cycle
+	mMaxNSamplesF2HalfCycle = (int)round(f_max * fS / (f2 * 2)); // Max duration of an F2 1/2 cycle
+
+	mMinNSamplesF12HalfCycle = (int)round(f_min * 3 * fS / (f2 * 4));// Min duration of a 3T/4 1/2 cycle where T = 1/F2	
+	mMaxNSamplesF12HalfCycle = (int)round(f_max * 3 * fS / (f2 * 4)); // Min duration of a 3T/4 1/2 cycle where T = 1/F2
 
 	//mSamplesThresholdHalfCycle = ((double) fS / f1 + (double) fS / f2) / 4;
 	mSamplesThresholdHalfCycle = double (mMaxNSamplesF2HalfCycle + mMinNSamplesF1HalfCycle) / 2;
 
 }
 
-CycleDecoder::CycleDecoder(int sampleFreq, ArgParser &argParser) : mArgParser(argParser), mTracing(argParser.tracing),
-mVerbose(argParser.verbose)
+CycleDecoder::CycleDecoder(int sampleFreq, double freqThreshold, bool verbose, bool tracing, double dbgStart, double dbgEnd):
+	mTracing(tracing),mVerbose(verbose)
 {
-	mCT.set(sampleFreq, F2_FREQ, mArgParser.freqThreshold);
+	mCT.set(sampleFreq, F2_FREQ, freqThreshold);
 	
 }
 

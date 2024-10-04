@@ -1,13 +1,17 @@
 
 #include "WavTapeReader.h"
-#include "../shared/Debug.h"
-#include "../shared/Utility.h"
+#include "Debug.h"
+#include "Utility.h"
+#include "TapeProperties.h"
 #include <cmath>
 #include <cstdint>
 
-WavTapeReader::WavTapeReader(CycleDecoder& cycleDecoder, double baseFreq, ArgParser argParser) :
-	mArgParser(argParser), TapeReader(argParser.verbose, argParser.tracing), mCycleDecoder(cycleDecoder),
-	mBitTiming(cycleDecoder.getSampleFreq(), baseFreq, argParser.tapeTiming.baudRate, argParser.targetMachine)
+WavTapeReader::WavTapeReader(
+	CycleDecoder& cycleDecoder, double baseFreq, TapeProperties tapeTiming, TargetMachine targetMachine, bool verbose, bool tracing,
+	double dbgStart, double  dbgEnd
+) : TapeReader(targetMachine, verbose,tracing, dbgStart, dbgEnd), mCycleDecoder(cycleDecoder),
+	mBitTiming(cycleDecoder.getSampleFreq(), baseFreq, tapeTiming.baudRate, targetMachine),
+	mTapeTiming(tapeTiming)
 {
 }
 
@@ -171,6 +175,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 					cout << "Dummy byte 0x" << hex << (int)foundDummyByte << " starts at " << Utility::encodeTime(t_dummy_byte_start) << "\n";
 				}
 				detected_dummy_byte = true;
+
 			}
 			else {
 				double t_elapsed = getTime() - t_dummy_byte_start; // stop bits not included as not read for a byte
@@ -204,7 +209,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 				rollback(); // rollback to before attempt ot read preamble
 				regretCheckpoint(); // remove last checkpoint (to keep the detected F1 1/2 cycle)
 				if (mVerbose && n_continuous_f2_half_cycles > 4) {
-					cout << "Noise (before min carrier time has elapsed) at " << Utility::encodeTime(getTime()) << "\n";
+					//cout << "Noise (before min carrier time has elapsed) at " << Utility::encodeTime(getTime()) << "\n";
 				}
 			}
 			
@@ -299,7 +304,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 	if (mVerbose)
 		cout << "Detected  a carrier frequency of " << carrier_cycle_freq_av << " - updating bit timing and cycle decoder with this!\n";
 	mCycleDecoder.setCarrierFreq(carrier_cycle_freq_av);
-	BitTiming updated_bit_timing(mCycleDecoder.getSampleFreq(), base_freq_av, mArgParser.tapeTiming.baudRate, mArgParser.targetMachine);
+	BitTiming updated_bit_timing(mCycleDecoder.getSampleFreq(), base_freq_av, mTapeTiming.baudRate, mTargetMachine);
 	mBitTiming = updated_bit_timing;
 
 	return true;
@@ -424,7 +429,10 @@ bool WavTapeReader::getDataBit(Bit& bit)
 	}
 
 	// Decide whether the databit was a '0' or a '1' value based on the no of detected 1/2 cycles and the max 1/2 cycle duration
-	if (n_half_cycles <= mBitTiming.dataBitHalfCycleBitThreshold &&  mCycleDecoder.strictValidHalfCycleRange(F1, max_half_cycle_duration))
+	if (
+		n_half_cycles <= mBitTiming.dataBitHalfCycleBitThreshold && 
+		mCycleDecoder.strictValidHalfCycleRange(F1, max_half_cycle_duration)
+		)
 		bit = LowBit;
 	else {
 		bit = HighBit;

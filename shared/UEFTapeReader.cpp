@@ -1,14 +1,15 @@
 #include "UEFTapeReader.h"
-#include "../shared/Debug.h"
-#include "../shared/Utility.h"
+#include "Debug.h"
+#include "Utility.h"
 #include <cmath>
 
 
-UEFTapeReader::UEFTapeReader(UEFCodec& uefCodec, ArgParser &argParser) :
-	mArgParser(argParser), TapeReader(argParser.verbose, argParser.tracing), mUEFCodec(uefCodec),
-	mTargetMachine(argParser.targetMachine)
+UEFTapeReader::UEFTapeReader(UEFCodec& uefCodec, string file, bool verbose, TargetMachine targetMachine, bool tracing,
+	double dbgStart, double dbgEnd
+) :
+	TapeReader(targetMachine, verbose, tracing, dbgStart, dbgEnd), mUEFCodec(uefCodec)
 {
-	mUEFCodec.readUefFile(argParser.wavFile);
+	mUEFCodec.readUefFile(file);
 }
 
 
@@ -75,7 +76,8 @@ bool UEFTapeReader::waitForCarrierWithDummyByte(
 
 	// Wait for lead tone of a min duration (with or without a dummy byte)
 	if (!mUEFCodec.detectCarrierWithDummyByte(waitingTime, duration1, duration2)) {
-		cout << "Failed to detect a carrier (with or without a dummy byte) at " << Utility::encodeTime(getTime()) << "\n";
+		// Could be and of tape and not an error
+		// cout << "Failed to detect a carrier (with or without a dummy byte) at " << Utility::encodeTime(getTime()) << "\n";
 		return false;
 	}
 	
@@ -108,6 +110,7 @@ bool UEFTapeReader::waitForCarrierWithDummyByte(
 
 	Bytes dummy_byte_data;
 	if (!mUEFCodec.readfromDataChunk(1, dummy_byte_data) || dummy_byte_data.size() != 1) {
+		// Could be and of tape and not necessary an error
 		cout << "Failed to read dummy byte at " << Utility::encodeTime(getTime()) << "\n";
 		return false;
 	}

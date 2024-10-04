@@ -12,6 +12,7 @@
 #include "CycleDecoder.h"
 #include "../shared/FileBlock.h"
 #include "WavTapeReader.h"
+#include "ArgParser.h"
 
 
 
@@ -45,6 +46,9 @@ protected:
 	ArgParser mArgParser;
 
 	bool mTracing;
+
+	double mDbgStart = 0.0;
+	double mDbgEnd = 0.0;
 
 	bool mVerbose = false;
 

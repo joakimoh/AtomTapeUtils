@@ -11,6 +11,8 @@ BlockDecoder::BlockDecoder(
 	mReader(tapeReader), mArgParser(argParser), mVerbose(argParser.verbose), mTargetMachine(argParser.targetMachine), mTracing(argParser.tracing)
 {
 	nReadBytes = 0; // Not needed but made to make compiler happy
+	mDbgStart = argParser.dbgStart;
+	mDbgEnd = argParser.dbgEnd;
 }
 
 

@@ -3,11 +3,11 @@
 #include <iostream>
 #include "CommonTypes.h"
 #include "WavEncoder.h"
-#include "../shared/WaveSampleTypes.h"
-#include "../shared/PcmFile.h"
-#include "../shared/Debug.h"
-#include "../shared/Utility.h"
-#include "../shared/TapeProperties.h"
+#include "WaveSampleTypes.h"
+#include "PcmFile.h"
+#include "Debug.h"
+#include "Utility.h"
+#include "TapeProperties.h"
 #include <cmath>
 
 using namespace std;

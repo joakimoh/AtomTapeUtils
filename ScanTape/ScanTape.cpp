@@ -8,9 +8,9 @@
 
 #include <math.h>
 
-#include "LevelDecoder.h"
-#include "WavCycleDecoder.h"
-#include "CSWCycleDecoder.h"
+#include "../shared/LevelDecoder.h"
+#include "../shared/WavCycleDecoder.h"
+#include "../shared/CSWCycleDecoder.h"
 #include "BlockDecoder.h"
 #include "FileDecoder.h"
 #include "../shared/WaveSampleTypes.h"
@@ -22,9 +22,9 @@
 #include "../shared/Utility.h"
 #include "../shared/CSWCodec.h"
 #include "../shared/UEFCodec.h"
-#include "WavTapeReader.h"
-#include "UEFTapeReader.h"
-#include "FileBlock.h"
+#include "../shared/WavTapeReader.h"
+#include "../shared/UEFTapeReader.h"
+#include "../shared/FileBlock.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -60,7 +60,10 @@ int main(int argc, const char* argv[])
         if (arg_parser.verbose)
             cout << "UEF file detected - scanning it...\n";
         UEF_file = true;
-        UEFTapeReader *UEF_tape_reader_p = new UEFTapeReader(UEF_codec, arg_parser);
+        UEFTapeReader* UEF_tape_reader_p = new UEFTapeReader(
+            UEF_codec, arg_parser.wavFile, arg_parser.verbose, arg_parser.targetMachine,
+            arg_parser.tracing, arg_parser.dbgStart, arg_parser.dbgEnd
+        );
         tape_reader = UEF_tape_reader_p;
     }
     // Is it a CSW file?
@@ -74,7 +77,10 @@ int main(int argc, const char* argv[])
             return -1;
         }
 
-        cycle_decoder_p = new CSWCycleDecoder(sample_freq, first_half_cycle_level, pulses, arg_parser, arg_parser.verbose);
+        cycle_decoder_p = new CSWCycleDecoder(
+            sample_freq, first_half_cycle_level, pulses, arg_parser.freqThreshold, arg_parser.verbose, arg_parser.tracing,
+            arg_parser.dbgStart, arg_parser.dbgEnd
+        );
     }
     else // If not a CSW file it must be a WAV file
     {
@@ -86,10 +92,15 @@ int main(int argc, const char* argv[])
         }
 
         // Create Level Decoder used to filter wave form into a well-defined level stream
-        level_decoder_p = new LevelDecoder(sample_freq, samples, arg_parser.startTime, arg_parser);
+        level_decoder_p = new LevelDecoder(
+            sample_freq, samples, arg_parser.startTime, arg_parser.freqThreshold, arg_parser.levelThreshold, arg_parser.tracing
+        );
 
         // Create Cycle Decoder used to produce a cycle stream from the level stream
-        cycle_decoder_p = new WavCycleDecoder(sample_freq, *level_decoder_p, arg_parser);
+        cycle_decoder_p = new WavCycleDecoder(
+            sample_freq, *level_decoder_p, arg_parser.freqThreshold, arg_parser.verbose, arg_parser.tracing,
+            arg_parser.dbgStart, arg_parser.dbgEnd
+        );
     }
     if (arg_parser.verbose) {
         cout << "Start time = " << arg_parser.startTime << "\n";
@@ -111,7 +122,9 @@ int main(int argc, const char* argv[])
 
     // Create a reader based on CSW/WAV input as provided by a cycle decoder
     if (!UEF_file) {
-        WavTapeReader *wav_tape_reader_p = new WavTapeReader(*cycle_decoder_p, 1200.0, arg_parser);
+        WavTapeReader* wav_tape_reader_p = new WavTapeReader(*cycle_decoder_p, 1200.0, arg_parser.tapeTiming,
+            arg_parser.targetMachine, arg_parser.verbose, arg_parser.tracing, arg_parser.dbgStart, arg_parser.dbgEnd
+        );
         tape_reader = wav_tape_reader_p;
     }
 

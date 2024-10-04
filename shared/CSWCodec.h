@@ -130,6 +130,9 @@ public:
 
 	bool writeSamples(string filePath);
 
+	bool writeHalfCycle(unsigned nSamples);
+	
+
 private:
 
 	TapeProperties mTapeTiming;
@@ -147,7 +150,9 @@ private:
 	bool writeDataBit(int bit);
 	bool writeStartBit();
 	bool writeStopBit(DataEncoding encoding);
+
 	bool writeCycle(bool high, unsigned n);
+	
 
 
 };

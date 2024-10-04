@@ -4,7 +4,7 @@
 #define CSW_CYCLE_DECODER_H
 
 #include "CycleDecoder.h"
-#include "../shared/CommonTypes.h"
+#include "CommonTypes.h"
 
 
 
@@ -41,7 +41,10 @@ private:
 
 public:
 
-	CSWCycleDecoder(int sampleFreq, Level firstHalfCycleLevel, Bytes &Pulses, ArgParser & argParser, bool verbose);
+	CSWCycleDecoder(
+		int sampleFreq, Level firstHalfCycleLevel, Bytes &Pulses, double freqThreshold, bool verbose,
+		bool tracing, double dbgStart, double dbgEnd
+	);
 
 	// Find a window with [minthresholdCycles, maxThresholdCycles] 1/2 cycles and starting with an
 	// 1/2 cycle of frequency type f.

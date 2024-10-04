@@ -1,6 +1,6 @@
 #include "TapeReader.h"
-#include "../shared/Debug.h"
-#include "../shared/Utility.h"
+#include "Debug.h"
+#include "Utility.h"
 #include <iostream>
 
 bool TapeReader::readBytes(Bytes& data, int n, int& read_bytes)

@@ -836,6 +836,14 @@ bool CSWCodec::writeGap(double duration)
     return true;
 }
 
+bool CSWCodec::writeHalfCycle(unsigned nSamples)
+{
+
+    mPulses.push_back(nSamples);
+
+    return true;
+}
+
 bool CSWCodec::writeCycle(bool highFreq, unsigned n)
 {
     if (n == 0)
@@ -855,7 +863,7 @@ bool CSWCodec::writeCycle(bool highFreq, unsigned n)
 
         //  first half cycle
         int n_samples = (int) round(sample_no)  - (int) round(prev_sample_no);
-         mPulses.push_back(n_samples);
+        mPulses.push_back(n_samples);
  
         // Advance sample index to next 1/2 cycle
         prev_sample_no = sample_no;

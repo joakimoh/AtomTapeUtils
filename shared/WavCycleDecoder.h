@@ -18,7 +18,10 @@ private:
 
 public:
 
-	WavCycleDecoder(int sampleFreq, LevelDecoder& levelDecoder, ArgParser& argParser);
+	WavCycleDecoder(
+		int sampleFreq, LevelDecoder& levelDecoder, double freqThreshold, bool verbose, bool tracing,
+		double dbgStart, double dbgEnd
+	);
 
 	// Advance n samples and record the encountered no of 1/2 cycles
 	int countHalfCycles(int nSamples, int& half_cycles, int& minHalfCycleDuration, int& maxHalfCycleDuration);

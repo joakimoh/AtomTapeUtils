@@ -15,6 +15,11 @@ protected:
 
 	bool mTracing = false;
 
+	TargetMachine mTargetMachine;
+
+	double mDbgStart = 0.0;
+	double mDbgEnd = 0.0;
+
 	Word mCRC = 0;
 
 public:
@@ -45,7 +50,8 @@ public:
 	virtual int getPhaseShift() = 0;
 
 	// Constructor
-	TapeReader(bool verbose, bool tracing): mVerbose(verbose), mTracing(tracing) {}
+	TapeReader(TargetMachine targetMachine, bool verbose, bool tracing, double dbgStart, double dbgEnd):
+		mTargetMachine(targetMachine), mVerbose(verbose), mTracing(tracing), mDbgStart(dbgStart), mDbgEnd(dbgEnd) {}
 
 	// Get tape time
 	virtual double getTime() = 0;

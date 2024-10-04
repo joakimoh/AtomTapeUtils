@@ -84,9 +84,9 @@ public:
 
 class TapeProperties {
 public:
-	double baseFreq; // Hz
-	int phaseShift; // Degrees [0-360]
-	int baudRate;
+	double baseFreq = 1200; // Hz
+	int phaseShift = 0; // Degrees [0-360]
+	int baudRate = 300;
 	BlockTiming minBlockTiming;
 	BlockTiming nomBlockTiming;
 	bool preserve = false; // If set, the original tape timing shall be used when generating UEF/CSW/WAV files

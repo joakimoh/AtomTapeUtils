@@ -100,6 +100,12 @@ add_executable (
 )
 target_link_libraries(csw2wav PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
 
+add_executable ( 
+	wav2csw  "wav2csw/wav2csw.cpp"
+	"wav2csw/ArgParser.h"  "wav2csw/ArgParser.cpp"
+)
+target_link_libraries(wav2csw PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
+
 
 add_executable ( 
 	uef2csw  "uef2csw/uef2csw.cpp"
@@ -143,15 +149,8 @@ target_link_libraries(dat2wav PUBLIC shared)
 add_executable(
 	ScanTape "ScanTape/ScanTape.cpp"
 	"ScanTape/ArgParser.h" "ScanTape/ArgParser.cpp"
-	"ScanTape/LevelDecoder.h" "ScanTape/LevelDecoder.cpp"
-	"ScanTape/CycleDecoder.h" "ScanTape/CycleDecoder.cpp"
-	"ScanTape/CSWCycleDecoder.h" "ScanTape/CSWCycleDecoder.cpp"
-	"ScanTape/WavCycleDecoder.h" "ScanTape/WavCycleDecoder.cpp"
 	"ScanTape/BlockDecoder.h" "ScanTape/BlockDecoder.cpp"
 	"ScanTape/FileDecoder.h" "ScanTape/FileDecoder.cpp"
-	"ScanTape/WavTapeReader.h" "ScanTape/WavTapeReader.cpp"
-	"ScanTape/UEFTapeReader.h" "ScanTape/UEFTapeReader.cpp"
-
 )
 target_link_libraries(ScanTape PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
 

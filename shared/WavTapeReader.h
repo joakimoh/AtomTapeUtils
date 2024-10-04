@@ -1,30 +1,54 @@
-#ifndef UEF_TAPE_READER_H
-#define UEF_TAPE_READER_H
+#ifndef WAV_TAPE_READER_H
+#define WAV_TAPE_READER_H
 
 #include "TapeReader.h"
-#include "../shared/WaveSampleTypes.h"
-#include "../shared/FileBlock.h"
-#include "../shared/UEFCodec.h"
-#include "ArgParser.h"
+#include "WaveSampleTypes.h"
+#include "CycleDecoder.h"
+#include "FileBlock.h"
+#include "BitTiming.h"
 
-class UEFTapeReader : public TapeReader {
 
-protected:
+class WavTapeReader: public TapeReader {
 
-	ArgParser mArgParser;
-	UEFCodec &mUEFCodec;
-	TargetMachine mTargetMachine;
+private:
 
+	double mDataSamples = 0.0;
+	int mBitNo = 0;
+
+	CycleDecoder& mCycleDecoder;
+
+	BitTiming mBitTiming;
+
+	TapeProperties mTapeTiming;
+
+
+
+	// Detect a start bit by looking for exactly mStartBitCycles low tone (F1) cycles
+	bool getStartBit();
+	bool getStartBit(bool restartAllowed);
+
+	// Get a data bit
+	bool getDataBit(Bit& bit);
+
+	// Get a stop bit
+	bool getStopBit();
+
+	// Read a byte if possible
+	bool readByte(Byte& byte, bool restartAllowed);
 
 public:
 
-	UEFTapeReader(UEFCodec& uefCodec, ArgParser &argParser);
+	WavTapeReader(
+		CycleDecoder& cycleDecoder, double baseFreq, TapeProperties tapeTiming, TargetMachine targetMachine, bool verbose, bool tracing,
+		double dbgStart, double dbgEnd
+	);
+
 
 	//
 	// Virtual methods inherited from TapeReader parent class
 	// 
 
-
+	
 	// Read a byte if possible
 	bool readByte(Byte& byte);
 

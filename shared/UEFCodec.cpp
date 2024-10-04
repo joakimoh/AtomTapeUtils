@@ -993,7 +993,11 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
 
             }
 
-        }
+    }
+    else {
+        // End of tape
+        return false;
+    }
 
     return true;
 }
@@ -1077,7 +1081,7 @@ bool UEFCodec::detectCarrier(double &waitingTime, double& preludeDuration, doubl
         );
 
     // If stopped at a DATA chunk, then either end of tape or skipping data was not allowed => STOP
-    if (chunk_info.chunkInfoType == DATA)
+    if (chunk_info.chunkInfoType == DATA || chunk_info.chunkInfoType == ChunkInfoType::UNKNOWN)
         return false;
 
     double duration;

@@ -10,8 +10,9 @@ using namespace std;
 
 // Constructor
 CSWCycleDecoder::CSWCycleDecoder(
-	int sampleFreq, Level firstHalfCycleLevel, Bytes& pulses, ArgParser& argParser, bool verbose
-) : CycleDecoder(sampleFreq, argParser), mPulses(pulses)
+	int sampleFreq, Level firstHalfCycleLevel, Bytes& pulses, double freqThreshold, bool verbose, bool tracing,
+	double dbgStart, double dbgEnd
+): CycleDecoder(sampleFreq, freqThreshold, verbose, tracing, dbgStart, dbgEnd), mPulses(pulses)
 {
 
 	// Initialise pulse data
