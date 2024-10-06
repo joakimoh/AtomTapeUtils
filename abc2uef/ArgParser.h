@@ -4,8 +4,8 @@
 #include <map>
 #include <vector>
 #include "../shared/TapeProperties.h"
-#include "FileBlock.h"
-
+#include "../shared/FileBlock.h"
+#include "../shared/Logging.h"
 
 using namespace std;
 
@@ -17,7 +17,7 @@ public:
 	string dstFileName;
 	string srcFileName;
 	TapeProperties tapeTiming;
-	bool verbose = false;
+	Logging logging;
 	TargetMachine targetMachine = ACORN_ATOM;
 
 private:

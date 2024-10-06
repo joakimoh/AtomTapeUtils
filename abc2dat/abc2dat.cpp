@@ -12,7 +12,7 @@
 #include "ArgParser.h"
 #include "../shared/AtomBasicCodec.h"
 #include "../shared/DataCodec.h"
-#include "../shared/Debug.h"
+#include "../shared/Logging.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -33,10 +33,10 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.targetMachine);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
 
     TapeFile TAP_file(arg_parser.targetMachine);
 
@@ -46,7 +46,7 @@ int main(int argc, const char* argv[])
 
    
 
-    DataCodec DATA_codec = DataCodec(arg_parser.verbose);
+    DataCodec DATA_codec = DataCodec(arg_parser.logging);
 
     if (!DATA_codec.encode(TAP_file, arg_parser.dstFileName)) {
         printf("Failed to encode program file '%s' as DATA file '%s'\n",

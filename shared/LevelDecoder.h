@@ -4,6 +4,7 @@
 #define LEVEL_DECODER_H
 
 #include "WaveSampleTypes.h"
+#include "Logging.h"
 
 
 class LevelDecoder {
@@ -23,7 +24,7 @@ private:
 
 	Samples& mSamples;
 	
-	bool mTracing;
+	Logging mDebugInfo;
 	
 	Sample mHighThreshold;
 	Sample mLowThreshold;
@@ -46,7 +47,7 @@ private:
 
 public:
 
-	LevelDecoder(int sampleFreq, Samples& samples, double startTime, double freqThreshold, double levelThreshold, bool tracing);
+	LevelDecoder(int sampleFreq, Samples& samples, double startTime, double freqThreshold, double levelThreshold, Logging logging);
 
 	bool getNextSample(Level &level, int &sampleNo);
 

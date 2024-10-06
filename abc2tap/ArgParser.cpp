@@ -46,7 +46,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			ac++;
 		}
 		else if (strcmp(argv[ac], "-v") == 0) {
-			verbose = true;
+			logging.verbose = true;
 		}
 		else {
 			cout << "Unknown option " << argv[ac] << "\n";

@@ -28,7 +28,7 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return 0;
     
-    if (arg_parser.verbose) {
+    if (arg_parser.logging.verbose) {
         cout << "Input file = '" << arg_parser.wavFile << "'\n";
         cout << "Output file = '" << arg_parser.outputFileName << "'\n";
         cout << "Baud rate = " << arg_parser.baudRate << "\n";
@@ -52,15 +52,15 @@ int main(int argc, const char* argv[])
     t_start = chrono::system_clock::now();
     Samples samples;
     int sample_freq = 44100;
-    if (!PcmFile::readSamples(arg_parser.wavFile, samples, sample_freq, arg_parser.verbose)) {
+    if (!PcmFile::readSamples(arg_parser.wavFile, samples, sample_freq, arg_parser.logging)) {
         cout << "Couldn't open PCM Wave file '" << arg_parser.wavFile << "'\n";
         return -1;
     }
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Samples read...\n";
     t_end = chrono::system_clock::now();
     dt = t_end - t_start;
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Elapsed time: " << dt.count() << " seconds...\n";
 
     
@@ -80,12 +80,12 @@ int main(int argc, const char* argv[])
             cout << "Failed to filter samples!\n";
             return -1;
         }
-        if (arg_parser.verbose)
+        if (arg_parser.logging.verbose)
             cout << "Samples filtered...\n";
         samples_to_filter = averaged_samples;
         t_end = chrono::system_clock::now();
         dt = t_end - t_start;
-        if (arg_parser.verbose)
+        if (arg_parser.logging.verbose)
             cout << "Elapsed time: " << dt.count() << " seconds...\n";
     }
     
@@ -98,11 +98,11 @@ int main(int argc, const char* argv[])
         cout << "Failed to find extremums for samples!\n";
         return -1;
     }
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << n_extremums << " (one every " << (int) round(samples.size() / n_extremums) << " samples)" << " extremums identified...\n";
     t_end = chrono::system_clock::now();
     dt = t_end - t_start;
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Elapsed time: " << dt.count() << " seconds...\n";
 
     // Use found extremums to reconstruct the original samples
@@ -112,11 +112,11 @@ int main(int argc, const char* argv[])
         cout << "Failed to plot from extremums!\n";
         return -1;
     }
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Samples reshaped based on identified extremums...\n";
     t_end = chrono::system_clock::now();
     dt = t_end - t_start;
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Elapsed time: " << dt.count() << " seconds...\n";
 
     // Write reconstructed samples to WAV file
@@ -126,27 +126,27 @@ int main(int argc, const char* argv[])
         // Write original samples and the filtered samples into a multiple-channel 16-bit PCM output WAV file
         if (arg_parser.nAveragingSamples > 0) {
             Samples samples_v[] = { samples , samples_to_filter, new_shapes };
-            success = PcmFile::writeSamples(arg_parser.outputFileName, samples_v, (int) (end(samples_v) - begin(samples_v)), sample_freq, arg_parser.verbose);
+            success = PcmFile::writeSamples(arg_parser.outputFileName, samples_v, (int) (end(samples_v) - begin(samples_v)), sample_freq, arg_parser.logging);
         }
         else {
             Samples samples_v[] = { samples , new_shapes };
-            success = PcmFile::writeSamples(arg_parser.outputFileName, samples_v, (int)(end(samples_v) - begin(samples_v)), sample_freq, arg_parser.verbose);
+            success = PcmFile::writeSamples(arg_parser.outputFileName, samples_v, (int)(end(samples_v) - begin(samples_v)), sample_freq, arg_parser.logging);
         }
     }
     else {
         // Write the filtered samples into a one-channel 16-bit PCM output WAV file
         Samples samples_v[] = { new_shapes };
-        success = PcmFile::writeSamples(arg_parser.outputFileName, samples_v, (int)(end(samples_v) - begin(samples_v)), sample_freq, arg_parser.verbose);
+        success = PcmFile::writeSamples(arg_parser.outputFileName, samples_v, (int)(end(samples_v) - begin(samples_v)), sample_freq, arg_parser.logging);
     }
     if (!success) {
         cout << "Couldn't write samples to Wave file '" << arg_parser.outputFileName << "'\n";
         return -1;
     }
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Resulting samples written to file...\n";
     t_end = chrono::system_clock::now();
     dt = t_end - t_start;
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Elapsed time: " << dt.count() << " seconds...\n";
 
 

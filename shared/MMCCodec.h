@@ -7,6 +7,7 @@
 #include <string>
 #include "CommonTypes.h"
 #include "FileBlock.h"
+#include "Logging.h"
 
 using namespace std;
 
@@ -24,7 +25,7 @@ public:
 	 * file structure. If the file is not complete,
 	 * then 'complete' shall be set to false.
 	 */
-	MMCCodec(bool verbose);
+	MMCCodec(Logging logging);
 
 	/*
 	 * Encode TAP File structure as an MMC file
@@ -40,7 +41,7 @@ public:
 private:
 
 
-	bool mVerbose = false;
+	Logging mDebugInfo;
 
 };
 

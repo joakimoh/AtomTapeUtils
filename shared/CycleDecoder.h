@@ -5,14 +5,15 @@
 
 #include <vector>
 #include "WaveSampleTypes.h"
+#include "Logging.h"
 
 class CycleSampleTiming {
 public:
 
-	int mMinNSamplesF1HalfCycle; // Min duration of an F1 1/2 cycle
-	int mMaxNSamplesF1HalfCycle; // Max duration of an F1 1/2 cycle
-	int mMinNSamplesF2HalfCycle; // Min duration of an F2 1/2 cycle
-	int mMaxNSamplesF2HalfCycle; // Max duration of an F2 1/2 cycle
+	double mMinNSamplesF1HalfCycle; // Min duration of an F1 1/2 cycle
+	double mMaxNSamplesF1HalfCycle; // Max duration of an F1 1/2 cycle
+	double mMinNSamplesF2HalfCycle; // Min duration of an F2 1/2 cycle
+	double mMaxNSamplesF2HalfCycle; // Max duration of an F2 1/2 cycle
 	double mSamplesThresholdHalfCycle; // Threshold between an F1 and an F2 1/2 cycle
 
 	// If each cycle starts with a low half_cycle but the cycle detection expects a cycle to start with a high
@@ -30,8 +31,8 @@ public:
 	//
 
 
-	int mMinNSamplesF12HalfCycle; // Min duration of a 3T/4 1/2 cycle where T = 1/F2
-	int mMaxNSamplesF12HalfCycle; // Min duration of a 3T/4 1/2 cycle where T = 1/F2
+	double mMinNSamplesF12HalfCycle; // Min duration of a 3T/4 1/2 cycle where T = 1/F2
+	double mMaxNSamplesF12HalfCycle; // Min duration of a 3T/4 1/2 cycle where T = 1/F2
 
 	int fS = 44100; // sample frequency (normally 44 100 Hz for WAV files)
 	double tS; // sample duration = 1 / sample frequency
@@ -45,28 +46,26 @@ public:
 	void log();
 };
 
+class HalfCycleInfo {
+public:
+	Frequency freq; // Frequency of the last 1/2 cycle
+	Level level; // Level of the last 1/2 cycle
+	int duration; // duration of 1/2 cycle
+	int phaseShift; // phaseshift [degrees] when starting an F1/F2 1/2 cycle
+	int nSamples = 0; // No of samples since last transition (only used by WavTapeReader)
+	string info(); // string representation of the 1/2 cycle info
+};
+
 class CycleDecoder
 {
 
 public:
 
-
-	typedef struct {
-		Frequency freq; // Frequency of the last 1/2 cycle
-		Level level; // Level of the last 1/2 cycle
-		int duration; // duration of 1/2 cycle
-		int phaseShift; // phaseshift [degrees] when starting an F1/F2 1/2 cycle
-	} HalfCycleInfo;
-
 	CycleSampleTiming mCT;
 
 protected:
 
-	double mDbgStart = 0.0;
-	double mDbgEnd = 0.0;
-
-	bool mTracing;
-	bool mVerbose = false;
+	Logging mDebugInfo;
 
 	// State of the Cycle Decoder - saved when creating a checkpoint
 	HalfCycleInfo mHalfCycle = { Frequency::NoCarrierFrequency, Level::NoCarrierLevel, 0, 0 };
@@ -82,7 +81,7 @@ public:
 
 	HalfCycleInfo getHalfCycle() { return mHalfCycle; }
 
-	CycleDecoder(int sampleFreq, double freqThreshold, bool verbose, bool tracing, double dbgStart, double dbgEnd);
+	CycleDecoder(int sampleFreq, double freqThreshold, Logging logging);
 
 	Frequency lastHalfCycleFrequency() { return mHalfCycle.freq;  }
 
@@ -141,6 +140,12 @@ public:
 	// Only the specified tolerance will be used to validate a 1/2 cycle
 	// duration.
 	bool strictValidHalfCycleRange(Frequency f, int duration);
+
+	// Determine the type of 1/2 cycle (F1, F2, F12 or unknown) - F12 has highest priority
+	Frequency getHalfCycleFrequencyRange(int duration);
+
+	// Determine the type of 1/2 cycle (F1, F2, or unknown) - F12 has lowest priority
+	Frequency getHalfCycleFrequency(int duration);
 
 protected:
 

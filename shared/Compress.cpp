@@ -3,7 +3,7 @@
 #include <fstream>
 #include <stdlib.h>
 #include <string>
-#include "Debug.h"
+#include "Logging.h"
 
 using namespace std;
 

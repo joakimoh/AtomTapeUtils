@@ -12,7 +12,7 @@
 #include "../shared/DataCodec.h"
 #include "../shared/UEFCodec.h"
 #include "../shared/TAPCodec.h"
-#include "../shared/Debug.h"
+#include "../shared/Logging.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -33,10 +33,10 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
-    DataCodec DATA_codec = DataCodec(arg_parser.verbose);
+    DataCodec DATA_codec = DataCodec(arg_parser.logging);
     Bytes data;
     TapeFile TAP_file(arg_parser.targetMachine);
 
@@ -47,7 +47,7 @@ int main(int argc, const char* argv[])
 
 
 
-    UEFCodec UEF_codec = UEFCodec(false, arg_parser.verbose, arg_parser.targetMachine);
+    UEFCodec UEF_codec = UEFCodec(false, arg_parser.logging, arg_parser.targetMachine);
     UEF_codec.setTapeTiming(arg_parser.tapeTiming);
     if (!UEF_codec.encode(TAP_file, arg_parser.dstFileName)) {
         printf("Failed to encode DATA file '%s' as UEF file '%s'\n",

@@ -3,6 +3,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include "../shared/Logging.h"
 
 
 using namespace std;
@@ -14,7 +15,7 @@ public:
 
 	string dstFileName;
 	string srcFileName;
-	bool verbose = false;
+	Logging logging;
 
 private:
 

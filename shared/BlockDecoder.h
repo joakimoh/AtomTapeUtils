@@ -6,13 +6,13 @@
 #include <string>
 #include <cstdint>
 
-#include "../shared/CommonTypes.h"
-#include "../shared/AtomBlockTypes.h"
-#include "../shared/WaveSampleTypes.h"
+#include "CommonTypes.h"
+#include "AtomBlockTypes.h"
+#include "WaveSampleTypes.h"
 #include "CycleDecoder.h"
-#include "../shared/FileBlock.h"
+#include "FileBlock.h"
 #include "WavTapeReader.h"
-#include "ArgParser.h"
+
 
 
 
@@ -43,14 +43,7 @@ protected:
 
 	TapeReader &mReader;
 
-	ArgParser mArgParser;
-
-	bool mTracing;
-
-	double mDbgStart = 0.0;
-	double mDbgEnd = 0.0;
-
-	bool mVerbose = false;
+	Logging mDebugInfo;
 
 	TargetMachine mTargetMachine = ACORN_ATOM;
 
@@ -59,7 +52,7 @@ public:
 
 	int nReadBytes;
 
-	BlockDecoder(TapeReader& tapeReader, ArgParser& argParser);
+	BlockDecoder(TapeReader& tapeReader, Logging logging, TargetMachine targetMachine);
 
 	bool readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock& readBlock, bool& leadToneDetected, BlockError &readStatus);
 

@@ -15,12 +15,14 @@ private:
 
 	LevelDecoder& mLevelDecoder;
 
+	// Get next sample and update 1/2 cycle info for a transition
+	bool getNextSample(bool& transition);
+
 
 public:
 
 	WavCycleDecoder(
-		int sampleFreq, LevelDecoder& levelDecoder, double freqThreshold, bool verbose, bool tracing,
-		double dbgStart, double dbgEnd
+		int sampleFreq, LevelDecoder& levelDecoder, double freqThreshold, Logging logging
 	);
 
 	// Advance n samples and record the encountered no of 1/2 cycles

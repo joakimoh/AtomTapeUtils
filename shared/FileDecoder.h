@@ -5,8 +5,9 @@
 
 #include "BlockDecoder.h"
 #include <vector>
-#include "../shared/CommonTypes.h"
+#include "CommonTypes.h"
 #include "FileBlock.h"
+#include "Logging.h"
 
 
 
@@ -18,11 +19,9 @@ class FileDecoder
 protected:
 
 
-	ArgParser mArgParser;
-
-	bool mTracing;
-	bool mVerbose;
+	Logging mDebugInfo;
 	bool mCat = false;
+	TapeProperties mTapeTiming;
 
 	TargetMachine mTarget;
 	BlockDecoder mBlockDecoder;
@@ -35,7 +34,7 @@ public:
 
 	FileDecoder(
 		BlockDecoder& blockDecoder,
-		ArgParser& argParser, bool catOnly = false
+		Logging logging, TargetMachine targetMachine, TapeProperties tapeTiming, bool catOnly = false
 	);
 
 	bool readFile(ostream& logFile, TapeFile& tapFile, string searchName);

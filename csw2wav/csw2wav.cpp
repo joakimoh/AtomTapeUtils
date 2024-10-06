@@ -12,7 +12,7 @@
 #include "../shared/CommonTypes.h"
 #include "ArgParser.h"
 #include "../shared/WavEncoder.h"
-#include "../shared/Debug.h"
+#include "../shared/Logging.h"
 #include "../shared/Utility.h"
 #include "../shared/PcmFile.h"
 #include "../shared/CSWCodec.h"
@@ -58,13 +58,13 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Output file is: '" << arg_parser.dstFileName << "'\n";
 
    
     // Decode CSW file into pulse vector
     int sample_freq = 44100;
-    CSWCodec CSW_decoder = CSWCodec(sample_freq, arg_parser.tapeTiming, arg_parser.verbose, UNKNOWN_TARGET);
+    CSWCodec CSW_decoder = CSWCodec(sample_freq, arg_parser.tapeTiming, arg_parser.logging, UNKNOWN_TARGET);
     Bytes pulses;
     
     Level half_cycle_level;
@@ -98,7 +98,7 @@ int main(int argc, const char* argv[])
 
     // Write samples to WAV file
     Samples samples_v[] = { samples };
-    if (!PcmFile::writeSamples(arg_parser.dstFileName, samples_v, 1, sample_freq, arg_parser.verbose)) {
+    if (!PcmFile::writeSamples(arg_parser.dstFileName, samples_v, 1, sample_freq, arg_parser.logging)) {
         cout << "Failed to write samples to WAV file!\n";
         return -1;
     }

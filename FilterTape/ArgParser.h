@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include <cmath>
+#include "../shared/Logging.h"
 
 
 using namespace std;
@@ -23,7 +24,7 @@ public:
 	double derivativeThreshold = 10;
 	bool outputMultipleChannels = false;
 
-	bool verbose = false;
+	Logging logging;
 
 private:
 

@@ -2,6 +2,7 @@
 
 #include "FileBlock.h"
 #include <map>
+#include "Logging.h"
 
 
 class TokenEntry
@@ -19,7 +20,7 @@ class AtomBasicCodec
 {
 
 private:
-	bool mVerbose = false;
+	Logging mDebugInfo;
 	TargetMachine mTargetMachine = ACORN_ATOM;
 
 	
@@ -154,7 +155,7 @@ private:
 
 
 public:
-	AtomBasicCodec(bool verbose, TargetMachine targetMachine);
+	AtomBasicCodec(Logging logging, TargetMachine targetMachine);
 
 	/*
 	 * Encode TAP File structure as Atom Basic program file

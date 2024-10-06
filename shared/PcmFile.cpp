@@ -22,7 +22,7 @@ string PcmFile::str4(char c[4])
     return ss.str();
 }
 
-bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, bool verbose)
+bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, Logging logging)
 {
 
     ifstream fin(fileName, ios::in | ios::binary | ios::ate);
@@ -58,7 +58,7 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, bo
 
     // Check sub chunk size
     if (h_tail.subchunk2Size != h_head.ChunkSize - 36) {
-        if (verbose)
+        if (logging.verbose)
             cout << "Size of data samples (subchunk2Size = " << h_tail.subchunk2Size <<
                 ") not consistent with file size (ChunkSize + 8 = " << (h_head.ChunkSize + 8) << ")!\n";
         
@@ -66,7 +66,7 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, bo
         h_head.ChunkSize = (uint32_t) fin_sz - 8;
         h_tail.subchunk2Size = h_head.ChunkSize - 36;
 
-        if (verbose)
+        if (logging.verbose)
             cout << "Recalculating the size of the data samples to " << h_head.ChunkSize << " bytes...\n";
     }
 
@@ -78,7 +78,7 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, bo
         )
         ) {
 
-        if (verbose) {
+        if (logging.verbose) {
             cout << "Input file is not an one channel 16 - bit PCM Wave file:\n";
             cout << "format: " << h_head.audioFormat << " (1 <=> PCM)\n";
             cout << "#channels: " << h_head.numChannels << " (1)\n";
@@ -101,7 +101,7 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, bo
     return true;
 }
 
-bool PcmFile::writeSamples(string fileName, Samples samples[], const int nChannels, int sampleFreq, bool verbose)
+bool PcmFile::writeSamples(string fileName, Samples samples[], const int nChannels, int sampleFreq, Logging logging)
 {
     // Check that each channel contains the same no of samples
     int n_samples = (int) samples[0].size();

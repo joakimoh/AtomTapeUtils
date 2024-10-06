@@ -4,7 +4,8 @@
 #include <map>
 #include <vector>
 #include "../shared/TapeProperties.h"
-#include "FileBlock.h"
+#include "../shared/FileBlock.h"
+#include "../shared/Logging.h"
 
 
 using namespace std;
@@ -19,7 +20,7 @@ public:
 	bool mPreserveOriginalTiming = false;
 	int mSampleFreq = 44100;
 
-	bool verbose = false;
+	Logging logging;
 	TargetMachine targetMachine = UNKNOWN_TARGET;
 	TapeProperties tapeTiming;
 

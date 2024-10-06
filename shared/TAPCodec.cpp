@@ -6,7 +6,7 @@
 
 #include "TAPCodec.h"
 #include "Utility.h"
-#include "Debug.h"
+#include "Logging.h"
 #include <string.h>
 
 using namespace std;
@@ -14,7 +14,7 @@ using namespace std;
 namespace fs = std::filesystem;
 
 
-TAPCodec::TAPCodec(bool verbose) : mVerbose(verbose)
+TAPCodec::TAPCodec(Logging logging) : mDebugInfo(logging)
 {
 
 }
@@ -112,12 +112,12 @@ bool TAPCodec::encode(TapeFile& tapeFile, string& filePath)
     FileBlockIter ATM_block_iter = tapeFile.blocks.begin();
     unsigned block_no = 0;
 
-    if (mVerbose) {
+    if (mDebugInfo.verbose) {
         cout << "\n";
         tapeFile.logTAPFileHdr();
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nEncoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a TAP file...\n\n";
 
     // Get atom file data for header (exec adr, load adr & file sz)
@@ -147,7 +147,7 @@ bool TAPCodec::encode(TapeFile& tapeFile, string& filePath)
         if (ATM_block_iter->data.size() > 0)
             fout.write((char*)&ATM_block_iter->data[0], ATM_block_iter->data.size());
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             ATM_block_iter->logHdr();
 
         ATM_block_iter++;
@@ -157,7 +157,7 @@ bool TAPCodec::encode(TapeFile& tapeFile, string& filePath)
 
     fout.close();
 
-    if (mVerbose) {
+    if (mDebugInfo.verbose) {
         cout << "\n";
         tapeFile.logTAPFileHdr();
         cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a TAP file...\n\n";
@@ -188,7 +188,7 @@ bool TAPCodec::decode(string& tapFileName, TapeFile& tapeFile)
     // Start reading from the beginning of the file
     fin.seekg(0);
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nDecoding TAP file '" << tapFileName << "'...\n\n";
 
     // Read one Atom File from the TAP file
@@ -198,7 +198,7 @@ bool TAPCodec::decode(string& tapFileName, TapeFile& tapeFile)
 
     fin.close();
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nDone decoding TAP file '" << tapFileName << "'...\n\n";
 
     return true;
@@ -222,7 +222,7 @@ bool TAPCodec::decodeMultipleFiles(string& tapFileName, vector<TapeFile> &atomFi
     // Start reading from the beginning of the file
     fin.seekg(0);
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nDecoding TAP file '" << tapFileName << "'...\n\n";
 
     // Read one Atom File from the TAP file
@@ -233,7 +233,7 @@ bool TAPCodec::decodeMultipleFiles(string& tapFileName, vector<TapeFile> &atomFi
 
     fin.close();
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nDone decoding TAP file '" << tapFileName << "'...\n\n";
 
     return true;
@@ -290,7 +290,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
             block.atomHdr.lenLow = expected_block_sz & 0xff;
             strncpy(block.atomHdr.name, atom_filename.c_str(), ATM_HDR_NAM_SZ);
 
-            if (mVerbose)
+            if (mDebugInfo.verbose)
                 block.logHdr();
  
 
@@ -312,7 +312,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
             else
                 expected_block_sz = atom_file_sz - read_bytes;
         }
-        else if (fin.tellg() < file_size && mVerbose) {
+        else if (fin.tellg() < file_size && mDebugInfo.verbose) {
             cout << "Warning the TAP file contains " << file_size - fin.tellg() << " extra bytes at the end of the file!\n";
             done = true;
         }
@@ -320,7 +320,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
             done = true;
     }
 
-    if (mVerbose) {
+    if (mDebugInfo.verbose) {
         cout << "\n";
         tapFile.logTAPFileHdr();
         cout << "\nDone decoding TAP file...\n";

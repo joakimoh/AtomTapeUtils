@@ -115,7 +115,7 @@ target_link_libraries(uef2csw PUBLIC shared gzstream PUBLIC ZLIB::ZLIB)
 
 add_executable ( 
 	abc2dat "abc2dat/abc2dat.cpp" 
-	"shared/AtomBlockTypes.h" "shared/Debug.h"
+	"shared/AtomBlockTypes.h" "shared/Logging.h"
 	"abc2dat/ArgParser.h"  "abc2dat/ArgParser.cpp"
 )
 target_link_libraries(abc2dat PUBLIC shared)
@@ -149,8 +149,6 @@ target_link_libraries(dat2wav PUBLIC shared)
 add_executable(
 	ScanTape "ScanTape/ScanTape.cpp"
 	"ScanTape/ArgParser.h" "ScanTape/ArgParser.cpp"
-	"ScanTape/BlockDecoder.h" "ScanTape/BlockDecoder.cpp"
-	"ScanTape/FileDecoder.h" "ScanTape/FileDecoder.cpp"
 )
 target_link_libraries(ScanTape PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
 

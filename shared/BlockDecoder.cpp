@@ -1,18 +1,16 @@
 #include "BlockDecoder.h"
-#include "../shared/WaveSampleTypes.h"
+#include "WaveSampleTypes.h"
 #include <iostream>
-#include "../shared/Debug.h"
-#include "../shared/Utility.h"
+#include "Logging.h"
+#include "Utility.h"
 #include <cmath>
 
 
 BlockDecoder::BlockDecoder(
-	TapeReader& tapeReader, ArgParser& argParser) :
-	mReader(tapeReader), mArgParser(argParser), mVerbose(argParser.verbose), mTargetMachine(argParser.targetMachine), mTracing(argParser.tracing)
+	TapeReader& tapeReader, Logging logging, TargetMachine targetMachine) :
+	mReader(tapeReader), mDebugInfo(logging), mTargetMachine(targetMachine)
 {
 	nReadBytes = 0; // Not needed but made to make compiler happy
-	mDbgStart = argParser.dbgStart;
-	mDbgEnd = argParser.dbgEnd;
 }
 
 
@@ -32,7 +30,7 @@ bool BlockDecoder::checkBytes(Bytes &bytes, Byte refVal, int n) {
 	for (int i = start_cycle; i < n && !failed; i++) {
 		Byte val = 0;
 		if (!checkByte(refVal, val)) {
-			if (mTracing)
+			if (mDebugInfo.tracing)
 				DEBUG_PRINT(getTime(), ERR, "Byte #%d (%.2x) out of %d bytes differs from reference value 0x%.2x or couldn't be read!\n", i, val, n, refVal);
 			failed = true;
 		}
@@ -136,7 +134,7 @@ bool BlockDecoder::readBlock(
 	if (mTargetMachine == ACORN_ATOM)
 		nPremable = 4;
 	if (!checkBytes(preamble_bytes, 0x2a, nPremable)) {
-		if (mTracing)
+		if (mDebugInfo.tracing)
 			DEBUG_PRINT(getTime(), ERR, "Failed to read header preamble%s\n", "");
 		return false;
 	}
@@ -151,7 +149,7 @@ bool BlockDecoder::readBlock(
 	// Read block name
 	Bytes name_bytes;
 	if (!getBlockName(name_bytes)) {
-		if (mTracing)
+		if (mDebugInfo.tracing)
 			DEBUG_PRINT(getTime(), ERR, "Failed to read header block name%s\n", "");
 		return false;
 	}
@@ -161,7 +159,7 @@ bool BlockDecoder::readBlock(
 	Bytes hdr_bytes;
 	int n_read_bytes; // see how many bytes was successfully read
 	if (!mReader.readBytes(hdr_bytes, readBlock.tapeHdrSz(), n_read_bytes)) {
-		if (mTracing)
+		if (mDebugInfo.tracing)
 			DEBUG_PRINT(getTime(), ERR, "Failed to read header field %s\n", readBlock.tapeField(n_read_bytes).c_str());
 		nReadBytes += n_read_bytes;
 		return false;
@@ -171,12 +169,12 @@ bool BlockDecoder::readBlock(
 
 	// Decode header
 	if (!readBlock.decodeTapeHdr(name_bytes, hdr_bytes)) {
-		if (mTracing)
+		if (mDebugInfo.tracing)
 			DEBUG_PRINT(getTime(), ERR, "Failed to decode header for file '%s'\n", readBlock.blockName().c_str());
 		return false;
 	}
 
-	if (mVerbose)
+	if (mDebugInfo.verbose)
 		readBlock.logHdr();
 
 	if (readBlock.targetMachine <= BBC_MASTER) { // For all but Atom, the header has a separate CRC
@@ -184,7 +182,7 @@ bool BlockDecoder::readBlock(
 		// Get header CRC
 		Word hdr_CRC;
 		if (!getWord(&hdr_CRC)) {
-			if (mTracing)
+			if (mDebugInfo.tracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to read header CRC for file '%s'\n", readBlock.blockName().c_str());
 			return false;
 		}
@@ -192,14 +190,14 @@ bool BlockDecoder::readBlock(
 
 		// Check against calculated header CRC
 		if (hdr_CRC != crc) {
-			if (mTracing) {
+			if (mDebugInfo.tracing) {
 				DEBUG_PRINT(getTime(), ERR, "Calculated header CRC 0x%x differs from received CRC 0x%x for file '%s'\n", crc, hdr_CRC,
 					readBlock.blockName().c_str());
 			}
 			readStatus |= BLOCK_HDR_CRC_ERR;
 		}
 
-		if (mVerbose) {
+		if (mDebugInfo.verbose) {
 			if (hdr_CRC == crc)
 				cout << "A correct header CRC 0x" << hex << hdr_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
 			else
@@ -213,13 +211,13 @@ bool BlockDecoder::readBlock(
 	if (readBlock.targetMachine == ACORN_ATOM) {
 		double waiting_time;
 		if (!mReader.waitForCarrier(100, waiting_time, readBlock.microToneCycles, STARTBIT_FOLLOWS)) {
-			if (mTracing)
+			if (mDebugInfo.tracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to detect micro tone for file '%s'!\n", readBlock.blockName().c_str());
 			return false;
 		}
 
 		double micro_tone_duration = readBlock.microToneCycles / mReader.carrierFreq();
-		if (mVerbose)
+		if (mDebugInfo.verbose)
 			cout << micro_tone_duration << "s (" << dec << readBlock.microToneCycles << " cycles) micro tone detected at " << Utility::encodeTime(getTime()) << "\n";
 	}
 
@@ -228,7 +226,7 @@ bool BlockDecoder::readBlock(
 	int block_len = readBlock.dataSz();
 	if (block_len > 0) {
 		if (!mReader.readBytes(readBlock.data, block_len, n_read_bytes)) {
-			if (mTracing)
+			if (mDebugInfo.tracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to read block data for file '%s'!\n", readBlock.blockName().c_str());
 			nReadBytes += n_read_bytes;
 			return false;
@@ -236,10 +234,10 @@ bool BlockDecoder::readBlock(
 		updateCRC(readBlock, crc, readBlock.data);
 		nReadBytes += n_read_bytes;
 
-		if (mVerbose)
+		if (mDebugInfo.verbose)
 			cout << dec << n_read_bytes << " bytes of expected " << block_len << " of data bytes read at " << Utility::encodeTime(getTime()) << "\n";
 
-		if (DEBUG_LEVEL == DBG && mTracing && readBlock.data.size() > 0)
+		if (DEBUG_LEVEL == DBG && mDebugInfo.tracing && readBlock.data.size() > 0)
 			Utility::logData(readBlock.loadAdr(), &readBlock.data[0], block_len);
 	}
 
@@ -251,7 +249,7 @@ bool BlockDecoder::readBlock(
 	Word data_CRC;
 	if (readBlock.targetMachine <= BBC_MASTER && ending_CRC_exists) {
 		if (!getWord(&data_CRC)) {
-			if (mTracing)
+			if (mDebugInfo.tracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to read block CRC for file '%s'\n", readBlock.blockName().c_str());
 			return false;
 		}
@@ -260,7 +258,7 @@ bool BlockDecoder::readBlock(
 	else {
 		Byte c;
 		if (!mReader.readByte(c)) {
-			if (mTracing)
+			if (mDebugInfo.tracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to read block CRC for file '%s'\n", readBlock.blockName().c_str());
 			return false;
 		}
@@ -270,7 +268,7 @@ bool BlockDecoder::readBlock(
 
 	// Check against calculated CRC
 	if (ending_CRC_exists && data_CRC != crc) {
-		if (mTracing)
+		if (mDebugInfo.tracing)
 			DEBUG_PRINT(getTime(), ERR, "Calculated (data) CRC 0x%x differs from received  CRC 0x%x for file '%s'\n", crc, data_CRC,
 				readBlock.blockName().c_str());
 		if (readBlock.targetMachine <= BBC_MASTER)
@@ -279,7 +277,7 @@ bool BlockDecoder::readBlock(
 			readStatus |= BLOCK_CRC_ERR;
 	}
 
-	if (mVerbose && ending_CRC_exists) {
+	if (mDebugInfo.verbose && ending_CRC_exists) {
 		if (data_CRC == crc)
 			cout << "A correct (data) CRC 0x" << hex << data_CRC << " read at " << Utility::encodeTime(getTime()) << "\n";
 		else
@@ -292,12 +290,12 @@ bool BlockDecoder::readBlock(
 		int trailer_tone_cycles = (int) round(blockTiming.trailerToneDuration * mReader.carrierFreq());
 		if (!mReader.waitForCarrier(trailer_tone_cycles, waiting_time, readBlock.trailerToneCycles, GAP_FOLLOWS)) {
 			// This is not necessarily an error - it could be because the end of the tape as been reached...
-			if (mVerbose)
+			if (mDebugInfo.verbose)
 				cout << "No trailer tone detected at " << Utility::encodeTime(getTime()) << "\n";
 			return false;
 		}
 
-		if (mVerbose) {
+		if (mDebugInfo.verbose) {
 			double duration = (double) readBlock.trailerToneCycles / mReader.carrierFreq();
 			cout << duration << "s (min " << blockTiming.trailerToneDuration << "s) trailer tone detected at " << Utility::encodeTime(getTime()) << "\n";
 		}
@@ -336,7 +334,7 @@ bool BlockDecoder::readBlock(
 	else
 		readBlock.blockGap = 0.0; // No gap between non-last BBC machine blocks
 
-	if (mVerbose)
+	if (mDebugInfo.verbose)
 		cout << readBlock.blockGap << " s gap after block, starting at " << Utility::encodeTime(getTime()) << "\n";
 
 	return true;

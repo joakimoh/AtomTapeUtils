@@ -10,6 +10,7 @@
 
 #include "../shared/CommonTypes.h"
 #include "../shared/UEFCodec.h"
+#include "../shared/Logging.h"
 #include "ArgParser.h"
 
 using namespace std;
@@ -30,7 +31,8 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    UEFCodec UEF_codec = UEFCodec(true, UNKNOWN_TARGET);
+    Logging debug_info;
+    UEFCodec UEF_codec = UEFCodec(debug_info, UNKNOWN_TARGET);
 
     ofstream fout;
     if (arg_parser.dstFileName != "") {

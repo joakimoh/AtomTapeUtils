@@ -3,6 +3,7 @@
 
 #include "CommonTypes.h"
 #include "FileBlock.h"
+#include "Logging.h"
 
 
 enum AfterCarrierType { GAP_FOLLOWS, STARTBIT_FOLLOWS };
@@ -11,14 +12,9 @@ class TapeReader {
 
 protected:
 
-	bool mVerbose = false;
-
-	bool mTracing = false;
+	Logging mDebugInfo;
 
 	TargetMachine mTargetMachine;
-
-	double mDbgStart = 0.0;
-	double mDbgEnd = 0.0;
 
 	Word mCRC = 0;
 
@@ -50,8 +46,8 @@ public:
 	virtual int getPhaseShift() = 0;
 
 	// Constructor
-	TapeReader(TargetMachine targetMachine, bool verbose, bool tracing, double dbgStart, double dbgEnd):
-		mTargetMachine(targetMachine), mVerbose(verbose), mTracing(tracing), mDbgStart(dbgStart), mDbgEnd(dbgEnd) {}
+	TapeReader(TargetMachine targetMachine, Logging logging):
+		mTargetMachine(targetMachine), mDebugInfo(logging) {}
 
 	// Get tape time
 	virtual double getTime() = 0;

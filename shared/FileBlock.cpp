@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdint>
-#include "Debug.h"
+#include "Logging.h"
 #include <filesystem>
 #include "WaveSampleTypes.h"
 

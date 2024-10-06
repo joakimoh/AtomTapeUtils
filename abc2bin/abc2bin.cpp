@@ -11,7 +11,7 @@
 #include "ArgParser.h"
 #include "../shared/AtomBasicCodec.h"
 #include "../shared/TAPCodec.h"
-#include "../shared/Debug.h"
+#include "../shared/Logging.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -32,10 +32,10 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.targetMachine);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
     TapeFile tape_file(arg_parser.targetMachine);
     if (!ABC_codec.decode(arg_parser.srcFileName, tape_file)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());

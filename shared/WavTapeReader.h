@@ -6,6 +6,7 @@
 #include "CycleDecoder.h"
 #include "FileBlock.h"
 #include "BitTiming.h"
+#include "Logging.h"
 
 
 class WavTapeReader: public TapeReader {
@@ -39,8 +40,7 @@ private:
 public:
 
 	WavTapeReader(
-		CycleDecoder& cycleDecoder, double baseFreq, TapeProperties tapeTiming, TargetMachine targetMachine, bool verbose, bool tracing,
-		double dbgStart, double dbgEnd
+		CycleDecoder& cycleDecoder, double baseFreq, TapeProperties tapeTiming, TargetMachine targetMachine, Logging logging
 	);
 
 

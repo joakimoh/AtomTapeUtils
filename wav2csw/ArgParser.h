@@ -7,7 +7,8 @@
 #include <map>
 #include <vector>
 #include "../shared/TapeProperties.h"
-#include "FileBlock.h"
+#include "../shared/FileBlock.h"
+#include "../shared/Logging.h"
 
 
 using namespace std;
@@ -21,7 +22,7 @@ public:
 	string srcFileName;
 	TapeProperties tapeTiming;
 	int mSampleFreq = 44100;
-	bool verbose = false;
+	Logging logging;
 
 
 

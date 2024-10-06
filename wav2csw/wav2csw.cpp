@@ -15,7 +15,7 @@
 #include "ArgParser.h"
 #include "../shared/WavEncoder.h"
 #include "../shared/CSWCodec.h"
-#include "../shared/Debug.h"
+#include "../shared/Logging.h"
 #include "../shared/Utility.h"
 #include "../shared/PcmFile.h"
 
@@ -39,24 +39,24 @@ int main(int argc, const char* argv[])
         return -1;
 
     TapeProperties dummy_tape_properties;
-    CSWCodec CSW_codec(arg_parser.mSampleFreq, dummy_tape_properties, arg_parser.verbose, TargetMachine::UNKNOWN_TARGET);
+    CSWCodec CSW_codec(arg_parser.mSampleFreq, dummy_tape_properties, arg_parser.logging, TargetMachine::UNKNOWN_TARGET);
 
     // Read samples
     Samples samples;
-    if (!PcmFile::readSamples(arg_parser.srcFileName, samples, arg_parser.mSampleFreq, arg_parser.verbose)) {
+    if (!PcmFile::readSamples(arg_parser.srcFileName, samples, arg_parser.mSampleFreq, arg_parser.logging)) {
         cout << "Couldn't open PCM Wave file '" << arg_parser.srcFileName << "'\n";
         return -1;
     }
 
     // Create Level Decoder used to filter wave form into a well-defined level stream
-    LevelDecoder level_decoder(arg_parser.mSampleFreq, samples, 0.0, 0.0, 0.0, false);
-
+    LevelDecoder level_decoder(arg_parser.mSampleFreq, samples, 0.0, 0.1, 0.0, arg_parser.logging);
+ 
     // Create Cycle Decoder used to produce a cycle stream from the level stream
-    WavCycleDecoder cycle_decoder(arg_parser.mSampleFreq, level_decoder, 0.1, false, false, 0.0, 0.0);
+    WavCycleDecoder cycle_decoder(arg_parser.mSampleFreq, level_decoder, 0.1, arg_parser.logging);
     
     // Write samples to buffer
     while (cycle_decoder.advanceHalfCycle()) {
-        CycleDecoder::HalfCycleInfo half_cycle_info = cycle_decoder.getHalfCycle();
+        HalfCycleInfo half_cycle_info = cycle_decoder.getHalfCycle();
         CSW_codec.writeHalfCycle(half_cycle_info.duration);
     }
 

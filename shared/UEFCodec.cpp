@@ -7,7 +7,7 @@
 #include "UEFCodec.h"
 #include "CommonTypes.h"
 #include "AtomBlockTypes.h"
-#include "Debug.h"
+#include "Logging.h"
 #include "Utility.h"
 #include "AtomBlockTypes.h"
 #include "BitTiming.h"
@@ -84,8 +84,8 @@ bool UEFCodec::encodeFloat(double val, Byte encoded_val[4])
     return true;
 }
 
-UEFCodec::UEFCodec(bool verbose, TargetMachine mTargetMachine) :
-    mVerbose(verbose), mTargetMachine(mTargetMachine)
+UEFCodec::UEFCodec(Logging logging, TargetMachine mTargetMachine) :
+    mDebugInfo(logging), mTargetMachine(mTargetMachine)
 {
     if (mTargetMachine <= BBC_MASTER)
         mTapeTiming = bbmTiming;
@@ -94,7 +94,7 @@ UEFCodec::UEFCodec(bool verbose, TargetMachine mTargetMachine) :
     else // Have some default timing initially even if a machine hasn't been selected
         mTapeTiming = defaultTiming;
   
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         mTapeTiming.log();
 
     if (mTargetMachine != UNKNOWN_TARGET) {
@@ -108,8 +108,8 @@ UEFCodec::UEFCodec(bool verbose, TargetMachine mTargetMachine) :
     mBitTiming = bit_timing;
 }
 
-UEFCodec::UEFCodec(bool useOriginalTiming, bool verbose, TargetMachine mTargetMachine):
-    mUseOriginalTiming(useOriginalTiming),mVerbose(verbose), mTargetMachine(mTargetMachine)
+UEFCodec::UEFCodec(bool useOriginalTiming, Logging logging, TargetMachine mTargetMachine):
+    mUseOriginalTiming(useOriginalTiming),mDebugInfo(logging), mTargetMachine(mTargetMachine)
 {
     if (mTargetMachine <= BBC_MASTER)
         mTapeTiming = bbmTiming;
@@ -118,7 +118,7 @@ UEFCodec::UEFCodec(bool useOriginalTiming, bool verbose, TargetMachine mTargetMa
     else// Have some default timing initially even if a machine hasn't been selected
         mTapeTiming = defaultTiming;
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         mTapeTiming.log();
 
     if (mTargetMachine != UNKNOWN_TARGET) {
@@ -162,7 +162,7 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
     // Write data-dependent part of UEF file
     //
 
-    if (mVerbose) {
+    if (mDebugInfo.verbose) {
         *mFout << "\nEncoding data-dependent part of BBC Micro Tape File...\n";
     }
 
@@ -482,7 +482,7 @@ bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
 
     string tapeFileName;
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "Encoding program '" << tapeFileName << "' as an UEF file...\n\n";
 
 
@@ -566,7 +566,7 @@ bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
         return false;
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "\nDone encoding program '" << tapeFileName << "' as an UEF file...\n\n";
 
     return true;
@@ -668,7 +668,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
             chunkInfo.chunkId = chunk_id;
             chunkInfo.chunkSz = chunk_sz;
 
-            if (mVerbose)
+            if (mDebugInfo.verbose)
                 *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
             switch (chunk_id) {
@@ -685,7 +685,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                     *mFout << "Invalid target machine " << (int)chunk.targetMachine << "\n";
                 }
                 mTargetMachine = (TargetMachine)chunk.targetMachine;
-                if (mVerbose)
+                if (mDebugInfo.verbose)
                     *mFout << "Target machine chunk 0005 of size " << chunk_sz << " and specifying target " << _TARGET_MACHINE(mTargetMachine) << ".\n";
 
                 chunkInfo.chunkInfoType = ChunkInfoType::IGNORE;
@@ -706,7 +706,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 if (!decodeFloat(gap_chunk.gap, gap)) {
                     *mFout << "Failed to decode IEEE 754 gap\n";
                 }
-                if (mVerbose)
+                if (mDebugInfo.verbose)
                     *mFout << "Floating-point gap chunk 0116 of size " << chunk_sz << " and specifying a gap of " << gap << " s.\n";
 
                 chunkInfo.chunkInfoType = ChunkInfoType::GAP;
@@ -728,7 +728,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 if (!decodeFloat(chunk.frequency, mBaseFrequency)) {
                     *mFout << "Failed to decode IEEE 754 gap\n";
                 }
-                if (mVerbose)
+                if (mDebugInfo.verbose)
                     *mFout << "Base frequency chunk 0113 of size " << chunk_sz << " and specifying a frequency of " << mBaseFrequency << ".Hz\n";
 
                 // Update bit timing as impacted by the change of the base frequency
@@ -752,7 +752,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 mBaudRate = (baudrate_chunk.baudRate[0] + (baudrate_chunk.baudRate[1] << 8));
 
                 
-                if (mVerbose)
+                if (mDebugInfo.verbose)
                     *mFout << "Baudrate chunk 0117 of size " << chunk_sz << " and baudrate of " << mBaudRate << ".\n";
 
                 // Update bit timing as impacted by the change of the Baudrate
@@ -774,7 +774,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 phase_chunk.chunkHdr = chunk_hdr;
                 if (!readBytes(phase_chunk.phase_shift, sizeof(phase_chunk.phase_shift))) return false;
                 mPhase = (phase_chunk.phase_shift[0] + (phase_chunk.phase_shift[1] << 8));
-                if (mVerbose)
+                if (mDebugInfo.verbose)
                     *mFout << "Phase change chunk 0115 of size " << chunk_sz << " and specifying a 1/2 cycle of " << mPhase << " degrees.\n";
 
                 chunkInfo.chunkInfoType = ChunkInfoType::PHASE;
@@ -793,7 +793,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 gap_chunk.chunkHdr = chunk_hdr;
                 if (!readBytes(gap_chunk.gap, sizeof(gap_chunk.gap))) return false;
                 double gap = double(gap_chunk.gap[0] + (gap_chunk.gap[1] << 8)) / (mBaseFrequency * 2);
-                if (mVerbose)
+                if (mDebugInfo.verbose)
                     *mFout << "Integer gap chunk 0112 of size " << chunk_sz << " and specifying a duration of " << gap << " s.\n";
 
                 chunkInfo.chunkInfoType = ChunkInfoType::GAP;
@@ -814,7 +814,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 tone_chunk.chunkHdr = chunk_hdr;
                 if (!readBytes(tone_chunk.duration, sizeof(tone_chunk.duration))) return false;
                 double tone_duration = double(tone_chunk.duration[0] + (tone_chunk.duration[1] << 8)) / (mBaseFrequency * 2);
-                if (mVerbose)
+                if (mDebugInfo.verbose)
                     *mFout << "High tone chunk 0110 of size " << chunk_sz << " and specifying a duration of " << tone_duration << " s.\n";
 
                 chunkInfo.chunkInfoType = ChunkInfoType::CARRIER;
@@ -839,7 +839,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 int following_cycles = Utility::bytes2uint((Byte*)&tone_chunk.duration[2], 2, true);
                 double following_duration = following_cycles / (2 * mBaseFrequency);
 
-                if (mVerbose)
+                if (mDebugInfo.verbose)
                     *mFout << "Carrier chunk with dummy byte 0111 of size " << chunk_sz << " and specifying " << first_cycles <<
                     " cycles of carrier followed by a dummy byte 0xaa, and ending with " << following_duration << "s of carrier.\n";
 
@@ -881,7 +881,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 }
                 string cycle_string = decode_security_cycles(hdr, cycles);     
 
-                if (mVerbose) {
+                if (mDebugInfo.verbose) {
                     *mFout << "Security cycles chunk 0114 of size " << chunk_sz << " specifying " << n_cycles;
                     *mFout << " with format " << hdr.firstPulse << hdr.lastPulse << " and cycle bytes " << cycle_bytes << ".\n";
                 }
@@ -902,7 +902,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                         return false;
                     origin += (char) c;
                 }
-                if (mVerbose)
+                if (mDebugInfo.verbose)
                     *mFout << "Origin chunk 000 of size " << chunk_sz << " and text '" << origin << "'.\n";
 
                 chunkInfo.chunkInfoType = ChunkInfoType::IGNORE;
@@ -927,7 +927,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
 
                 mTime += chunkInfo.data1_fp;
 
-                if (mVerbose) {
+                if (mDebugInfo.verbose) {
                     *mFout << "Simple data chunk 0100 of size " << chunk_sz << ":";
                     BytesIter di = chunkInfo.data.begin();
                     Utility::logData(mFout, 0x0, di, (int) chunkInfo.data.size());
@@ -959,7 +959,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 chunkInfo.dataEncoding.nStopBits = abs(n_stop_bits);
                 chunkInfo.dataEncoding.extraShortWave = extra_short_wave;
 
-                if (mVerbose) {
+                if (mDebugInfo.verbose) {
                     *mFout << "Complex data chunk 0104 of size " << chunk_sz << " and with encoding " <<
                         dec << (int) hdr.bitsPerPacket  << hdr.parity << n_stop_bits << ":";
                     BytesIter di = chunkInfo.data.begin();
@@ -982,7 +982,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                     chunkInfo.data.push_back(byte);
                 }
 
-                if (mVerbose) {
+                if (mDebugInfo.verbose) {
                     *mFout << "Unsupported chunk " << chunkInfo.chunkId << " of size " << chunk_sz << " and with data:\n";
                     BytesIter di = chunkInfo.data.begin();
                     Utility::logData(mFout, 0x0, di, (int)chunkInfo.data.size());
@@ -1160,7 +1160,7 @@ bool UEFCodec::writeUEFHeader(ogzstream&fout, Byte majorVersion, Byte minorVersi
 
  bool UEFCodec::writeBaseFrequencyChunk(ogzstream&fout)
 {
-     if (mVerbose)
+     if (mDebugInfo.verbose)
          *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
      BaseFreqChunk chunk;
@@ -1170,7 +1170,7 @@ bool UEFCodec::writeUEFHeader(ogzstream&fout, Byte majorVersion, Byte minorVersi
      }
      fout.write((char*) &chunk, sizeof(chunk));
 
-     if (mVerbose)
+     if (mDebugInfo.verbose)
          *mFout << "Base frequency chunk 0113 specifying " << mBaseFrequency << " Hz written.\n";
 
      return true;
@@ -1178,14 +1178,14 @@ bool UEFCodec::writeUEFHeader(ogzstream&fout, Byte majorVersion, Byte minorVersi
 
  bool UEFCodec::writeTargetChunk(ogzstream& fout)
  {
-     if (mVerbose)
+     if (mDebugInfo.verbose)
          *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
      TargetMachineChunk chunk;
      chunk.targetMachine = mTargetMachine;
      fout.write((char*)&chunk, sizeof(chunk));
 
-     if (mVerbose)
+     if (mDebugInfo.verbose)
          *mFout << "Target machine chunk 0005 specifying a target " << _TARGET_MACHINE(mTargetMachine) << " written.\n";
 
      return true;
@@ -1194,7 +1194,7 @@ bool UEFCodec::writeUEFHeader(ogzstream&fout, Byte majorVersion, Byte minorVersi
  // Write a double-precision gap 
 bool UEFCodec::writeFloatPrecGapChunk(ogzstream&fout, double duration)
 {
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
      FPGapChunk chunk;
@@ -1205,7 +1205,7 @@ bool UEFCodec::writeFloatPrecGapChunk(ogzstream&fout, double duration)
     }
     fout.write((char*)&chunk, sizeof(chunk));
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "Gap 0116 chunk specifying a gap of " << duration << "s written.\n";
 
     mTime += duration;
@@ -1217,7 +1217,7 @@ bool UEFCodec::writeFloatPrecGapChunk(ogzstream&fout, double duration)
 // Write an integer-precision gap
 bool UEFCodec::writeIntPrecGapChunk(ogzstream& fout, double duration)
 {
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
     IntegerGapChunk chunk;
@@ -1226,7 +1226,7 @@ bool UEFCodec::writeIntPrecGapChunk(ogzstream& fout, double duration)
     chunk.gap[1] = (gap >> 8) & 0xff;
     fout.write((char*) &chunk, sizeof(chunk));
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "Gap 0112 chunk specifying a gap of " << duration << "s written.\n";
 
     mTime += duration;
@@ -1237,7 +1237,7 @@ bool UEFCodec::writeIntPrecGapChunk(ogzstream& fout, double duration)
 // Write security cycles
 bool UEFCodec::writeSecurityCyclesChunk(ogzstream& fout, int nCycles, Byte firstPulse, Byte lastPulse, Bytes cycles)
 {
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
     SecurityCyclesChunkHdr hdr;
@@ -1270,7 +1270,7 @@ bool UEFCodec::writeSecurityCyclesChunk(ogzstream& fout, int nCycles, Byte first
     // Decode cycles (for debugging message only)
     string cycle_string = decode_security_cycles(hdr, cycles);
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "Security cycles chunk 0114 of size " << chunk_sz <<
         " specifying " << nCycles << " security cycles with format '" << (char) hdr.firstPulse << (char) hdr.lastPulse <<
         "' and cycle bytes '" << cycle_bytes << "' written\n";
@@ -1333,7 +1333,7 @@ double UEFCodec::security_cycles_length(string cycles)
 // write baudrate 
 bool UEFCodec::writeBaudrateChunk(ogzstream&fout)
 {
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
     BaudRateChunk chunk;
@@ -1341,7 +1341,7 @@ bool UEFCodec::writeBaudrateChunk(ogzstream&fout)
     chunk.baudRate[1] = mBaudRate >> 8;
     fout.write((char*)&chunk, sizeof(chunk));
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "Baudrate chunk 0117 specifying a baud rate of " << mBaudRate << " written.\n";
 
     return true;
@@ -1350,7 +1350,7 @@ bool UEFCodec::writeBaudrateChunk(ogzstream&fout)
 // Write phase_shift chunk
 bool UEFCodec::writePhaseChunk(ogzstream &fout)
 {
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
     PhaseChunk chunk;
@@ -1358,14 +1358,14 @@ bool UEFCodec::writePhaseChunk(ogzstream &fout)
     chunk.phase_shift[1] = mPhase >> 8;
     fout.write((char*)&chunk, sizeof(chunk));
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "Phase chunk 0115 specifying a phase_shift of " << mPhase << " degrees written.\n";
     return true;
 }
 
 bool UEFCodec::writeCarrierChunk(ogzstream &fout, double duration)
 {
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
     // Write a high tone
@@ -1375,7 +1375,7 @@ bool UEFCodec::writeCarrierChunk(ogzstream &fout, double duration)
     chunk.duration[1] = cycles / 256;
     fout.write((char*)&chunk, sizeof(chunk));
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "Carrier chunk 0110 specifying a " << duration << "s tone written.\n";
  
     mTime += duration;
@@ -1385,7 +1385,7 @@ bool UEFCodec::writeCarrierChunk(ogzstream &fout, double duration)
 
 bool UEFCodec::writeCarrierChunkwithDummyByte(ogzstream& fout, int firstCycles, int followingCycles)
 {
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
     // Write a high tone
@@ -1397,7 +1397,7 @@ bool UEFCodec::writeCarrierChunkwithDummyByte(ogzstream& fout, int firstCycles, 
     chunk.duration[3] = followingCycles / 256;
     fout.write((char*)&chunk, sizeof(chunk));
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "Carrier chunk 0111 specifying " << firstCycles << " cycles of a carrier followed by a dummy byte 0xaa and ending with " <<
         duration << "s of carrier written.\n";
 
@@ -1408,7 +1408,7 @@ bool UEFCodec::writeCarrierChunkwithDummyByte(ogzstream& fout, int firstCycles, 
 
 bool UEFCodec::writeComplexDataChunk(ogzstream &fout, Byte bitsPerPacket, Byte parity, Byte stopBitInfo, Bytes data, Word & CRC)
 {
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
     ComplexDataBlockChunkHdr chunk;
@@ -1431,7 +1431,7 @@ bool UEFCodec::writeComplexDataChunk(ogzstream &fout, Byte bitsPerPacket, Byte p
         fout.write((char*)&b, sizeof(b));
     }
 
-    if (mVerbose) {
+    if (mDebugInfo.verbose) {
         *mFout << "Data chunk 0104 of size " << dec << block_size << " and encoding " << 
             (int)bitsPerPacket << parity << (int) stopBitInfo << " written:";
         BytesIter di = data.begin();
@@ -1445,7 +1445,7 @@ bool UEFCodec::writeComplexDataChunk(ogzstream &fout, Byte bitsPerPacket, Byte p
 
 bool UEFCodec::writeSimpleDataChunk(ogzstream &fout, Bytes data, Word &CRC)
 {
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
     SimpleDataBlockChunkHdr chunk;
@@ -1463,7 +1463,7 @@ bool UEFCodec::writeSimpleDataChunk(ogzstream &fout, Bytes data, Word &CRC)
         fout.write((char*)&b, sizeof(b));
     }
 
-    if (mVerbose) {
+    if (mDebugInfo.verbose) {
         *mFout << "Data chunk 0100 of size " << dec << block_size << " written:";
         BytesIter di = data.begin();
         Utility::logData(mFout, 0x0, di, (int) data.size());
@@ -1477,7 +1477,7 @@ bool UEFCodec::writeSimpleDataChunk(ogzstream &fout, Bytes data, Word &CRC)
 // Write origin chunk
 bool UEFCodec::writeOriginChunk(ogzstream &fout, string origin)
 {
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
     OriginChunk chunk_hdr;
@@ -1492,7 +1492,7 @@ bool UEFCodec::writeOriginChunk(ogzstream &fout, string origin)
     for(int i = 0; i < len; i++ )
         fout.write((char*)&origin[i], 1);
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         *mFout << "Origin chunk 0000 with text '" << origin << "' written.\n";
 
     return true;

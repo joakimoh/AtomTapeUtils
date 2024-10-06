@@ -283,7 +283,7 @@ private:
 
 	bool mUseOriginalTiming = false;
 
-	bool mVerbose = false;
+	Logging mDebugInfo;
 
 	TargetMachine mTargetMachine = ACORN_ATOM;
 
@@ -336,9 +336,9 @@ public:
 
 	bool processChunk(ChunkInfo& chunkInfo);
 
-	UEFCodec(bool verbose, TargetMachine mTargetMachine);
+	UEFCodec(Logging logging, TargetMachine mTargetMachine);
 
-	UEFCodec(bool useOriginalTiming, bool verbose, TargetMachine mTargetMachine);
+	UEFCodec(bool useOriginalTiming, Logging logging, TargetMachine mTargetMachine);
 
 	bool setTapeTiming(TapeProperties tapeTiming);
 

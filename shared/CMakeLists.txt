@@ -2,10 +2,12 @@ add_library(
 	shared
 	"AtomBasicCodec.cpp"
 	"BitTiming.cpp"
+	"BlockDecoder.cpp"
 	"Compress.cpp"
 	"CSWCodec.cpp"
 	"CSWCycleDecoder.cpp"
 	"CycleDecoder.cpp"
+	"FileDecoder.cpp"
 	"LevelDecoder.cpp"
 	"UEFTapeReader.cpp"
 	"WavCycleDecoder.cpp"

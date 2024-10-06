@@ -2,7 +2,7 @@
 #include "LevelDecoder.h"
 #include "WaveSampleTypes.h"
 #include <iostream>
-#include "Debug.h"
+#include "Logging.h"
 #include <cmath>
 
 using namespace std;
@@ -46,8 +46,8 @@ bool LevelDecoder::regretCheckpoint()
 }
 
 LevelDecoder::LevelDecoder(
-	int sampleFreq, Samples &samples, double startTime, double freqThreshold, double levelThreshold, bool tracing
-): mSamples(samples), mTracing(tracing) { // A reference can only be initialised this way!
+	int sampleFreq, Samples &samples, double startTime, double freqThreshold, double levelThreshold, Logging logging
+): mSamples(samples), mDebugInfo(logging) { // A reference can only be initialised this way!
 
 	mHighThreshold = (int) round(levelThreshold * SAMPLE_HIGH_MAX);
 	mLowThreshold = (int) round(levelThreshold * SAMPLE_LOW_MIN);
@@ -77,11 +77,13 @@ bool LevelDecoder::getNextSample(Level& level, int& sampleNo) {
 	sampleNo = mLevelInfo.sampleIndex;
 	Sample sample = mSamples[mLevelInfo.sampleIndex++];
 
-	if ((mLevelInfo.state == NoCarrierLevel || mLevelInfo.state == LowLevel) && sample > mHighThreshold) {
+	if ((mLevelInfo.state == NoCarrierLevel || mLevelInfo.state == LowLevel) && sample >= mHighThreshold) {
+		// >= in case mHighThreshold = mLowThreshold = 0 to secure that HIGH includes sampled value '0'
 		mLevelInfo.state = HighLevel;
 		mLevelInfo.nSamplesLow = 0;
 	}
 	else if ((mLevelInfo.state == NoCarrierLevel || mLevelInfo.state == HighLevel) && sample < mLowThreshold) {
+		// < in case mHighThreshold = mLowThreshold = 0 to secure that LOW excludes sampled value '0'
 		mLevelInfo.state = LowLevel;
 		mLevelInfo.nSamplesHigh = 0;
 	}

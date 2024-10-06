@@ -4,11 +4,11 @@
 #include <fstream>
 #include <filesystem>
 #include <cstdint>
-#include "../shared/Debug.h"
-#include "../shared/AtomBasicCodec.h"
-#include "../shared/UEFCodec.h"
-#include "../shared/TAPCodec.h"
-#include "../shared/Utility.h"
+#include "Logging.h"
+#include "AtomBasicCodec.h"
+#include "UEFCodec.h"
+#include "TAPCodec.h"
+#include "Utility.h"
 
 namespace fs = std::filesystem;
 
@@ -19,12 +19,9 @@ using namespace std;
 
 FileDecoder::FileDecoder(
     BlockDecoder& blockDecoder,
-    ArgParser& argParser, bool catOnly
-) : mArgParser(argParser), mBlockDecoder(blockDecoder), mCat(catOnly)
+    Logging logging, TargetMachine targetMachine, TapeProperties tapeTiming, bool catOnly
+) : mDebugInfo(logging), mBlockDecoder(blockDecoder), mCat(catOnly), mTarget(targetMachine), mTapeTiming(tapeTiming)
 {
-    mTracing = argParser.tracing;
-    mVerbose = argParser.verbose;
-    mTarget = argParser.targetMachine;
 }
 
 
@@ -73,7 +70,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
     double last_valid_block_start_time = -1;
     double last_valid_block_end_time = -1;
 
-    BlockTiming blockTiming = mArgParser.tapeTiming.minBlockTiming;
+    BlockTiming blockTiming = mTapeTiming.minBlockTiming;
 
     // Read all blocks belonging to the same file
     unsigned n_blocks = 0;
@@ -133,7 +130,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
         }
 
         if (!complete_header) {
-            if (mVerbose)
+            if (mDebugInfo.verbose)
                 printf(
                     "*** ERROR *** Incomplete Tape Header Block '%s' - only read %d out of %d bytes!\n", fn.c_str(),
                     mBlockDecoder.nReadBytes, expected_bytes_to_read);
@@ -142,7 +139,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
         // End if the read block is part of another Tape File => rollback to tape position
         // prior to the reading of the block and exit.
         if (fn != "???" && !first_block && fn != file_name) {
-            if (mVerbose)
+            if (mDebugInfo.verbose)
                 printf("*** ERROR *** Block from another file '%s' encountered while reading file '%s'!\n", fn.c_str(), file_name.c_str());
             mBlockDecoder.rollback();
             break;
@@ -172,7 +169,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
             // Recover data of any incomplete data block (by replacing it with zeros)
             if (mBlockDecoder.nReadBytes < block_sz) {
 
-                if (mVerbose && file_selected) {
+                if (mDebugInfo.verbose && file_selected) {
 
                     string block_no_s = "#" + to_string(block_no);
                     string block_type_s = _BLOCK_ORDER(read_block.blockType);
@@ -213,7 +210,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
             n_blocks++;
 
             if (block_no != expected_block_no) {
-                if (mVerbose)
+                if (mDebugInfo.verbose)
                     cout << "*** ERROR *** Read block no " << block_no << " different than the expected " << expected_block_no << "!\n";
                 missing_block = true;
             }
@@ -226,7 +223,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
                 if (read_block.firstBlock()) {
                     first_block_found = true;
                     incomplete_blocks = false;
-                    if (block_no != 0 && mVerbose && file_selected)
+                    if (block_no != 0 && mDebugInfo.verbose && file_selected)
                         printf("First block of %s with non-zero block no %d and start address %.4x!\n",
                             read_block.blockName().c_str(), block_no, load_adr);
                 }
@@ -237,7 +234,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
                 tape_start_time = block_start_time;
             }
             else {
-                if (load_adr_LB != next_load_adr && mVerbose && file_selected) {
+                if (load_adr_LB != next_load_adr && mDebugInfo.verbose && file_selected) {
                     printf("*** ERROR *** Load address of block #%d (0x%.4x) not a continuation of previous block (0x%.4x) as expected!\n",
                         block_no, load_adr_LB, next_load_adr
                     );
@@ -260,13 +257,13 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
 
             if (incomplete_block || corrupted_block) {
                 logFile << "*";
-                if (mArgParser.verbose)
+                if (mDebugInfo.verbose)
                     cout << "*";
             }
             if (file_selected && !mCat)
                 read_block.logHdr(&logFile);
 
-            if (mArgParser.verbose && file_selected)
+            if (mDebugInfo.verbose && file_selected)
                 read_block.logHdr();
 
 
@@ -317,7 +314,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
 
         tapFile.validTiming = true;
 
-        tapFile.baudRate = mArgParser.tapeTiming.baudRate;
+        tapFile.baudRate = mTapeTiming.baudRate;
 
         if (file_selected && !mCat) {
             logFile << "\n";
@@ -325,7 +322,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
             logFile << "\n\n";
         }
 
-        if (mArgParser.verbose && file_selected) {
+        if (mDebugInfo.verbose && file_selected) {
             cout << "\n";
             tapFile.logTAPFileHdr();
             cout << "\n\n";

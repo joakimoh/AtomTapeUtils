@@ -7,7 +7,7 @@
 #include "CSWCodec.h"
 #include "CommonTypes.h"
 #include "AtomBlockTypes.h"
-#include "Debug.h"
+#include "Logging.h"
 #include "Utility.h"
 #include "AtomBlockTypes.h"
 #include "WaveSampleTypes.h"
@@ -20,8 +20,8 @@
 using namespace std;
 
 
-CSWCodec::CSWCodec(int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine) : 
-    mBitTiming(sampleFreq, tapeTiming.baseFreq, tapeTiming.baudRate, targetMachine), mVerbose(verbose), mTargetMachine(targetMachine)
+CSWCodec::CSWCodec(int sampleFreq, TapeProperties tapeTiming, Logging logging, TargetMachine targetMachine) : 
+    mBitTiming(sampleFreq, tapeTiming.baseFreq, tapeTiming.baudRate, targetMachine), mDebugInfo(logging), mTargetMachine(targetMachine)
 {
     if (!targetMachine)
         mTapeTiming = atomTiming;
@@ -31,8 +31,8 @@ CSWCodec::CSWCodec(int sampleFreq, TapeProperties tapeTiming, bool verbose, Targ
         mTapeTiming = defaultTiming;
 }
 
-CSWCodec::CSWCodec(bool useOriginalTiming, int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine):
-    mBitTiming(sampleFreq, tapeTiming.baseFreq, tapeTiming.baudRate, targetMachine), mVerbose(verbose), mTargetMachine(targetMachine)
+CSWCodec::CSWCodec(bool useOriginalTiming, int sampleFreq, TapeProperties tapeTiming, Logging logging, TargetMachine targetMachine):
+    mBitTiming(sampleFreq, tapeTiming.baseFreq, tapeTiming.baudRate, targetMachine), mDebugInfo(logging), mTargetMachine(targetMachine)
 {
     mUseOriginalTiming = useOriginalTiming;
     if (!targetMachine)
@@ -73,7 +73,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
         return false;
 
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nEncode program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
 
 
@@ -90,7 +90,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
         printf("Failed to encode a gap of %f s\n", block_gap);
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << first_block_gap << " s GAP\n";
 
 
@@ -116,7 +116,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
             printf("Failed to write (postlude) lead tone of duration %f s\n", lead_tone_duration);
         }
 
-        if (mVerbose) {
+        if (mDebugInfo.verbose) {
             cout << dec;
             if (block_no > 0)
                 cout << "BLOCK " << block_no << ": LEAD TONE " << lead_tone_duration << " s : ";
@@ -170,7 +170,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
         }
 
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << "HDR+CRC : ";
 
 
@@ -212,7 +212,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
         }
 
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << "Data+CRC : ";
 
 
@@ -233,7 +233,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
                 return false;
             }
 
-            if (mVerbose)
+            if (mDebugInfo.verbose)
                 cout << trailer_tone_duration << " s TRAILER TONE : ";
 
             // Write the gap
@@ -246,12 +246,12 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
                 return false;
             }
 
-            if (mVerbose)
+            if (mDebugInfo.verbose)
                 cout << block_gap << " s GAP";
 
         }
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << "\n";
 
         file_block_iter++;
@@ -261,7 +261,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
 
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << mPulses.size() << " pulses created from Tape File!\n";
 
     if (mPulses.size() == 0) {
@@ -278,7 +278,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
     }
  
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
 
     return true;
@@ -343,7 +343,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
         return false;
 
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nEncode program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
 
 
@@ -360,7 +360,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
         printf("Failed to encode a gap of %f s\n", block_gap);
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << first_block_gap << " s GAP\n";
 
 
@@ -375,7 +375,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
             printf("Failed to write lead tone of duration %f s\n", lead_tone_duration);
         }
  
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << "BLOCK " << block_no << ": LEAD TONE " << lead_tone_duration << " s : ";
 
         // Change lead tone duration for remaining blocks
@@ -434,7 +434,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
         while (hdr_iter < header_data.end())
             writeByte(*hdr_iter++, atomDefaultDataEncoding);
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << "HDR : ";
 
         // --------------------------------------------------------------------------
@@ -449,7 +449,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
             printf("Failed to write micro lead tone of duration %f s\n", data_block_micro_lead_tone_duration);
         }
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << data_block_micro_lead_tone_duration << " s micro tone : ";
 
 
@@ -482,7 +482,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
         }
 
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << "Data+CRC : ";
 
         // --------------------------------------------------------------------------
@@ -503,7 +503,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
             printf("Failed to encode a gap of %f s\n", block_gap);
         }
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << block_gap << " s GAP\n";
 
         ATM_block_iter++;
@@ -550,7 +550,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
     // Clear samples to secure that future encodings start without any initial samples
     mPulses.clear();
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
 
     return true;
@@ -636,7 +636,7 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, Level& firstHalfCycleL
     // Get size of pulse data
     streamsize data_sz = file_size - fin.tellg();
 
-    if (mVerbose) {
+    if (mDebugInfo.verbose) {
         cout << "CSW v" << (int)common_hdr.majorVersion << "." << (int)common_hdr.minorVersion << " format with settings:\n";
         cout << "compressed: " << (compressed ? "Z-RLE" : "RLE") << "\n";
         cout << "sample frequency: " << (int)mBitTiming.fS << "\n";
@@ -667,7 +667,7 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, Level& firstHalfCycleL
         fin.close();
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "CSW File '" << CSWFileName << " - no of resulting pulses after decompression = " << pulses.size() << "\n";
 
     return true;

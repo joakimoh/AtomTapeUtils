@@ -14,7 +14,7 @@
 #include "../shared/AtomBasicCodec.h"
 #include "../shared/TAPCodec.h"
 #include "../shared/Compress.h"
-#include "../shared/Debug.h"
+#include "../shared/Logging.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -46,17 +46,17 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, ACORN_ATOM);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, ACORN_ATOM);
     TapeFile TAP_file(ACORN_ATOM);
     if (!ABC_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
     }
 
 
-    TAPCodec TAP_codec(arg_parser.verbose);
+    TAPCodec TAP_codec(arg_parser.logging);
     if (!TAP_codec.encode(TAP_file, arg_parser.dstFileName)) {
         printf("Failed to encode ABC file '%s' as TAP/MMC file '%s'\n",
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()

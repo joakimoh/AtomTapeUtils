@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include "WaveSampleTypes.h"
+#include "Logging.h"
 
 
 
@@ -40,11 +41,11 @@ private:
 public:
 
     // Read samples from a one channel 16-bit 44.1 kHz PCM WAW file
-    static bool readSamples(string fileName, Samples& samples, int& sampleFreq, bool verbose);
+    static bool readSamples(string fileName, Samples& samples, int& sampleFreq, Logging logging);
 
 
     // Write sample vector into a multiple channel 16-bit 44.1 kHz PCM WAW file
-    static bool writeSamples(string fileName, Samples samples[], int nChannels, int sampleFreq, bool verbose);
+    static bool writeSamples(string fileName, Samples samples[], int nChannels, int sampleFreq, Logging logging);
 
 
 };

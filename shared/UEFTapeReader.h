@@ -16,8 +16,7 @@ protected:
 public:
 
 	UEFTapeReader(
-		UEFCodec& uefCodec, string file, bool verbose, TargetMachine targetMachine, bool tracing,
-		double dbgStart, double dbgEnd
+		UEFCodec& uefCodec, string file, Logging logging, TargetMachine targetMachine
 	);
 
 	//

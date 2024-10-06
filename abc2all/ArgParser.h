@@ -4,7 +4,7 @@
 #include <map>
 #include <vector>
 #include "../shared/FileBlock.h"
-
+#include "../shared/Logging.h"
 
 using namespace std;
 
@@ -15,7 +15,7 @@ public:
 
 	string dstDir;
 	string srcFileName;
-	bool verbose = false;
+	Logging logging;
 	TargetMachine targetMachine = ACORN_ATOM;
 
 

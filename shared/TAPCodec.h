@@ -8,6 +8,7 @@
 #include <cstdint>
 #include "CommonTypes.h"
 #include "FileBlock.h"
+#include "Logging.h"
 
 using namespace std;
 
@@ -23,7 +24,7 @@ public:
 	/*
 	 * Create TAP Codec.
 	 */
-	TAPCodec(bool verbose);
+	TAPCodec(Logging logging);
 
 	/*
 	 * Encode TAP File structure as TAP file
@@ -49,7 +50,7 @@ public:
 
 private:
 
-	bool mVerbose = false;
+	Logging mDebugInfo;
 };
 
 

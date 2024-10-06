@@ -1,11 +1,18 @@
 #pragma once
-#ifndef DEBUG_H
-#define DEBUG_H
+#ifndef LOGGING_H
+#define LOGGING_H
 
 #include <iostream>
 #include <string>
 #include <cmath>
 
+class Logging {
+public:
+	bool verbose = false;
+	bool tracing = false;
+	double start = -1;
+	double end = -1;
+};
 
 using namespace std;
 
@@ -18,8 +25,8 @@ using namespace std;
 
 #define DEBUG_LEVEL DBG
 
-#define DBG_T1 mDbgStart
-#define DBG_T2 mDbgEnd
+#define DBG_T1 mDebugInfo.start
+#define DBG_T2 mDebugInfo.end
 
 #define TIMESTR_ARG(T) ( \
 	T<0?  "": \

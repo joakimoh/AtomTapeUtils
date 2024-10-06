@@ -2,7 +2,17 @@
 #include <iostream>
 #include <cmath>
 #include "Utility.h"
-#include "Debug.h"
+#include "Logging.h"
+#include <sstream>
+
+string HalfCycleInfo::info()
+{
+	ostringstream s;
+	s << _FREQUENCY(this->freq) << " (" << _LEVEL(this->level) << ":" <<
+		this->duration << ":" << this->phaseShift << ")";
+
+	return s.str();
+}
 
 void CycleSampleTiming::log()
 {
@@ -27,7 +37,7 @@ void CycleSampleTiming::log()
 	cout << "Valid F2 1/2 cycles: [" << this->mMinNSamplesF2HalfCycle << ", " << n_samples_F2 / 2 << ", " <<
 		this->mMaxNSamplesF2HalfCycle << " (" << this->mSamplesThresholdHalfCycle << ")" << "]\n";
 
-	cout << "Valid F12 1/2 cycles: [" << this->mMinNSamplesF12HalfCycle << ", " << n_samples_F2 / 2 << ", " <<
+	cout << "Valid F12 1/2 cycles: [" << this->mMinNSamplesF12HalfCycle << ", " << n_samples_F12 / 2 << ", " <<
 		this->mMaxNSamplesF12HalfCycle <<  "]\n";
 
 
@@ -50,97 +60,141 @@ void CycleSampleTiming::set(int sampleFreq, double carrierFreq, double freqTH)
 	double f2 = baseFreq * 2;
 	double f = 1 + freqThreshold;
 	double f_min = 1 - freqThreshold;
-	//double f_min = 1 / f;
 	double f_max = 1 + freqThreshold;
 
 
-	mMinNSamplesF1HalfCycle = (int)round(f_min * fS / (f1 * 2)); // Min duration of an F1 1/2 cycle
-	mMaxNSamplesF1HalfCycle = (int)round(f_max * fS / (f1 * 2)); // Max duration of an F1 1/2 cycle
-	mMinNSamplesF2HalfCycle = (int)round(f_min * fS / (f2 * 2)); // Min duration of an F2 1/2 cycle
-	mMaxNSamplesF2HalfCycle = (int)round(f_max * fS / (f2 * 2)); // Max duration of an F2 1/2 cycle
+	mMinNSamplesF1HalfCycle = f_min * fS / (f1 * 2); // Min duration of an F1 1/2 cycle
+	mMaxNSamplesF1HalfCycle = f_max * fS / (f1 * 2); // Max duration of an F1 1/2 cycle
+	mMinNSamplesF2HalfCycle = f_min * fS / (f2 * 2); // Min duration of an F2 1/2 cycle
+	mMaxNSamplesF2HalfCycle = f_max * fS / (f2 * 2); // Max duration of an F2 1/2 cycle
 
-	mMinNSamplesF12HalfCycle = (int)round(f_min * 3 * fS / (f2 * 4));// Min duration of a 3T/4 1/2 cycle where T = 1/F2	
-	mMaxNSamplesF12HalfCycle = (int)round(f_max * 3 * fS / (f2 * 4)); // Min duration of a 3T/4 1/2 cycle where T = 1/F2
+	// Define an F12 1/2 cycle as the interval between valid F1 and F2 1/2 cycles
+	//mMinNSamplesF12HalfCycle = mMaxNSamplesF2HalfCycle;
+	//mMaxNSamplesF12HalfCycle = mMinNSamplesF1HalfCycle;
+
+	mMinNSamplesF12HalfCycle = f_min * 3 * fS / (f2 * 4);// Min duration of a 3T/4 1/2 cycle where T = 1/F2	
+	mMaxNSamplesF12HalfCycle = f_max * 3 * fS / (f2 * 4); // Min duration of a 3T/4 1/2 cycle where T = 1/F2
+
 
 	//mSamplesThresholdHalfCycle = ((double) fS / f1 + (double) fS / f2) / 4;
-	mSamplesThresholdHalfCycle = double (mMaxNSamplesF2HalfCycle + mMinNSamplesF1HalfCycle) / 2;
+	mSamplesThresholdHalfCycle = (mMaxNSamplesF2HalfCycle + mMinNSamplesF1HalfCycle) / 2;
 
 }
 
-CycleDecoder::CycleDecoder(int sampleFreq, double freqThreshold, bool verbose, bool tracing, double dbgStart, double dbgEnd):
-	mTracing(tracing),mVerbose(verbose)
+CycleDecoder::CycleDecoder(int sampleFreq, double freqThreshold, Logging logging):
+	mDebugInfo(logging)
 {
 	mCT.set(sampleFreq, F2_FREQ, freqThreshold);
 	
 }
 
-// Get phase shift when a frequency shift occurs
-// Only checked for when transitioning from an F2 1/2 cycle to either an F1 or F12 1/2 cycle
+//
+// Get phase shift when a frequency shift occurs.
+// Only checked for when transitioning from different types of 1/2 cycles.
+// 
+// F12 <=> 1/2 of duration between the F2 and F2 1/2 cycle duration ranges
+//
+// 1/2 Cycle sequence			Phase determination
+// F2 + F1						low F1 => 180 degrees, high => 0 degrees
+// (F2 +) F12 + F1				low F1 => 90 degrees, high => 270 degrees
+// F1 + F2						low F2 => 180 degrees, high = 0 degrees
+// (F1 +) F12 + F2				low F2 => 90 degrees, high => 270 degrees
+// 
 void CycleDecoder::updatePhase(Frequency f1, Frequency f2, Level f2Level)
 {
-	if (f1 == f2 || f1 != Frequency::F2 || f2 == Frequency::UndefinedFrequency || f2 == Frequency::NoCarrierFrequency)
+	if (f1 == f2 || f2 == Frequency::UndefinedFrequency || f2 == Frequency::NoCarrierFrequency)
 		return;
 
 	if (f2Level == Level::HighLevel) {
 		if (f1 == Frequency::F2 && f2 == Frequency::F1)
 			mHalfCycle.phaseShift = 0;
-		else if (f1 == Frequency::F2 && f2 == Frequency::F12)
-			mHalfCycle.phaseShift = 90;
+		else if (f1 == Frequency::F12 && f2 == Frequency::F1)
+			mHalfCycle.phaseShift = 270;
+		else if (f1 == Frequency::F1 && f2 == Frequency::F2)
+			mHalfCycle.phaseShift = 0;
+		else if (f1 == Frequency::F12 && f2 == Frequency::F2)
+			mHalfCycle.phaseShift = 270;
 	}
 	else if (f2Level == Level::LowLevel) {
 		if (f1 == Frequency::F2 && f2 == Frequency::F1)
 			mHalfCycle.phaseShift = 180;
-		else if (f1 == Frequency::F2 && f2 == Frequency::F12)
-			mHalfCycle.phaseShift = 270;
+		else if (f1 == Frequency::F12 && f2 == Frequency::F1)
+			mHalfCycle.phaseShift = 90;
+		else if (f1 == Frequency::F1 && f2 == Frequency::F2)
+			mHalfCycle.phaseShift = 180;
+		else if (f1 == Frequency::F12 && f2 == Frequency::F2)
+			mHalfCycle.phaseShift = 90;
 	}
-
 }
 
-// Record the frequency of the last 1/2 cycle (but only if a 1/2 cycle was detected)
+//
+// Record the frequency and phase of the last 1/2 cycle (considering the preceeding 1/2 cycle)
+// 
+// The classification is based on the patterns below:
+// 
+// 1/2 Cycle sequence			Phase determination									Data bit determination*	#transitions
+// F2 +	2n x F1 +	F2			low first F1 => 180 degrees, high = 0 degrees		'0'						[2n-1,2n+1]
+// F12 +	2n-1 x F1 +	F12		low first F1 => 90 degrees, high => 270 degrees		'0'						2n
+// F1 +	4n x F2 +	F1			low first F2 => 180 degrees, high = 0 degrees		'1'						[4n-1,4n+1]
+// F12 +	4n-1 x F2 +	F12		low first F2 => 90 degrees, high => 270 degrees		'1'						4n
+// 
+// n = 1 for 1200 baud and 4 for 300 baud
+// The first 1/2 cycle is the preceeding one and it's the second 1/2 cycle that is the one currently being evaluated.
+// The remaining 1/2 cycles are shown only to show also the connection to a data bit. The no of transitions shown
+// are for a time window (of a duration corresponding to one data bit). For 1200 baud the no of transitions for a '0' [1,3]
+// will overlap with the no of transitions for a '1' [3,5] which makes it difficult to use the no of transitions alone
+// to determine the value of a data bit.(For 300 baud this intervals [7,9] for '0' and [15,17] for '1' will not overlap and
+// the no of transitions woul work well for determining the value of a data bit by the use of a threshold of (8+16)/2=12.
+// to distinguish between a '0' and a '1'.) Still, you would like to use the no of transitions in some way as it can
+// tolerate some faults impacting the data bits (at least at 300 baud).
+// 
+// An F12 1/2 cycle is classified either as an F1 or F2 cycle. If it follows upon an F2 1/2 cycle it
+// is classified as an F1 1/2 cycle (assuming it would be the end of a carrier and the beginning of a start bit).
+// Otherwise it is classified as an F1 1/2 cycle.
+// 
+// * The criteria used to determine the data bit value as '0' (see getDataBit() in WavTapeReader) is currently:
+//		"No of detected 1/2 cycles for a duration corresponding to one data bit" <= threshold between '0' and '1' &&
+//		max 1/2 cycle duration is a valid F1 1/2 cycle
+//	 Otherwise it will be classified as '1'.
+// 
+// Neither the recorded phase nor the sequences above are currently used to determine the value of a data bit.
+//
 void CycleDecoder::updateHalfCycleFreq(int halfCycleDuration, Level halfCycleLevel)
 {
-	HalfCycleInfo half_cycle = mHalfCycle;
-	Frequency strict_f;
+	// Save information about previous 1/2 cycle
+	HalfCycleInfo hc_p = mHalfCycle;
 
+	// Record level and duration
 	mHalfCycle.level = halfCycleLevel;
 	mHalfCycle.duration = halfCycleDuration;
-	if (halfCycleDuration >= mCT.mMinNSamplesF2HalfCycle && halfCycleDuration <= mCT.mMaxNSamplesF2HalfCycle) {
-		updatePhase(mHalfCycle.freq, Frequency::F2, halfCycleLevel); // record the phase if shifting frequency
-		mHalfCycle.freq = Frequency::F2;
-		strict_f = Frequency::F2;
-	}
-	else if (halfCycleDuration > mCT.mMinNSamplesF1HalfCycle && halfCycleDuration <= mCT.mMaxNSamplesF1HalfCycle) {
-		updatePhase(mHalfCycle.freq, Frequency::F1, halfCycleLevel); // record the phase if shifting frequency
-		mHalfCycle.freq = Frequency::F1;
-		strict_f = Frequency::F1;
-	}
-	else if (halfCycleDuration >= mCT.mMinNSamplesF12HalfCycle && halfCycleDuration <= mCT.mMaxNSamplesF12HalfCycle) {
-		if (mHalfCycle.freq == Frequency::F1) { // One F1 1/2 cycle followed by one F12 1/2 cycle. Treat this as an F2 cycle.
-			updatePhase(mHalfCycle.freq, Frequency::F12, halfCycleLevel); // record the phase if shifting frequency
-			mHalfCycle.freq = Frequency::F2;
-			strict_f = Frequency::F12;
-		}	
-		else if (mHalfCycle.freq == Frequency::F2) { // One F2 1/2 cycle followed by one F12 1/2 cycle. Treat this as an F1 cycle.
-			updatePhase(mHalfCycle.freq, Frequency::F12, halfCycleLevel); // record the phase if shifting frequency
-			mHalfCycle.freq = Frequency::F1;
-			strict_f = Frequency::F12;
-		}
-		else {
-			mHalfCycle.freq = Frequency::UndefinedFrequency;
-			strict_f = Frequency::UndefinedFrequency;
-		}
-	}
-	else {
-		mHalfCycle.freq = Frequency::UndefinedFrequency;
-		strict_f = Frequency::UndefinedFrequency;
-	}
 
-	if (true || half_cycle.phaseShift != mHalfCycle.phaseShift)
+	// Classify previous and current 1/2 cycle as either F12 or F1/F2 (F12 having lowest priority)
+	Frequency fr_p = getHalfCycleFrequency(hc_p.duration);
+	Frequency fr = getHalfCycleFrequency(mHalfCycle.duration);
+
+	// Determine phaseshift
+	updatePhase(fr_p, fr, halfCycleLevel);
+
+	// Determine frequency (F1, F2 or invalid)
+	if (fr == Frequency::F1 || fr == Frequency::F2)
+		mHalfCycle.freq = fr;
+	else if (fr == Frequency::F12) {
+		if (hc_p.freq == Frequency::F1) // One F1 1/2 cycle followed by one F12 1/2 cycle. Treat this as an F2 cycle.
+			mHalfCycle.freq = Frequency::F2;
+		else if (hc_p.freq == Frequency::F2)  // One F2 1/2 cycle followed by one F12 1/2 cycle. Treat this as an F1 cycle.
+			mHalfCycle.freq = Frequency::F1;
+		else
+			mHalfCycle.freq = Frequency::UndefinedFrequency;
+	}
+	else
+		mHalfCycle.freq = Frequency::UndefinedFrequency;
+
+
+	if (true || hc_p.phaseShift != mHalfCycle.phaseShift)
 		DEBUG_PRINT(
-			getTime(), DBG, "%s (%d:%s) => %s/%s (%d:%s): Phase shifted from %d to %d degrees\n",
-			_FREQUENCY(half_cycle.freq), half_cycle.duration, _LEVEL(half_cycle.level),
-			_FREQUENCY(mHalfCycle.freq), _FREQUENCY(strict_f), mHalfCycle.duration, _LEVEL(mHalfCycle.level),
-			half_cycle.phaseShift, mHalfCycle.phaseShift
+			getTime(), DBG,
+			"%s/%s => %s/%s\n",
+			hc_p.info().c_str(), _FREQUENCY(fr_p), mHalfCycle.info().c_str(), _FREQUENCY(fr)
 		);
 }
 
@@ -186,6 +240,32 @@ bool CycleDecoder::strictValidHalfCycleRange(Frequency f, int duration)
 		return (duration >= mCT.mMinNSamplesF12HalfCycle && duration <= mCT.mMaxNSamplesF12HalfCycle);
 	else
 		return false;
+}
+
+// Determine the type of 1/2 cycle (F1, F2, F12 or unknown) - F12 has highest priority
+Frequency CycleDecoder::getHalfCycleFrequencyRange(int duration)
+{
+	if (duration >= mCT.mMinNSamplesF12HalfCycle && duration <= mCT.mMaxNSamplesF12HalfCycle)
+		return Frequency::F12;
+	else if (duration >= mCT.mMinNSamplesF1HalfCycle && duration <= mCT.mMaxNSamplesF1HalfCycle)
+		return Frequency::F1;
+	else if (duration >= mCT.mMinNSamplesF2HalfCycle && duration <= mCT.mMaxNSamplesF2HalfCycle)
+		return Frequency::F2;
+	else
+		return Frequency::UndefinedFrequency;
+}
+
+// Determine the type of 1/2 cycle (F1, F2, F12 or unknown) - F12 has lowest priority
+Frequency CycleDecoder::getHalfCycleFrequency(int duration)
+{
+	if (duration >= mCT.mMinNSamplesF1HalfCycle && duration <= mCT.mMaxNSamplesF1HalfCycle)
+		return Frequency::F1;
+	else if (duration >= mCT.mMinNSamplesF2HalfCycle && duration <= mCT.mMaxNSamplesF2HalfCycle)
+		return Frequency::F2;
+	else if (duration >= mCT.mMinNSamplesF12HalfCycle && duration <= mCT.mMaxNSamplesF12HalfCycle)
+		return Frequency::F12;
+	else
+		return Frequency::UndefinedFrequency;
 }
 
 

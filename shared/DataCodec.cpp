@@ -7,7 +7,7 @@
 #include "TAPCodec.h"
 #include "UEFCodec.h"
 #include "Utility.h"
-#include "Debug.h"
+#include "Logging.h"
 
 using namespace std;
 
@@ -16,7 +16,7 @@ namespace fs = std::filesystem;
 /*
  * Create DATA Codec.
  */
-DataCodec::DataCodec(bool verbose): mVerbose(verbose)
+DataCodec::DataCodec(Logging logging): mDebugInfo(logging)
 {
 
 }
@@ -102,7 +102,7 @@ bool DataCodec::encode(TapeFile& tapeFile, string& filePath)
 bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
 {
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nEncoding BBC Micro program '" << tapeFile.blocks[0].bbmHdr.name << "' as a DATA file...\n\n";
 
     FileBlockIter file_block_iter = tapeFile.blocks.begin();
@@ -119,7 +119,7 @@ bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
 
         int load_adr = file_load_adr + tape_file_sz; 
 
-        if (mVerbose) {
+        if (mDebugInfo.verbose) {
             file_block_iter->logHdr();
         }
 
@@ -169,7 +169,7 @@ bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
 
     fout.close();
 
-    if (mVerbose) {
+    if (mDebugInfo.verbose) {
         cout << "\n";
         tapeFile.logTAPFileHdr();
         cout << "\nDone encoding program '" << tapeFile.blocks[0].bbmHdr.name << "' as a DATA file...\n\n";
@@ -185,7 +185,7 @@ bool DataCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
 bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
 {
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nEncoding Acorn Atom program '" << tapeFile.blocks[0].atomHdr.name << "' as a DATA file...\n\n";
 
     FileBlockIter file_block_iter = tapeFile.blocks.begin();
@@ -203,7 +203,7 @@ bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
         string name = file_block_iter->atomHdr.name;
         char s[64];
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             file_block_iter->logHdr();
         
         block_no++;
@@ -254,7 +254,7 @@ bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
 
     fout.close();
 
-    if (mVerbose) {
+    if (mDebugInfo.verbose) {
         cout << "\n";
         tapeFile.logTAPFileHdr();
         cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a DATA file...\n\n";
@@ -280,7 +280,7 @@ bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine t
         return false;
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nDecoding DATA file '" << dataFileName << "' with " << data.size() << " bytes of data...\n\n";
 
     filesystem::path fin_p = dataFileName;
@@ -340,7 +340,7 @@ bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine t
         }
         if (count == block_sz) {
 
-            if (mVerbose)
+            if (mDebugInfo.verbose)
                 block.logHdr();
 
             tapeFile.blocks.push_back(block);
@@ -349,21 +349,21 @@ bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine t
             load_adr += count;
             block_no++;
             //BytesIter block_iterator = block.data.begin();
-            // if (DEBUG_LEVEL == DBG && mVerbose) Utility::logData(load_address, block_iterator, block.data.size());
+            // if (DEBUG_LEVEL == DBG && mDebugInfo.verbose) Utility::logData(load_address, block_iterator, block.data.size());
         }
 
 
     }
 
 
-    //if (DEBUG_LEVEL == DBG && mVerbose) Utility::logData(load_address, block_iterator, block.data.size());
+    //if (DEBUG_LEVEL == DBG && mDebugInfo.verbose) Utility::logData(load_address, block_iterator, block.data.size());
 
-    if (mVerbose) {
+    if (mDebugInfo.verbose) {
         cout << "\n";
         tapeFile.logTAPFileHdr();
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nDone decoding DATA file '" << dataFileName << "'...\n\n";
  
     return true;

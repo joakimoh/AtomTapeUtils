@@ -3,7 +3,7 @@
 
 
 #include "Filter.h" 
-#include "../shared/Debug.h"
+#include "../shared/Logging.h"
 #include "../shared/Utility.h"
 #include "../shared/WaveSampleTypes.h"
 

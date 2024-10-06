@@ -76,7 +76,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			ac++;
 		}
 		else if (strcmp(argv[ac], "-v") == 0) {
-			verbose = true;
+			logging.verbose = true;
 		}
 		else if (strcmp(argv[ac], "-ps") == 0) {
 			tapeTiming.phaseShift = stoi(argv[ac + 1]);

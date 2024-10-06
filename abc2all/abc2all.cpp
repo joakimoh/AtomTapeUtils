@@ -14,7 +14,7 @@
 #include "../shared/AtomBasicCodec.h"
 #include "../shared/DataCodec.h"
 #include "../shared/Compress.h"
-#include "../shared/Debug.h"
+#include "../shared/Logging.h"
 #include "../shared/Utility.h"
 #include "../shared/TAPCodec.h"
 
@@ -36,13 +36,13 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Output directory = " << arg_parser.dstDir << "\n";
 
 
     // Decode ABC file
     TapeFile TAP_file(ACORN_ATOM);
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.targetMachine);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
     if (!ABC_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
     }
@@ -56,7 +56,7 @@ int main(int argc, const char* argv[])
     // 
 
     // Generate DATA file
-    DataCodec DATA_codec = DataCodec(arg_parser.verbose);
+    DataCodec DATA_codec = DataCodec(arg_parser.logging);
     string DATA_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "dat");
     if (!DATA_codec.encode(TAP_file, DATA_file_name)) {
         cout << "Failed to write the DATA file!\n";
@@ -64,7 +64,7 @@ int main(int argc, const char* argv[])
 
     // Generate TAP file
     if (arg_parser.targetMachine == ACORN_ATOM) {
-        TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
+        TAPCodec TAP_codec = TAPCodec(arg_parser.logging);
         string TAP_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "tap");
         if (!TAP_codec.encode(TAP_file, TAP_file_name)) {
             cout << "Failed to write the TAP file!\n";
@@ -72,7 +72,7 @@ int main(int argc, const char* argv[])
     }
 
     // generate UEF file
-    UEFCodec UEF_codec = UEFCodec(false, arg_parser.verbose, arg_parser.targetMachine);
+    UEFCodec UEF_codec = UEFCodec(false, arg_parser.logging, arg_parser.targetMachine);
     string UEF_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "uef");
     if (!UEF_codec.encode(TAP_file, UEF_file_name)) {
         cout << "Failed to write the UEF file!\n";

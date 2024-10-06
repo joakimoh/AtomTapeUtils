@@ -5,14 +5,14 @@
 
 #include "MMCCodec.h"
 #include "Utility.h"
-#include "Debug.h"
+#include "Logging.h"
 
 using namespace std;
 
 namespace fs = std::filesystem;
 
 
-MMCCodec::MMCCodec(bool verbose) : mVerbose(verbose)
+MMCCodec::MMCCodec(Logging logging) : mDebugInfo(logging)
 {
 
 }
@@ -35,7 +35,7 @@ bool MMCCodec::encode(TapeFile &tapeFile, string& filePath)
         return false;
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         printf("Writing to MMC file %s\n", filePath.c_str());
 
     FileBlockIter ATM_block_iter;
@@ -79,7 +79,7 @@ bool MMCCodec::encode(TapeFile &tapeFile, string& filePath)
     
     string atom_filename = ATM_block_iter->atomHdr.name;
 
-    if (mVerbose) {
+    if (mDebugInfo.verbose) {
         cout << "\n";
         tapeFile.logTAPFileHdr();
     }
@@ -111,7 +111,7 @@ bool MMCCodec::encode(TapeFile &tapeFile, string& filePath)
         int block_load_addr = ATM_block_iter->atomHdr.loadAdrHigh * 256 + ATM_block_iter->atomHdr.loadAdrLow;
         int block_exec_addr = ATM_block_iter->atomHdr.execAdrHigh * 256 + ATM_block_iter->atomHdr.execAdrLow;
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
            ATM_block_iter->logHdr();
 
         block_no++;
@@ -166,7 +166,7 @@ bool MMCCodec::decode(string& mmcFileName, TapeFile& tapeFile)
     fin.read((char*)&byte_H, 1);
     int atom_file_len = byte_H * 256 + byte_L;
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         printf("%s %.4x %4.x %.4x\n", atom_filename.c_str(), file_load_addr, file_exec_addr, atom_file_len);
 
     Bytes data;

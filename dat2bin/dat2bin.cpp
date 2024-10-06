@@ -11,7 +11,7 @@
 #include "ArgParser.h"
 #include "../shared/DataCodec.h"
 #include "../shared/TAPCodec.h"
-#include "../shared/Debug.h"
+#include "../shared/Logging.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -32,10 +32,10 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
-    DataCodec DATA_codec = DataCodec(arg_parser.verbose);
+    DataCodec DATA_codec = DataCodec(arg_parser.logging);
     int load_address;
     Bytes data;
     if (!DATA_codec.data2Bytes(arg_parser.srcFileName, load_address, data)) {

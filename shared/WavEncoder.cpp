@@ -5,7 +5,7 @@
 #include "WavEncoder.h"
 #include "WaveSampleTypes.h"
 #include "PcmFile.h"
-#include "Debug.h"
+#include "Logging.h"
 #include "Utility.h"
 #include "TapeProperties.h"
 #include <cmath>
@@ -13,9 +13,9 @@
 using namespace std;
 
 WavEncoder::WavEncoder(
-    bool useOriginalTiming, int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine
+    bool useOriginalTiming, int sampleFreq, TapeProperties tapeTiming, Logging logging, TargetMachine targetMachine
 ): mUseOriginalTiming(useOriginalTiming), mBitTiming(sampleFreq, tapeTiming.baseFreq, tapeTiming.baudRate, targetMachine),
-    mVerbose(verbose), mTargetMachine(targetMachine)
+    mDebugInfo(logging), mTargetMachine(targetMachine)
 {
     if (targetMachine <= BBC_MASTER)
         mTapeTiming = bbmTiming;
@@ -26,8 +26,8 @@ WavEncoder::WavEncoder(
 
 }
 
-WavEncoder::WavEncoder(int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine) :
-    mBitTiming(sampleFreq, tapeTiming.baseFreq, tapeTiming.baudRate, targetMachine), mVerbose(verbose), mTargetMachine(targetMachine)
+WavEncoder::WavEncoder(int sampleFreq, TapeProperties tapeTiming, Logging logging, TargetMachine targetMachine) :
+    mBitTiming(sampleFreq, tapeTiming.baseFreq, tapeTiming.baudRate, targetMachine), mDebugInfo(logging), mTargetMachine(targetMachine)
 {
     if (!targetMachine)
         mTapeTiming = atomTiming;
@@ -72,7 +72,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
 
     FileBlockIter block_iter = tapeFile.blocks.begin();
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nEncoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
 
 
@@ -84,7 +84,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
         printf("Failed to encode a gap of %f s\n", first_block_gap);
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << first_block_gap << " s GAP\n";
 
     while (block_iter < tapeFile.blocks.end()) {
@@ -108,7 +108,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
             printf("Failed to write lead tone of duration %f s\n", lead_tone_duration);
         }
 
-        if (mVerbose) {
+        if (mDebugInfo.verbose) {
             if (block_no > 0)
                 cout << "BLOCK " << block_no << ": LEAD TONE " << lead_tone_duration << " s : ";
             else
@@ -159,7 +159,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
         }
 
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << "HDR+CRC : ";
 
 
@@ -201,7 +201,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
         }
 
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << "Data+CRC : ";
 
 
@@ -222,7 +222,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
                 return false;
             }
 
-            if (mVerbose)
+            if (mDebugInfo.verbose)
                 cout << trailer_tone_duration << " s TRAILER TONE : ";
 
             // Write the gap
@@ -235,12 +235,12 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
                 return false;
             }
 
-            if (mVerbose)
+            if (mDebugInfo.verbose)
                 cout << block_gap << " s GAP";
 
         }
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << "\n";
 
         block_iter++;
@@ -250,7 +250,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
 
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << mSamples.size() << " samples created from Tape File!\n";
 
     if (mSamples.size() == 0) {
@@ -264,7 +264,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
         return false;
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nDone encoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
 
     return true;
@@ -274,7 +274,7 @@ bool WavEncoder::writeSamples(string& filePath)
 {
     // Write samples to WAV file
     Samples samples_v[] = { mSamples };
-    if (!PcmFile::writeSamples(filePath, samples_v, 1, mBitTiming.fS, mVerbose)) {
+    if (!PcmFile::writeSamples(filePath, samples_v, 1, mBitTiming.fS, mDebugInfo)) {
         printf("Failed to write samples!%s\n", "");
         return false;
     }
@@ -309,7 +309,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
 
     FileBlockIter block_iter = tapeFile.blocks.begin();
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nEncoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
     
 
@@ -321,7 +321,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
         printf("Failed to encode a gap of %f s\n", block_gap);
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << first_block_gap << " s GAP\n";
 
     while (block_iter < tapeFile.blocks.end()) {
@@ -335,7 +335,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
             printf("Failed to write lead tone of duration %f s\n", lead_tone_duration);
         }
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << "BLOCK " << block_no << ": LEAD TONE " << lead_tone_duration << " s : ";
 
         // Change lead tone duration for remaining blocks
@@ -373,7 +373,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
             writeByte(*hdr_iter++, atomDefaultDataEncoding);
 
 
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << "HDR : ";
      
 
@@ -391,7 +391,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
         }
 
         
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << data_block_micro_lead_tone_duration << " s micro tone : ";
          
 
@@ -431,7 +431,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
         }
 
         
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << "Data+CRC : ";
          
         
@@ -454,7 +454,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
         }
 
         
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             cout << block_gap << " s GAP\n";
          
 
@@ -465,7 +465,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
 
     }
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << mSamples.size() << " samples created from Tape File!\n";
 
     if (mSamples.size() == 0) {
@@ -481,7 +481,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
     }
  
 
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         cout << "\nDone encoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
 
 	return true;
@@ -584,7 +584,7 @@ bool WavEncoder::writeTone(double duration)
     }
 
     /*
-    if (mVerbose)
+    if (mDebugInfo.verbose)
         printf("%lf s (%d cycles) tone written!\n", duration, n_cycles);
     */
 
@@ -615,13 +615,13 @@ bool WavEncoder::writeCycle(bool highFreq, unsigned n)
     if (highFreq) {
         n_samples = (int) round(mBitTiming.F2Samples * n);
         /*
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             printf("%d cycles of F2\n", n);
          */
     } 
     else {
         /*
-        if (mVerbose)
+        if (mDebugInfo.verbose)
             printf("%d cycles of F1\n", n);
         */
         n_samples = (int) round(mBitTiming.F1Samples * n);

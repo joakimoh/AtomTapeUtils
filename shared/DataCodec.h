@@ -5,6 +5,7 @@
 
 #include <string>
 #include "FileBlock.h"
+#include "Logging.h"
 
 class DataCodec
 {
@@ -13,7 +14,7 @@ public:
 	/*
 	 * Create DATA Codec.
 	 */
-	DataCodec(bool verbose);
+	DataCodec(Logging logging);
 
 	/*
 	 * Encode TAP File structure as DATA file
@@ -32,7 +33,7 @@ public:
 
 private:
 
-	bool mVerbose = false;
+	Logging mDebugInfo;
 
 	
 };

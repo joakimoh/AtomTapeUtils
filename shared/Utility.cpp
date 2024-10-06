@@ -2,7 +2,7 @@
 #include "CommonTypes.h"
 #include <iostream>
 #include <sstream>
-#include "Debug.h"
+#include "Logging.h"
 #include <filesystem>
 #include "WaveSampleTypes.h"
 #include <cmath>

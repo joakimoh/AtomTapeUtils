@@ -32,7 +32,7 @@ private:
 
 	int mPhase = 180;
 
-	bool mVerbose = false;
+	Logging mDebugInfo;
 
 	TargetMachine mTargetMachine = ACORN_ATOM;
 
@@ -41,9 +41,9 @@ private:
 public:
 
 
-	WavEncoder(int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine);
+	WavEncoder(int sampleFreq, TapeProperties tapeTiming, Logging logging, TargetMachine targetMachine);
 
-	WavEncoder(bool useOriginalTiming, int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine);
+	WavEncoder(bool useOriginalTiming, int sampleFreq, TapeProperties tapeTiming, Logging logging, TargetMachine targetMachine);
 
 	bool writeByte(Byte byte, DataEncoding encoding);
 	bool writeDataBit(int bit);

@@ -77,7 +77,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			}
 		}
 		else if (strcmp(argv[ac], "-v") == 0) {
-			verbose = true;
+			logging.verbose = true;
 		}
 		else if (strcmp(argv[ac], "-pot") == 0) {
 			mPreserveOriginalTiming = true;

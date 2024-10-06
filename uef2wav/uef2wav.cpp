@@ -12,7 +12,7 @@
 #include "ArgParser.h"
 #include "../shared/WavEncoder.h"
 #include "../shared/UEFCodec.h"
-#include "../shared/Debug.h"
+#include "../shared/Logging.h"
 #include "../shared/Utility.h"
 
 using namespace std;
@@ -34,9 +34,9 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    UEFCodec UEF_codec = UEFCodec(arg_parser.verbose, arg_parser.targetMachine);
+    UEFCodec UEF_codec = UEFCodec(arg_parser.logging, arg_parser.targetMachine);
 
-    WavEncoder WAV_encoder = WavEncoder(arg_parser.mSampleFreq, arg_parser.tapeTiming, arg_parser.verbose, arg_parser.targetMachine);
+    WavEncoder WAV_encoder = WavEncoder(arg_parser.mSampleFreq, arg_parser.tapeTiming, arg_parser.logging, arg_parser.targetMachine);
         
 
     // Read UEF file chunks

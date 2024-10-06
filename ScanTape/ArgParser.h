@@ -5,6 +5,7 @@
 #include <vector>
 #include "../shared/TapeProperties.h"
 #include "../shared/FileBlock.h"
+#include "../shared/Logging.h"
 
 
 using namespace std;
@@ -17,16 +18,13 @@ public:
 
 	double startTime = 0;
 	string genDir = "";
-	double dbgStart = 0, dbgEnd = -1;
 	double freqThreshold = 0.1;
 	double levelThreshold = 0;
 	string wavFile;
 
 	bool cat = false;
 
-	bool tracing = false;
-
-	bool verbose = false;
+	Logging logging;
 
 	TargetMachine targetMachine = ACORN_ATOM;
 

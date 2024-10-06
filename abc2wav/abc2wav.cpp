@@ -13,7 +13,7 @@
 #include "../shared/WavEncoder.h"
 #include "../shared/AtomBasicCodec.h"
 #include "../shared/DataCodec.h"
-#include "../shared/Debug.h"
+#include "../shared/Logging.h"
 #include "../shared/Utility.h"
 
 using namespace std;
@@ -35,10 +35,10 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    if (arg_parser.verbose)
+    if (arg_parser.logging.verbose)
         cout << "Output file is: '" << arg_parser.dstFileName << "'\n";
 
-    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.targetMachine);
+    AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
 
     TapeFile TAP_file(arg_parser.targetMachine);
 
@@ -49,7 +49,7 @@ int main(int argc, const char* argv[])
     }
 
     int sample_freq = 44100;
-    WavEncoder WAV_encoder = WavEncoder(false, sample_freq, arg_parser.tapeTiming, arg_parser.verbose, arg_parser.targetMachine);
+    WavEncoder WAV_encoder = WavEncoder(false, sample_freq, arg_parser.tapeTiming, arg_parser.logging, arg_parser.targetMachine);
     if (!WAV_encoder.encode(TAP_file, arg_parser.dstFileName)) {
         cout << "Failed to encode program file '" << arg_parser.srcFileName << "' as WAV file '" << arg_parser.dstFileName << "'\n";
     }

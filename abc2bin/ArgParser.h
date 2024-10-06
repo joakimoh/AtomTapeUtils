@@ -3,7 +3,8 @@
 #include <string>
 #include <map>
 #include <vector>
-#include "FileBlock.h"
+#include "../shared/FileBlock.h"
+#include "../shared/Logging.h"
 
 
 using namespace std;
@@ -15,7 +16,7 @@ public:
 
 	string dstFileName;
 	string srcFileName;
-	bool verbose = false;
+	Logging logging;
 	TargetMachine targetMachine = ACORN_ATOM;
 
 

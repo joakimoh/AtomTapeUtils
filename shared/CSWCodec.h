@@ -12,6 +12,7 @@
 #include "../shared/FileBlock.h"
 #include "BitTiming.h"
 #include "UEFCodec.h"
+#include "Logging.h"
 
 using namespace std;
 
@@ -97,7 +98,7 @@ private:
 
 	bool mUseOriginalTiming = false;
 
-	bool mVerbose = false;
+	Logging mDebugInfo;
 	TargetMachine mTargetMachine = ACORN_ATOM;
 
 	bool encodeAtom(TapeFile& tapeFile, string& filePath);
@@ -106,10 +107,10 @@ private:
 public:
 
 	// Default constructor
-	CSWCodec(int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine);
+	CSWCodec(int sampleFreq, TapeProperties tapeTiming, Logging logging, TargetMachine targetMachine);
 
 	// Constructor
-	CSWCodec(bool useOriginalTiming, int sampleFreq, TapeProperties tapeTiming, bool verbose, TargetMachine targetMachine);
+	CSWCodec(bool useOriginalTiming, int sampleFreq, TapeProperties tapeTiming, Logging logging, TargetMachine targetMachine);
 
 	// Encode a TAP File structure as CSW file
 	bool encode(TapeFile &tapeFile, string& filePath);

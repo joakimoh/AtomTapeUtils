@@ -1,7 +1,7 @@
 
 #include "CommonTypes.h"
 #include "WavCycleDecoder.h"
-#include "Debug.h"
+#include "Logging.h"
 #include "WaveSampleTypes.h"
 #include "Utility.h"
 #include <iostream>
@@ -11,8 +11,8 @@ using namespace std;
 
 // Constructor
 WavCycleDecoder::WavCycleDecoder(
-	int sampleFreq, LevelDecoder& levelDecoder, double freqThreshold, bool verbose, bool tracing, double dbgStart, double dbgEnd
-) : CycleDecoder(sampleFreq, freqThreshold, verbose, tracing, dbgStart, dbgEnd), mLevelDecoder(levelDecoder)
+	int sampleFreq, LevelDecoder& levelDecoder, double freqThreshold, Logging logging
+) : CycleDecoder(sampleFreq, freqThreshold, logging), mLevelDecoder(levelDecoder)
 {
 
 	
@@ -59,32 +59,24 @@ bool WavCycleDecoder::regretCheckpoint()
 //
 bool WavCycleDecoder::detectWindow(Frequency f, int nSamples, int minThresholdCycles, int maxThresholdCycles, int & nHalfCycles)
 {
-	Level level_p = mHalfCycle.level;
-	Level level;
+
 	mHalfCycle.freq = Frequency::UndefinedFrequency;
 
 	nHalfCycles = 0;
-	int sample_no;
-	int n_samples = 0;
-	int half_cycle_duration = 0;
 	int n = 0;
 	vector<int> half_cycle_durations;
 
 	for (; n < nSamples && !mLevelDecoder.endOfSamples(); n++) {
 
 		// Get next sample
-		if (!mLevelDecoder.getNextSample(level, sample_no)) // can fail for too long level duration or end of of samples
+		bool transition;
+		if (!getNextSample(transition)) // can fail for too long level duration or end of of samples
 			return false;
-		n_samples++;
 
 		// Check for a new 1/2 cycle
-		if (level != level_p) {		
-			half_cycle_duration = n_samples;
-			updateHalfCycleFreq(half_cycle_duration, level_p);
-			half_cycle_durations.push_back(half_cycle_duration);
-			n_samples = 0;
-			nHalfCycles++;
-			level_p = level;			
+		if (transition) {
+			half_cycle_durations.push_back(mHalfCycle.duration);
+			nHalfCycles++;		
 		}
 
 		// Check for a completed rolling window
@@ -113,34 +105,26 @@ bool WavCycleDecoder::detectWindow(Frequency f, int nSamples, int minThresholdCy
 	return true;
 }
 
+
 // Advance n samples and record the encountered no of 1/2 cycles
 int WavCycleDecoder::countHalfCycles(int nSamples, int& nHalfCycles, int& minHalfCycleDuration, int& maxHalfCycleDuration)
 {
-	Level level, level_p;
 
 	nHalfCycles = 0;
-	int sample_no;
-	int n_samples = 0;
-	int half_cycle_duration = 0;
 	maxHalfCycleDuration = -1;
 	minHalfCycleDuration = 99999;
 
-	level_p = mLevelDecoder.getLevel();
 	for (int n = 0; n < nSamples && !mLevelDecoder.endOfSamples(); n++) {
-		if (!mLevelDecoder.getNextSample(level, sample_no)) // can fail for too long level duration or end of of samples
+		bool transition;
+		if (!getNextSample(transition)) // can fail for too long level duration or end of of samples
 			return false;
-		n_samples++;
 		// Check for a new 1/2 cycle
-		if (level != level_p) {
-			half_cycle_duration = n_samples;
-			updateHalfCycleFreq(half_cycle_duration, level_p);
-			if (half_cycle_duration > maxHalfCycleDuration)
-				maxHalfCycleDuration = half_cycle_duration;
-			if (half_cycle_duration < minHalfCycleDuration)
-				minHalfCycleDuration = half_cycle_duration;
-			n_samples = 0;
+		if (transition) {
+			if (mHalfCycle.duration > maxHalfCycleDuration)
+				maxHalfCycleDuration = mHalfCycle.duration;
+			if (mHalfCycle.duration < minHalfCycleDuration)
+				minHalfCycleDuration = mHalfCycle.duration;
 			nHalfCycles++;
-			level_p = level;
 		}
 	}
 
@@ -206,24 +190,40 @@ int WavCycleDecoder::stopOnHalfCycles(Frequency f, int nHalfCycles, double &wait
 // Collect as many samples as possible of the same level (High or Low)
 bool WavCycleDecoder::advanceHalfCycle() {
 
-	Level level;
-	Level level_p = mLevelDecoder.getLevel();
-	int n_samples = 0;
-
 	bool transition = false;
-	int sample_no;
 
-	for (; !transition && !mLevelDecoder.endOfSamples(); n_samples++) {
-		if (!mLevelDecoder.getNextSample(level, sample_no)) // can fail for too long level duration or end of of samples
+	for (; !transition && !mLevelDecoder.endOfSamples(); ) {
+		if (!getNextSample(transition)) // can fail for too long level duration or end of of samples
 			return false;
-		if (level != level_p)
-			transition = true;
 	}
 
-	// Record the frequency of the last 1/2 cycle (but only if a 1/2 cycle was detected)
-	updateHalfCycleFreq(n_samples, level_p);
-
 	return transition;
+}
+
+// Get next sample and update 1/2 cycle info based on it
+bool WavCycleDecoder::getNextSample(bool& transition)
+{
+	Level level, level_p;
+	level_p = mLevelDecoder.getLevel();
+
+	transition = false;
+
+	int sample_no;
+	if (!mLevelDecoder.getNextSample(level, sample_no)) {
+		// Enf of samples
+		return false;
+	}
+
+	// Update 1/2 cycle info for a transition
+	if (level != level_p) {
+		updateHalfCycleFreq(mHalfCycle.nSamples, level_p);
+		mHalfCycle.nSamples = 0;
+		transition = true;
+	}
+	else
+		mHalfCycle.nSamples++;
+
+	return true;
 }
 
 // Get tape time

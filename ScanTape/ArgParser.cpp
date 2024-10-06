@@ -93,7 +93,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			tapeTiming.preserve = true;
 		}
 		else if (strcmp(argv[ac], "-v") == 0) {
-			verbose = true;
+			logging.verbose = true;
 		}
 		else if (strcmp(argv[ac], "-d") == 0 && ac + 2 < argc) {
 			double t1 = Utility::decodeTime(argv[ac + 1]);
@@ -103,8 +103,9 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			if (t1 <= 0 || t2 <= 0 || t2 <= t1)
 				cout << "-d without valid non-zero start and stop times\n";
 			else {
-				dbgStart = t1;
-				dbgEnd = t2;
+				logging.tracing = true;
+				logging.start = t1;
+				logging.end = t2;
 				ac += 2;
 			}
 		}
@@ -173,7 +174,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			}
 		}
 		else if (strcmp(argv[ac], "-t") == 0) {
-			tracing = true;
+			logging.tracing = true;
 		}
 		else {
 			cout << "Unknown option " << argv[ac] << "\n";

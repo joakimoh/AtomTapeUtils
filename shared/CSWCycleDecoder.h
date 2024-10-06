@@ -42,8 +42,7 @@ private:
 public:
 
 	CSWCycleDecoder(
-		int sampleFreq, Level firstHalfCycleLevel, Bytes &Pulses, double freqThreshold, bool verbose,
-		bool tracing, double dbgStart, double dbgEnd
+		int sampleFreq, Level firstHalfCycleLevel, Bytes &Pulses, double freqThreshold, Logging logging
 	);
 
 	// Find a window with [minthresholdCycles, maxThresholdCycles] 1/2 cycles and starting with an

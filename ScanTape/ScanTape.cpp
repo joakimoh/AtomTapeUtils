@@ -11,8 +11,8 @@
 #include "../shared/LevelDecoder.h"
 #include "../shared/WavCycleDecoder.h"
 #include "../shared/CSWCycleDecoder.h"
-#include "BlockDecoder.h"
-#include "FileDecoder.h"
+#include "../shared/BlockDecoder.h"
+#include "../shared/FileDecoder.h"
 #include "../shared/WaveSampleTypes.h"
 #include "ArgParser.h"
 #include "../shared/UEFCodec.h"
@@ -53,24 +53,23 @@ int main(int argc, const char* argv[])
     TapeReader* tape_reader = NULL;
 
     // Is it an UEF file?
-    UEFCodec UEF_codec(arg_parser.verbose, arg_parser.targetMachine);
+    UEFCodec UEF_codec(arg_parser.logging, arg_parser.targetMachine);
     bool UEF_file = false;
     Bytes UEF_data;
     if (UEF_codec.validUefFile(arg_parser.wavFile)) {
-        if (arg_parser.verbose)
+        if (arg_parser.logging.verbose)
             cout << "UEF file detected - scanning it...\n";
         UEF_file = true;
         UEFTapeReader* UEF_tape_reader_p = new UEFTapeReader(
-            UEF_codec, arg_parser.wavFile, arg_parser.verbose, arg_parser.targetMachine,
-            arg_parser.tracing, arg_parser.dbgStart, arg_parser.dbgEnd
+            UEF_codec, arg_parser.wavFile, arg_parser.logging, arg_parser.targetMachine
         );
         tape_reader = UEF_tape_reader_p;
     }
     // Is it a CSW file?
     else if (CSWCodec::isCSWFile(arg_parser.wavFile)) {
-        if (arg_parser.verbose)
+        if (arg_parser.logging.verbose)
             cout << "CSW file detected - scanning it...\n";
-        CSWCodec CSW_codec = CSWCodec(false, sample_freq, arg_parser.tapeTiming, arg_parser.verbose, arg_parser.targetMachine);
+        CSWCodec CSW_codec = CSWCodec(false, sample_freq, arg_parser.tapeTiming, arg_parser.logging, arg_parser.targetMachine);
         Level first_half_cycle_level;
         if (!CSW_codec.decode(arg_parser.wavFile, pulses, first_half_cycle_level)) {
             cout << "Couldn't decode CSW Wave file '" << arg_parser.wavFile << "'\n";
@@ -78,36 +77,34 @@ int main(int argc, const char* argv[])
         }
 
         cycle_decoder_p = new CSWCycleDecoder(
-            sample_freq, first_half_cycle_level, pulses, arg_parser.freqThreshold, arg_parser.verbose, arg_parser.tracing,
-            arg_parser.dbgStart, arg_parser.dbgEnd
+            sample_freq, first_half_cycle_level, pulses, arg_parser.freqThreshold, arg_parser.logging
         );
     }
     else // If not a CSW file it must be a WAV file
     {
-        if (arg_parser.verbose)
+        if (arg_parser.logging.verbose)
             cout << "WAV file assumed - scanning it...\n";
-        if (!PcmFile::readSamples(arg_parser.wavFile, samples, sample_freq, arg_parser.verbose)) {
+        if (!PcmFile::readSamples(arg_parser.wavFile, samples, sample_freq, arg_parser.logging)) {
             cout << "Couldn't open PCM Wave file '" << arg_parser.wavFile << "'\n";
             return -1;
         }
 
         // Create Level Decoder used to filter wave form into a well-defined level stream
         level_decoder_p = new LevelDecoder(
-            sample_freq, samples, arg_parser.startTime, arg_parser.freqThreshold, arg_parser.levelThreshold, arg_parser.tracing
+            sample_freq, samples, arg_parser.startTime, arg_parser.freqThreshold, arg_parser.levelThreshold, arg_parser.logging
         );
-
+ 
         // Create Cycle Decoder used to produce a cycle stream from the level stream
         cycle_decoder_p = new WavCycleDecoder(
-            sample_freq, *level_decoder_p, arg_parser.freqThreshold, arg_parser.verbose, arg_parser.tracing,
-            arg_parser.dbgStart, arg_parser.dbgEnd
+            sample_freq, *level_decoder_p, arg_parser.freqThreshold, arg_parser.logging
         );
     }
-    if (arg_parser.verbose) {
+    if (arg_parser.logging.verbose) {
         cout << "Start time = " << arg_parser.startTime << "\n";
         cout << "Input file = '" << arg_parser.wavFile << "'\n";
         cout << "Generate directory path = " << arg_parser.genDir << "\n";
         cout << "Baudrate = " << arg_parser.tapeTiming.baudRate << "\n";
-        cout << "Debug time range = [" << Utility::encodeTime(arg_parser.dbgStart) << ", " << Utility::encodeTime(arg_parser.dbgEnd) << "]\n";
+        cout << "Debug time range = [" << Utility::encodeTime(arg_parser.logging.start) << ", " << Utility::encodeTime(arg_parser.logging.end) << "]\n";
         cout << "Frequency tolerance = " << arg_parser.freqThreshold << "\n";
         cout << "Schmitt-trigger level tolerance = " << arg_parser.levelThreshold << "\n";
         cout << "Min lead tone duration of first block = " << arg_parser.tapeTiming.minBlockTiming.firstBlockLeadToneDuration << " s\n";
@@ -123,17 +120,17 @@ int main(int argc, const char* argv[])
     // Create a reader based on CSW/WAV input as provided by a cycle decoder
     if (!UEF_file) {
         WavTapeReader* wav_tape_reader_p = new WavTapeReader(*cycle_decoder_p, 1200.0, arg_parser.tapeTiming,
-            arg_parser.targetMachine, arg_parser.verbose, arg_parser.tracing, arg_parser.dbgStart, arg_parser.dbgEnd
+            arg_parser.targetMachine, arg_parser.logging
         );
         tape_reader = wav_tape_reader_p;
     }
 
 
     // Create A Block Decoder used to detect and read one block from a tape reader
-    BlockDecoder block_decoder(*tape_reader, arg_parser);
+    BlockDecoder block_decoder(*tape_reader, arg_parser.logging, arg_parser.targetMachine);
 
     // Create a File Decoder used to detect and read a complete Tape File
-    FileDecoder fileDecoder(block_decoder, arg_parser, arg_parser.cat);
+    FileDecoder fileDecoder(block_decoder, arg_parser.logging, arg_parser.targetMachine, arg_parser.tapeTiming, arg_parser.cat);
 
     // Create a log file
     ostream* fout_p = &cout;
@@ -178,18 +175,18 @@ int main(int argc, const char* argv[])
                 cout << "Failed to scan the WAV file!\n";
                 //return -1;
             }
-            if (arg_parser.verbose)
+            if (arg_parser.logging.verbose)
                 cout << (tape_file.fileType == ACORN_ATOM ? "Atom" : "BBC Micro") << " Tape File '" << tape_file.blocks.front().blockName() <<
                 "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
 
-            DataCodec DATA_codec = DataCodec(arg_parser.verbose);
+            DataCodec DATA_codec = DataCodec(arg_parser.logging);
             string DATA_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "dat");
             if (!DATA_codec.encode(tape_file, DATA_file_name)) {
                 cout << "Failed to write the DATA file!\n";
                 //return -1;
             }
 
-            AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.verbose, arg_parser.targetMachine);
+            AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
             string ABC_file_name;
             if (tape_file.fileType == ACORN_ATOM)
                 ABC_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "abc");
@@ -208,7 +205,7 @@ int main(int argc, const char* argv[])
 
                 // Create TAP file (Acorn Atom only)
                 if (arg_parser.targetMachine == ACORN_ATOM) {
-                    TAPCodec TAP_codec = TAPCodec(arg_parser.verbose);
+                    TAPCodec TAP_codec = TAPCodec(arg_parser.logging);
                     string TAP_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "tap");
                     if (!TAP_codec.encode(tape_file, TAP_file_name)) {
                         cout << "Failed to write the TAP file!\n";
@@ -217,7 +214,7 @@ int main(int argc, const char* argv[])
                 }
 
                 // Create UEF file
-                UEFCodec UEF_codec = UEFCodec(arg_parser.tapeTiming.preserve, arg_parser.verbose, arg_parser.targetMachine);
+                UEFCodec UEF_codec = UEFCodec(arg_parser.tapeTiming.preserve, arg_parser.logging, arg_parser.targetMachine);
                 string UEF_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "uef");
                 if (!UEF_codec.encode(tape_file, UEF_file_name)) {
                     cout << "Failed to write the UEF file!\n";

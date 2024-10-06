@@ -1,13 +1,12 @@
 #include "UEFTapeReader.h"
-#include "Debug.h"
+#include "Logging.h"
 #include "Utility.h"
 #include <cmath>
 
 
-UEFTapeReader::UEFTapeReader(UEFCodec& uefCodec, string file, bool verbose, TargetMachine targetMachine, bool tracing,
-	double dbgStart, double dbgEnd
+UEFTapeReader::UEFTapeReader(UEFCodec& uefCodec, string file, Logging logging, TargetMachine targetMachine
 ) :
-	TapeReader(targetMachine, verbose, tracing, dbgStart, dbgEnd), mUEFCodec(uefCodec)
+	TapeReader(targetMachine, logging), mUEFCodec(uefCodec)
 {
 	mUEFCodec.readUefFile(file);
 }
@@ -42,7 +41,7 @@ bool UEFTapeReader::waitForCarrier(int minCycles, double& waitingTime, int& cycl
 		return false;
 	}
 
-	if (mVerbose)
+	if (mDebugInfo.verbose)
 		cout << duration << "s lead tone detected at " << Utility::encodeTime(getTime()) << " after waiting " << waitingTime << "s\n";
 
 	cycles = (int) round(duration * carrierFreq());
@@ -85,7 +84,7 @@ bool UEFTapeReader::waitForCarrierWithDummyByte(
 	if (duration2 == -1 && duration1 >= min_duration) {
 		preludeCycles = -1;
 		postludecycles = (int)round(duration1 * carrierFreq());
-		if (mVerbose)
+		if (mDebugInfo.verbose)
 			cout << duration1 << "s carrier without dummy byte detected at " << Utility::encodeTime(getTime()) << "\n";
 		return true;
 	}
@@ -96,7 +95,7 @@ bool UEFTapeReader::waitForCarrierWithDummyByte(
 			// The carrier included a dummy byte and exceeded the min duration => completed
 			preludeCycles = (int)round(duration1 * carrierFreq());
 			postludecycles = (int)round(duration2 * carrierFreq());
-			if (mVerbose)
+			if (mDebugInfo.verbose)
 				cout << preludeCycles << " cycles prelude tone, an implicit dummy byte (0xaa) followed by a " << duration2 << "s postlude tone\n";
 			return true;
 		}
@@ -115,7 +114,7 @@ bool UEFTapeReader::waitForCarrierWithDummyByte(
 		return false;
 	}
 
-	if (mVerbose)
+	if (mDebugInfo.verbose)
 		cout << "dummy byte " << hex << (int) dummy_byte_data[0] << " detected at " << Utility::encodeTime(getTime()) << "\n";
 
 	if (!mUEFCodec.detectCarrier(duration2) && duration1 + duration2 < min_duration) {
@@ -126,7 +125,7 @@ bool UEFTapeReader::waitForCarrierWithDummyByte(
 	preludeCycles = (int)round(duration1 * carrierFreq());
 	postludecycles = (int)round(duration2 * carrierFreq());
 
-	if (mVerbose) {
+	if (mDebugInfo.verbose) {
 		cout << preludeCycles << " cycles prelude tone, a dummy byte 0x" << hex << (int)dummy_byte_data[0] <<
 			dec << " followed by a " << duration2 << "s postlude tone\n";
 	}

@@ -34,10 +34,10 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    UEFCodec UEF_codec = UEFCodec(arg_parser.verbose, arg_parser.targetMachine);
+    UEFCodec UEF_codec = UEFCodec(arg_parser.logging, arg_parser.targetMachine);
 
     CSWCodec CSW_codec = CSWCodec(arg_parser.mPreserveOriginalTiming, arg_parser.mSampleFreq, arg_parser.tapeTiming,
-        arg_parser.verbose, arg_parser.targetMachine);
+        arg_parser.logging, arg_parser.targetMachine);
 
     // Read UEF file chunks
     if (!UEF_codec.readUefFile(arg_parser.srcFileName)) {

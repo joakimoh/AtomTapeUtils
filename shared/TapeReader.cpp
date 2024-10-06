@@ -1,5 +1,5 @@
 #include "TapeReader.h"
-#include "Debug.h"
+#include "Logging.h"
 #include "Utility.h"
 #include <iostream>
 
@@ -8,7 +8,7 @@ bool TapeReader::readBytes(Bytes& data, int n, int& read_bytes)
 	for (read_bytes = 0; read_bytes < n; read_bytes++) {
 		Byte b;
 		if (!readByte(b)) {
-			if (mTracing)
+			if (mDebugInfo.tracing)
 				cout << "Failed to read byte #"  << read_bytes << " out of " << n << " bytes\n";
 			return false;
 		}
@@ -32,7 +32,7 @@ bool TapeReader::readString(string &s, int nMin, int nMax, Byte terminator, int 
 	s = "";
 	do {
 		if (!readByte(b)) {
-			if (mTracing)
+			if (mDebugInfo.tracing)
 				cout << "Failed to read string terminated with 0x" << hex << terminator  << "\n";
 			return false;
 		}

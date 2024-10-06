@@ -68,7 +68,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			ac++;
 		}
 		else if (strcmp(argv[ac], "-v") == 0) {
-			verbose = true;
+			logging.verbose = true;
 		}
 		else if (strcmp(argv[ac], "-p") == 0 && ac + 1 < argc) {
 			minPeakDistance = strtod(argv[ac + 1], NULL);
