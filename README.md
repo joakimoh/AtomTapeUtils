@@ -96,7 +96,7 @@ Here the extremums are detected based on the derivate of the audio signal and ne
 
 # ScanTape
 This utility scans a WAW or CSW file for Atom programs. It has many parameters but the defalt values should work well for most tapes. However, if programs are not detected properly, the flag 'f tolerance' could be used to specify a higher tolerance for frequency variations. Default is 0.1 (10%) but values up to 0.4 (40%) could be tested when programs are not detected.
-A hysteresis (schmittt-trigger operation) is used when detecting the transitions Low->High->Low. The flag '-l level' spefifies the percentage used here. Default is 0.1 (10%).
+A hysteresis (schmittt-trigger operation) is used when detecting the transitions Low->High->Low. The flag '-l level' specifies the percentage used here. Default is 0.1 (10%).
 If programs are only partially correctly detected, errors will be reported:
 
 ```
