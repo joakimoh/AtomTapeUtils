@@ -9,7 +9,7 @@ All utilites are run from command line (DOS or Linux). There are many utilities 
 
 ### You have a tape with old Acorn Atom/BBC Micro programs that you have digitalised into a WAV file and you want to extract the programs from it.
 
-The WAV file must be a 16-bit/mono PCM file (preferable 44.1 kHz but other samplein rates could be used as well).
+The WAV file must be a 16-bit/mono PCM file (preferable 44.1 kHz but other sampling rates could be used as well).
 Filter the WAV file *my_tape.wav* to clean it up a bit before trying to decode it.
 (This filtering can be skipped if you already have an audio file of excellent quality.)
 
@@ -31,6 +31,9 @@ For each detected Acorn Atom/BBC Micro program file, the following files will be
 The program name will be used as the file name. Any detected non-alphanumeric characters will however be replaced with \_XX in the generated file's name where XX is the hex code for the character. If the decoded file is corrupted, then only the .abc and .dat files are generated and the file name base will be *program name*\_incomplete*\_*n1*\_*n2* where n1 and n2 tell which blocks of the program were detected (from block n1 to block n2). If a block is just partially detected, the missing data bytes will be replaced with zeroes in the generated files. Thus, it is possible to recover partially read files to some extent.
 
 The utility ScanTAP (Acorn Atom only) is similar to ScanTape but instead takes a TAP file as input and extracts the included Atom Tape Files in the same way as ScanTape does.
+
+Both ScanTAP and Scantape can also generate a complete tape file (UEF, CSW, WAV or TAP format - selected using flags -uef, -csw, -wav and -tap) based on all successfully decoded programs.
+With the flag -c it is also possible to just output a catalogue of the programs on a scanned tape. Using the flag -n one can extract a single program from a tape instead of all programs.
 
 ### You have written a program on your desktop (myprog.abc) and want to encode it as something that can be run on an emulator or loaded into an Acorn Atom
 
