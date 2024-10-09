@@ -254,8 +254,8 @@ private:
 
 	bool addBytes2Vector(Bytes& v, Byte bytes[], int n);
 
-	bool encodeAtom(TapeFile& tapeFile, ogzstream& fout);
-	bool encodeBBM(TapeFile& tapeFile, ogzstream& fout);
+	bool encodeAtom(TapeFile& tapeFile);
+	bool encodeBBM(TapeFile& tapeFile);
 
 	static bool encodeFloat(double val, Byte encoded_val[4]);
 
@@ -329,8 +329,14 @@ private:
 	vector <UEFChkPoint> checkpoints;
 
 	ostream* mFout = &cout;
+
+	ogzstream *mTapeFile_p = NULL;
+	string mTapeFilePath = "";
 	
 public:
+
+	bool UEFCodec::openTapeFile(string& filePath);
+	bool UEFCodec::closeTapeFile();
 
 	bool setStdOut(ostream* fout);
 
@@ -346,6 +352,11 @@ public:
 	 * Encode TAP File structure as UEF file 
 	 */
 	bool encode(TapeFile& tapFile, string& filePath);
+
+	/*
+	 * Encode TAP File structure into already open UEF file
+	 */
+	bool encode(TapeFile& tapeFile);
 
 	/*
 	 * Decode UEF file but only print it's content rather than converting a Tape File 
@@ -374,7 +385,11 @@ public:
 	bool validUefFile(string& uefFileName);
 	
 	
+protected:
 
+	bool writeFileIndepPart(TapeFile& tapeFile);
+
+	bool mFirstFile = true;
 
 
 };

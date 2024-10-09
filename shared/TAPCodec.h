@@ -26,10 +26,19 @@ public:
 	 */
 	TAPCodec(Logging logging);
 
+	bool openTapeFile(string& filePath);
+
+	bool closeTapeFile();
+
 	/*
 	 * Encode TAP File structure as TAP file
 	 */
 	bool encode(TapeFile& tapFile, string & filePath);
+
+	/*
+	 * Encode TAP File structure into already open TAP file
+	 */
+	bool encode(TapeFile& tapFile);
 
 	/*
 	 * Decode TAP file as TAP File structure
@@ -51,6 +60,10 @@ public:
 private:
 
 	Logging mDebugInfo;
+
+	// Information used when encoding multiples programs into one big TAP file
+	vector<TapeFile> mTAPFiles;
+	ofstream* mTapeFile_p = NULL;
 };
 
 

@@ -14,9 +14,10 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char *name)
 {
-	cout << "Usage:\t" << name << " <WAV/CSW/UEF file> [-g <generate dir path] [-d <debug start time> <debug stop time>] [-b <b>]\n";
+	cout << "Usage:\t" << name << " <WAV/CSW/UEF file> [-d <debug start time> <debug stop time>] [-b <b>]\n";
 	cout << "\t[-f <freq tolerance>] [-l <level tolerance>] [-s <start time> ] [-e] [-t] [-pot]\n";
-	cout << " \t[-lt <duration>] [-slt <duration>] [-ml <duration>] [-v] [-bbm] [-n <tape file name>] [-c]\n";
+	cout << "\t[-lt <duration>] [-slt <duration>] [-ml <duration>] [-v] [-bbm] [-n <tape file name>] [-c]\n";
+	cout << "\t-g <generate dir path | -uef <file> | -wav <file> | -csw <file> | -tap <file>\n";
 	cout << "\n";
 	cout << "<WAV/CSW/UEF file>:\n\t16-bit PCM WAV/CSW/UEF file to analyse\n\n";
 	cout << "\n";
@@ -24,7 +25,7 @@ void ArgParser::printUsage(const char *name)
 	cout << "\n";
 	cout << "-g generate dir path :\n\tProvide path to directory where generated files shall be put\n\t- default is work directory\n\n";
 	cout << "-d <debug start time> <debug stop time>:\n\tWAV file time range (format hh:mm:ss) for which debugging shall be turned on\n\t- default is off for all times\n\n";
-	cout << "-f <freq tolerance>:\n\tTolerance of the 1200/2400 frequencies [0,1[\n\t- default is 0.1\n\n";
+	cout << "-f <freq tolerance>:\n\tTolerance of the 1200/2400 frequencies [0,1[\n\t- default is 0.25\n\n";
 	cout << "-l <level tolerance>:\n\tSchmitt-trigger level tolerance [0,1[\n\t- default is 0\n\n";
 	cout << "-s <start time>:\n\tThe time to start detecting files from\n\t- default is 0\n\n";
 	cout << "-lt <d>:\n\tThe duration of the first block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockLeadToneDuration << " s\n\n";
@@ -37,6 +38,11 @@ void ArgParser::printUsage(const char *name)
 	cout << "-bbm:\nScan for BBC Micro (default is Acorn Atom)\n\n";
 	cout << "-n name:\nLimit scan to a single tape file\n\n";
 	cout << "-c:\nOnly output a catalogue of the files found on the tape\n\n";
+	cout << "-euf <file>:\nGenerate one UEF tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
+	cout << "-csw <file>:\nGenerate one CSW tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
+	cout << "-wav <file>:\nGenerate one WAV tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
+	cout << "-wav <file>:\nGenerate one TAP tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n";
+	cout << "\tand only valid for Acorn Atom (i.e. cannot be combibed with option -bbm).\n\n";
 	cout << "\n";
 }
 
@@ -49,6 +55,8 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		printUsage(argv[0]);
 		return;
 	}
+
+	genDir = "";
 
 	filesystem::path fin_path = argv[1];
 	if (!filesystem::exists(fin_path)) {
@@ -71,12 +79,33 @@ ArgParser::ArgParser(int argc, const char* argv[])
 
 	// Now look for remaining options
 	ac = 2;
+	bool genFiles = false;
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-c") == 0) {
 			cat = true;
 		}
 		else if (strcmp(argv[ac], "-n") == 0) {
 			find_file_name = argv[ac + 1];
+			ac++;
+		}
+		else if (strcmp(argv[ac], "-uef") == 0) {
+			genUEF = true;
+			dstFileName = argv[ac + 1];
+			ac++;
+		}
+		else if (strcmp(argv[ac], "-csw") == 0) {
+			genCSW = true;
+			dstFileName = argv[ac + 1];
+			ac++;
+		}
+		else if (strcmp(argv[ac], "-wav") == 0) {
+			genWAV = true;
+			dstFileName = argv[ac + 1];
+			ac++;
+		}
+		else if (strcmp(argv[ac], "-tap") == 0) {
+			genTAP = true;
+			dstFileName = argv[ac + 1];
 			ac++;
 		}
 		else if (strcmp(argv[ac], "-bbm") == 0) {
@@ -88,6 +117,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 				cout << "-g without a valid directory\n";
 			genDir = argv[ac+1];
 			ac++;
+			genFiles = true;
 		}
 		else if (strcmp(argv[ac], "-pot") == 0) {
 			tapeTiming.preserve = true;
@@ -184,6 +214,16 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		ac++;
 	}
 
+	if ((int) genFiles + (int) genUEF + (int) genWAV + (int) genCSW + (int) genTAP > 1) {
+		cout << "Only one of options -g, -uef, -csw, -tap and -wav can be specifed!\n";
+		printUsage(argv[0]);
+		return;
+	}
+	if (genTAP && targetMachine <= BBC_MASTER) {
+		cout << "Option -tap cannot be combined with option -bbm!\n";
+		printUsage(argv[0]);
+		return;
+	}
 	if (cat && argc < 3) {
 		printUsage(argv[0]);
 		return;

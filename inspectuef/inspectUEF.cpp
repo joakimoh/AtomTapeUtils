@@ -33,15 +33,16 @@ int main(int argc, const char* argv[])
 
     Logging debug_info;
     UEFCodec UEF_codec = UEFCodec(debug_info, UNKNOWN_TARGET);
-
-    ofstream fout;
+    
+    // Create output file file
+    ostream* fout_p = &cout;
     if (arg_parser.dstFileName != "") {
-        fout = ofstream(arg_parser.dstFileName);
-        if (!fout) {
-            cout << "can't write to file " << arg_parser.dstFileName << "\n";
+        fout_p = new ofstream(arg_parser.dstFileName);
+        if (!*fout_p) {
+            cout << "can't write t file " << arg_parser.dstFileName << "\n";
             return (-1);
         }
-        UEF_codec.setStdOut(&fout);
+        UEF_codec.setStdOut(fout_p);
     }
  
 
@@ -51,7 +52,7 @@ int main(int argc, const char* argv[])
     }
 
     if (arg_parser.dstFileName != "")
-        fout.close();
+        ((ofstream*)fout_p)->close();
 
     return 0;
 }

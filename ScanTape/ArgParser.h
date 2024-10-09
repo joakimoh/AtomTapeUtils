@@ -18,11 +18,18 @@ public:
 
 	double startTime = 0;
 	string genDir = "";
-	double freqThreshold = 0.1;
+	double freqThreshold = 0.25;
 	double levelThreshold = 0;
 	string wavFile;
 
 	bool cat = false;
+
+	bool genUEF = false;
+	bool genCSW = false;
+	bool genWAV = false;
+	bool genTAP = false;
+
+	string dstFileName;
 
 	Logging logging;
 

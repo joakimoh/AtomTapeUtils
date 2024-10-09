@@ -166,7 +166,7 @@ bool FileBlock::updateBBMCRC(Word& CRC, Byte data)
         else
             CRC = CRC << 1;
     }
-    return true;
+     return true;
 }
 
 int FileBlock::tapeHdrSz()

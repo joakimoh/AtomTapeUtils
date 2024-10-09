@@ -24,7 +24,9 @@
 #include "../shared/UEFCodec.h"
 #include "../shared/WavTapeReader.h"
 #include "../shared/UEFTapeReader.h"
+#include "../shared/TAPCodec.h"
 #include "../shared/FileBlock.h"
+#include "../shared/WavEncoder.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -159,15 +161,56 @@ int main(int argc, const char* argv[])
         *fout_p << "Tape timing when generating UEF files = " << (arg_parser.tapeTiming.preserve ? "Original" : "Standard") << "\n";
     }
 
+    // Prepare encoders for later use
+    UEFCodec UEF_encoder(arg_parser.tapeTiming.preserve, arg_parser.logging, arg_parser.targetMachine);
+    CSWCodec CSW_encoder(arg_parser.tapeTiming.preserve, 44100, arg_parser.tapeTiming, arg_parser.logging, arg_parser.targetMachine);
+    WavEncoder WAV_encoder(arg_parser.tapeTiming.preserve, 44100, arg_parser.tapeTiming, arg_parser.logging, arg_parser.targetMachine);
+    TAPCodec TAP_encoder(arg_parser.logging);
+
+    bool genTapeFile = false;
+    ostream* tfout_p = NULL;
+    if (arg_parser.genUEF || arg_parser.genCSW || arg_parser.genWAV || arg_parser.genTAP) {
+        genTapeFile = true;
+        // Create the output file
+        if (arg_parser.genUEF) {
+            if (!UEF_encoder.openTapeFile(arg_parser.dstFileName)) {
+                cout << "Failed to open UEF file '" << arg_parser.dstFileName << "' for writing!\n";
+                return (-1);
+            }
+        }
+        else if (arg_parser.genCSW) {
+            if (!CSW_encoder.openTapeFile(arg_parser.dstFileName)) {
+                cout << "Failed to open CSW file '" << arg_parser.dstFileName << "' for writing!\n";
+                return (-1);
+            }
+        }
+        else if (arg_parser.genWAV) {
+            if (!WAV_encoder.openTapeFile(arg_parser.dstFileName)) {
+                cout << "Failed to open WAV file '" << arg_parser.dstFileName << "' for writing!\n";
+                return (-1);
+            }
+        }
+        else if (arg_parser.genTAP) {
+            if (!TAP_encoder.openTapeFile(arg_parser.dstFileName)) {
+                cout << "Failed to open WAV file '" << arg_parser.dstFileName << "' for writing!\n";
+                return (-1);
+            }
+        }
+        else {
+            // should never happen
+            return (-1);
+        }
+    }
+
     // Read complete tape files using the File Decoder
     bool read_file;
     bool selected_file_found = false;
     while ((read_file = fileDecoder.readFile(*fout_p, tape_file, arg_parser.find_file_name))) {
 
         if (
-            !arg_parser.cat &&
+            !genTapeFile && !arg_parser.cat &&
             tape_file.blocks.size() > 0 &&
-            (arg_parser.find_file_name == "" || tape_file.blocks[0].blockName() == arg_parser.find_file_name)
+            (arg_parser.find_file_name == "" || tape_file.validFileName == arg_parser.find_file_name)
             ) {
 
             selected_file_found = true;
@@ -214,9 +257,8 @@ int main(int argc, const char* argv[])
                 }
 
                 // Create UEF file
-                UEFCodec UEF_codec = UEFCodec(arg_parser.tapeTiming.preserve, arg_parser.logging, arg_parser.targetMachine);
                 string UEF_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "uef");
-                if (!UEF_codec.encode(tape_file, UEF_file_name)) {
+                if (!UEF_encoder.encode(tape_file, UEF_file_name)) {
                     cout << "Failed to write the UEF file!\n";
                     //return -1;
                 }
@@ -230,11 +272,45 @@ int main(int argc, const char* argv[])
 
 
             }
-
-
-        }
-        else if (arg_parser.cat && tape_file.blocks.size() > 0) {
+        } 
+        else if (!genTapeFile && arg_parser.cat && tape_file.blocks.size() > 0) {
             tape_file.logTAPFileHdr();
+        }
+        else if (genTapeFile) {
+            if (tape_file.complete && !tape_file.corrupted) {
+                // Only include program if it was successfully decoded   
+                if (arg_parser.genUEF) {
+                    if (!UEF_encoder.encode(tape_file)) {
+                        cout << "Failed to update the UEF file!\n";
+                        UEF_encoder.closeTapeFile();
+                        return -1;
+                    }
+                }
+                else if (arg_parser.genCSW) {
+                    if (!CSW_encoder.encode(tape_file)) {
+                        cout << "Failed to update the CSW file!\n";
+                        CSW_encoder.closeTapeFile();
+                        return -1;
+                    }
+                }
+                else if (arg_parser.genWAV) {
+                    if (!WAV_encoder.encode(tape_file)) {
+                        cout << "Failed to update the WAV file!\n";
+                        WAV_encoder.closeTapeFile();
+                        return -1;
+                    }
+                }
+                else if (arg_parser.genTAP) {
+                    if (!TAP_encoder.encode(tape_file)) {
+                        cout << "Failed to update the TAP file!\n";
+                        TAP_encoder.closeTapeFile();
+                        return -1;
+                    }
+                }
+                else {
+                    return (-1);
+                }
+            }
         }
 
     }
@@ -252,11 +328,41 @@ int main(int argc, const char* argv[])
     if (level_decoder_p != NULL)
         delete level_decoder_p;
 
-    return 0;
 
+    // Close and delete log file - if applicable
     if (fout_p != &cout) {
         ((ofstream *) fout_p) -> close();
         delete fout_p;
+    }
+    if (tfout_p != NULL) {
+        ((ofstream*)tfout_p)->close();
+        delete tfout_p;
+    }
+
+    // Close output tape file (if applicable)
+    if (arg_parser.genUEF) {
+        if (!UEF_encoder.closeTapeFile()) {
+            cout << "Failed to close UEF file '" << arg_parser.dstFileName << "'!\n";
+            return (-1);
+        }
+    }
+    else if (arg_parser.genCSW) {
+        if (!CSW_encoder.closeTapeFile()) {
+            cout << "Failed to close CSW file '" << arg_parser.dstFileName << "'!\n";
+            return (-1);
+        }
+    }
+    else if (arg_parser.genWAV) {
+        if (!WAV_encoder.closeTapeFile()) {
+            cout << "Failed to close WAV file '" << arg_parser.dstFileName << "'!\n";
+            return (-1);
+        }
+    }
+    else if (arg_parser.genTAP) {
+        if (!TAP_encoder.closeTapeFile()) {
+            cout << "Failed to close TAP file '" << arg_parser.dstFileName << "'!\n";
+            return (-1);
+        }
     }
 
     return 0;

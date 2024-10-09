@@ -43,17 +43,64 @@ CSWCodec::CSWCodec(bool useOriginalTiming, int sampleFreq, TapeProperties tapeTi
         mTapeTiming = defaultTiming;
 }
 
+bool CSWCodec::openTapeFile(string& filePath)
+{
+    // Clear samples
+    mPulses.clear();
+
+    mTapeFilePath = filePath;
+
+    return true;
+}
+
+bool CSWCodec::closeTapeFile()
+{
+    if (mPulses.size() == 0)
+        return false;
+
+    // Write samples to CSW file
+    if (!writeSamples(mTapeFilePath)) {
+        cout << "Failed to write CSW pulses to file '" << mTapeFilePath << "'!\n";
+        return false;
+    }
+
+    return true;
+}
 
 bool CSWCodec::encode(TapeFile& tapeFile, string& filePath)
 {
-    if (tapeFile.fileType <= BBC_MASTER)
-        return encodeBBM(tapeFile, filePath);
-    else
-        return encodeAtom(tapeFile, filePath);
+    // Create CSW file and open it for writing
+    if (!openTapeFile(filePath))
+        return false;
+
+    // Get samples from tape file and add to complete set of samples
+    encode(tapeFile);
+
+    // Write samples to CSW file and close the file
+    if (!closeTapeFile())
+        return false;
+
+
+    if (mDebugInfo.verbose)
+        cout << "\nDone encoding program '" << tapeFile.validFileName << "' as a CSW file...\n\n";
+
+    return true;
+
 }
 
-bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
+bool CSWCodec::encode(TapeFile& tapeFile)
 {
+    if (tapeFile.fileType <= BBC_MASTER)
+        return encodeBBM(tapeFile);
+    else
+        return encodeAtom(tapeFile);
+}
+
+bool CSWCodec::encodeBBM(TapeFile& tapeFile)
+{
+
+    size_t initial_pulses = mPulses.size();
+
     TargetMachine file_block_type = BBC_MODEL_B;
 
 
@@ -78,9 +125,6 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
 
 
     FileBlockIter file_block_iter = tapeFile.blocks.begin();
-
-
-
 
     int block_no = 0;
     int n_blocks = (int)tapeFile.blocks.size();
@@ -142,9 +186,15 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
 
         Bytes header_data;
 
-        // Store preamble
-        header_data.push_back(0x2a);
-
+        // Write preamble
+        mCRC = 0;
+        if (!writeByte(0x2a, bbmDefaultDataEncoding)) {
+            cout << "Failed to write preamble 0x2a byte\n";
+            return false;
+        }
+        
+        // Initialise header CRC
+        mCRC = 0;
 
         // Store header bytes
         if (!file_block_iter->encodeTapeHdr(header_data)) {
@@ -264,68 +314,16 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile, string& filePath)
     if (mDebugInfo.verbose)
         cout << mPulses.size() << " pulses created from Tape File!\n";
 
-    if (mPulses.size() == 0) {
+    if (mPulses.size() - initial_pulses == 0) {
         cout << "No pulses could be created from Tape File!\n";
         return false;
     }
-
-
-
-    // Write samples to CSW file
-    if (!writeSamples(filePath)) {
-        cout << "Failed to write CSW pulses to file '" << filePath << "'!\n";
-        return false;
-    }
- 
-
-    if (mDebugInfo.verbose)
-        cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
-
+    
     return true;
 
 }
 
-bool CSWCodec::writeSamples(string filePath)
-{
-    // Write samples to CSW file
-    CSW2Hdr hdr;
-    ofstream fout(filePath, ios::out | ios::binary | ios::ate);
-
-    // Write CSW header
-    hdr.csw2.compType = 0x02; // (Z - RLE) - ZLIB compression of data stream
-    hdr.csw2.flags = 0; // Initial polarity (specified by bit b0) is LOW
-    hdr.csw2.hdrExtLen = 0;
-    hdr.csw2.sampleRate[0] = mBitTiming.fS & 0xff;
-    hdr.csw2.sampleRate[1] = (mBitTiming.fS >> 8) & 0xff;
-    hdr.csw2.sampleRate[2] = (mBitTiming.fS >> 16) & 0xff;
-    hdr.csw2.sampleRate[3] = (mBitTiming.fS >> 24) & 0xff;
-    int n_pulses = (int)mPulses.size();
-    hdr.csw2.totNoPulses[0] = n_pulses & 0xff;
-    hdr.csw2.totNoPulses[1] = (n_pulses >> 8) & 0xff;
-    hdr.csw2.totNoPulses[2] = (n_pulses >> 16) & 0xff;
-    hdr.csw2.totNoPulses[3] = (n_pulses >> 24) & 0xff;
-    fout.write((char*)&hdr, sizeof(hdr));
-
-
-    // Write compressed samples
-    if (!encodeBytes(mPulses, fout)) {
-        cout << "Failed to compress CSW pulses and write them to file '" << filePath << "'!\n";
-        fout.close();
-        return false;
-    }
-    // Add one dummy byte to the end as e.g. CSW viewer seems to read one byte extra (which it shouldn't!)
-    char dummy_bytes[] = "0";
-    fout.write((char*)&dummy_bytes[0], sizeof(dummy_bytes));
-
-    fout.close();
-
-    // Clear samples to secure that future encodings start without any initial samples
-    mPulses.clear();
-
-    return true;
-}
-
-bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
+bool CSWCodec::encodeAtom(TapeFile& tapeFile)
 {
 
     double lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;
@@ -333,24 +331,18 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
     double data_block_micro_lead_tone_duration = mTapeTiming.nomBlockTiming.microLeadToneDuration;
     double first_block_gap = mTapeTiming.nomBlockTiming.firstBlockGap;
     double block_gap = mTapeTiming.nomBlockTiming.blockGap;
-    double last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;
-    
+    double last_block_gap = mTapeTiming.nomBlockTiming.lastBlockGap;   
 
     double high_tone_freq = mTapeTiming.baseFreq * 2;
-
  
     if (tapeFile.blocks.empty())
         return false;
-
 
     if (mDebugInfo.verbose)
         cout << "\nEncode program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
 
 
     FileBlockIter ATM_block_iter = tapeFile.blocks.begin();
-
-
-
 
     int block_no = 0;
     int n_blocks = (int)tapeFile.blocks.size();
@@ -513,7 +505,22 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
 
     }
 
+    if (mDebugInfo.verbose)
+        cout << mPulses.size() << " pulses created from Tape File!\n";
 
+    if (mPulses.size() == 0) {
+        cout << "No pulses could be created from Tape File!\n";
+        return false;
+    }
+
+    return true;
+
+}
+
+bool CSWCodec::writeSamples(string filePath)
+{
+    if (mPulses.size() == 0)
+        return false;
 
     // Write samples to CSW file
     CSW2Hdr hdr;
@@ -527,13 +534,12 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
     hdr.csw2.sampleRate[1] = (mBitTiming.fS >> 8) & 0xff;
     hdr.csw2.sampleRate[2] = (mBitTiming.fS >> 16) & 0xff;
     hdr.csw2.sampleRate[3] = (mBitTiming.fS >> 24) & 0xff;
-    int n_pulses = (int) mPulses.size();
+    int n_pulses = (int)mPulses.size();
     hdr.csw2.totNoPulses[0] = n_pulses & 0xff;
     hdr.csw2.totNoPulses[1] = (n_pulses >> 8) & 0xff;
     hdr.csw2.totNoPulses[2] = (n_pulses >> 16) & 0xff;
     hdr.csw2.totNoPulses[3] = (n_pulses >> 24) & 0xff;
     fout.write((char*)&hdr, sizeof(hdr));
-
 
     // Write compressed samples
     if (!encodeBytes(mPulses, fout)) {
@@ -546,15 +552,11 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile, string &filePath)
     fout.write((char*)&dummy_bytes[0], sizeof(dummy_bytes));
 
     fout.close();
- 
+
     // Clear samples to secure that future encodings start without any initial samples
     mPulses.clear();
 
-    if (mDebugInfo.verbose)
-        cout << "\nDone encoding program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
-
     return true;
-
 }
 
 bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, Level& firstHalfCycleLevel)

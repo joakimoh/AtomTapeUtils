@@ -96,7 +96,7 @@ bool UEFTapeReader::waitForCarrierWithDummyByte(
 			preludeCycles = (int)round(duration1 * carrierFreq());
 			postludecycles = (int)round(duration2 * carrierFreq());
 			if (mDebugInfo.verbose)
-				cout << preludeCycles << " cycles prelude tone, an implicit dummy byte (0xaa) followed by a " << duration2 << "s postlude tone\n";
+				cout << dec << preludeCycles << " cycles prelude tone, an implicit dummy byte (0xaa) followed by a " << duration2 << "s postlude tone\n";
 			return true;
 		}
 		else
@@ -126,7 +126,7 @@ bool UEFTapeReader::waitForCarrierWithDummyByte(
 	postludecycles = (int)round(duration2 * carrierFreq());
 
 	if (mDebugInfo.verbose) {
-		cout << preludeCycles << " cycles prelude tone, a dummy byte 0x" << hex << (int)dummy_byte_data[0] <<
+		cout << dec << preludeCycles << " cycles prelude tone, a dummy byte 0x" << hex << (int)dummy_byte_data[0] <<
 			dec << " followed by a " << duration2 << "s postlude tone\n";
 	}
 	

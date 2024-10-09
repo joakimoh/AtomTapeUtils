@@ -38,20 +38,65 @@ WavEncoder::WavEncoder(int sampleFreq, TapeProperties tapeTiming, Logging loggin
 
 }
 
+bool WavEncoder::openTapeFile(string& filePath)
+{
+    mSamples.clear();
+
+    mTapeFilePath = filePath;
+
+    return true;
+}
+
+bool WavEncoder::closeTapeFile()
+{
+    if (mSamples.size() == 0)
+        return false;
+
+    // Write samples to WAV file
+    if (!writeSamples(mTapeFilePath)) {
+        printf("Failed to write samples!%s\n", "");
+        return false;
+    }
+
+    return true;
+}
+
 bool WavEncoder::encode(TapeFile& tapeFile, string& filePath)
 {
+    
+    // Initialise encoding
+    if (!openTapeFile(filePath))
+        return false;
+
+    // Get samples from tape file
+    encode(tapeFile);
+
+    // Write them to file and close file
+    if (!closeTapeFile())
+        return false;
+
+    if (mDebugInfo.verbose)
+        cout << "\nDone encoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
+
+    return true;
+}
+
+// Get samples from tape file and add it to the total set of samples
+bool WavEncoder::encode(TapeFile& tapeFile)
+{
     if (tapeFile.fileType <= BBC_MASTER)
-         return encodeBBM(tapeFile, filePath);
+        return encodeBBM(tapeFile);
     else
-        return encodeBBM(tapeFile, filePath);
+        return encodeAtom(tapeFile); 
 }
 
 /*
  * Encode BBC Micro TAP File structure as WAV file
  */
-bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
-
+bool WavEncoder::encodeBBM(TapeFile& tapeFile)
 {
+    int initial_no_samples = (int) mSamples.size(); // zero unless many tape files are encoded into one and the same set of samples
+
     TargetMachine file_block_type = BBC_MODEL_B;
 
     int prelude_lead_tone_cycles = mTapeTiming.nomBlockTiming.firstBlockPreludeLeadToneCycles;
@@ -118,10 +163,6 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
         // Change lead tone duration for remaining blocks
         lead_tone_duration = other_block_lead_tone_duration;
 
-
-        // Initialise header CRC
-        mCRC = 0;
-
         // --------------------- start of block header  ------------------------
         //
         // Write block header including preamble
@@ -132,9 +173,15 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
 
         Bytes header_data;
 
-        // Store preamble
-        header_data.push_back(0x2a);
-        
+        // Write preamble
+        mCRC = 0;
+        if (!writeByte(0x2a, bbmDefaultDataEncoding)) {
+            cout << "Failed to write preamble 0x2a byte\n";
+            return false;
+        }
+
+        // Initialise header CRC
+        mCRC = 0;
 
         // Store header bytes
         if (!block_iter->encodeTapeHdr(header_data)) {
@@ -153,6 +200,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
 
         // Encode CRC byte
         Word header_CRC = mCRC;
+
         if (!writeByte(header_CRC / 256, bbmDefaultDataEncoding) || !writeByte(header_CRC % 256, bbmDefaultDataEncoding)) {
             printf("Failed to encode header CRC!%s\n", "");
             return false;
@@ -251,36 +299,15 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile, string& filePath)
     }
 
     if (mDebugInfo.verbose)
-        cout << mSamples.size() << " samples created from Tape File!\n";
+        cout << mSamples.size() - initial_no_samples << " samples created from Tape File!\n";
 
-    if (mSamples.size() == 0) {
+    if (mSamples.size() - initial_no_samples == 0) {
         cout << "No samples could be created from Tape File!\n";
+
         return false;
     }
 
-    // Write samples to WAV file
-    if (!writeSamples(filePath)) {
-        printf("Failed to write samples!%s\n", "");
-        return false;
-    }
 
-    if (mDebugInfo.verbose)
-        cout << "\nDone encoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
-
-    return true;
-}
-
-bool WavEncoder::writeSamples(string& filePath)
-{
-    // Write samples to WAV file
-    Samples samples_v[] = { mSamples };
-    if (!PcmFile::writeSamples(filePath, samples_v, 1, mBitTiming.fS, mDebugInfo)) {
-        printf("Failed to write samples!%s\n", "");
-        return false;
-    }
-
-    // Clear samples to secure that future encodings start without any initial samples
-    mSamples.clear();
 
     return true;
 }
@@ -288,8 +315,10 @@ bool WavEncoder::writeSamples(string& filePath)
 /*
  * Encode Acorn Atom TAP File structure as WAV file
  */
-bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
+bool WavEncoder::encodeAtom(TapeFile &tapeFile)
 {
+    size_t initial_no_samples = mSamples.size(); // zero unless many tape files are encoded into one and the same set of samples
+
     TargetMachine file_block_type = ACORN_ATOM;
 
     double lead_tone_duration = mTapeTiming.nomBlockTiming.firstBlockLeadToneDuration;
@@ -468,25 +497,32 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile, string& filePath)
     if (mDebugInfo.verbose)
         cout << mSamples.size() << " samples created from Tape File!\n";
 
-    if (mSamples.size() == 0) {
+    if (mSamples.size() - initial_no_samples == 0) {
         cout << "No samples could be created from Tape File!\n";
         return false;
     }
 
-
-    // Write samples to WAV file
-    if (!writeSamples(filePath)) {
-        printf("Failed to write samples!%s\n", "");
-        return false;
-    }
- 
-
-    if (mDebugInfo.verbose)
-        cout << "\nDone encoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
-
 	return true;
 }
 
+
+bool WavEncoder::writeSamples(string& filePath)
+{
+    if (mSamples.size() == 0)
+        return false;
+
+    // Write samples to WAV file
+    Samples samples_v[] = { mSamples };
+    if (!PcmFile::writeSamples(filePath, samples_v, 1, mBitTiming.fS, mDebugInfo)) {
+        printf("Failed to write samples!%s\n", "");
+        return false;
+    }
+
+    // Clear samples to secure that future encodings start without any initial samples
+    mSamples.clear();
+
+    return true;
+}
 
 bool WavEncoder::writeByte(Byte byte, DataEncoding encoding)
 {

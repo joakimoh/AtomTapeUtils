@@ -38,6 +38,11 @@ private:
 
 	DataEncoding mDefaultEncoding;
 
+	string mTapeFilePath = "";
+
+	bool encodeAtom(TapeFile& tapeFile);
+	bool encodeBBM(TapeFile& tapeFile);
+
 public:
 
 
@@ -59,9 +64,11 @@ public:
 	/*
 	 * Encode TAP File structure as WAV file
 	 */
+	bool openTapeFile(string& filePath);
+	bool closeTapeFile();
 	bool encode(TapeFile& tapeFile, string& filePath);
-	bool encodeAtom(TapeFile& tapeFile, string& filePath);
-	bool encodeBBM(TapeFile& tapeFile, string& filePath);
+	bool encode(TapeFile& tapeFile);
+
 
 	bool setBaseFreq(double baseFreq);
 	bool setBaudRate(int baudrate);

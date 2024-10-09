@@ -94,15 +94,15 @@ class CSWCodec
 
 private:
 
-
+	string mTapeFilePath = "";
 
 	bool mUseOriginalTiming = false;
 
 	Logging mDebugInfo;
 	TargetMachine mTargetMachine = ACORN_ATOM;
 
-	bool encodeAtom(TapeFile& tapeFile, string& filePath);
-	bool encodeBBM(TapeFile& tapeFile, string& filePath);
+	bool encodeAtom(TapeFile& tapeFile);
+	bool encodeBBM(TapeFile& tapeFile);
 
 public:
 
@@ -114,6 +114,15 @@ public:
 
 	// Encode a TAP File structure as CSW file
 	bool encode(TapeFile &tapeFile, string& filePath);
+
+	// Encode a TAP File structure into an already open CSW file
+	bool encode(TapeFile& tapeFile);
+
+	// Open CSW file for writing
+	bool openTapeFile(string& filePath);
+
+	// Close CSW file that was written to
+	bool closeTapeFile();
 
 	 // Decode a CSW file as a vector of pulses
 	bool decode(string &CSWFileName, Bytes &pulses, Level &firstHalfCycleLevel);

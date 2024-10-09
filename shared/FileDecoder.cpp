@@ -289,10 +289,11 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
 
     if (file_name != "???") {
 
-
         if (!first_block_found || !last_block_found || missing_block || incomplete_blocks || corrupted_blocks) {
             if (!first_block_found || !last_block_found || missing_block || incomplete_blocks)
                 tapFile.complete = false;
+            else
+                tapFile.complete = true;
             if (corrupted_blocks)
                 tapFile.corrupted = true;
             if (file_selected && !mCat) {

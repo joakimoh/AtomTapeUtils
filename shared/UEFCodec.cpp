@@ -143,8 +143,9 @@ bool UEFCodec::setTapeTiming(TapeProperties tapeTiming)
     return true;
 }
 
-bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
+bool UEFCodec::encodeBBM(TapeFile& tapeFile)
 {
+
     FileBlockIter file_block_iter = tapeFile.blocks.begin();
     TargetMachine file_block_type = BBC_MODEL_B;
 
@@ -177,13 +178,13 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
         if (firstBlock) {
             double prelude_lead_tone_duration = prelude_lead_tone_cycles / (2 * mBaseFrequency);
             int postlude_lead_tone_cycles = (int) round(lead_tone_duration * (2 * mBaseFrequency));
-            if (!writeCarrierChunkwithDummyByte(fout, prelude_lead_tone_cycles, postlude_lead_tone_cycles)) {
+            if (!writeCarrierChunkwithDummyByte(*mTapeFile_p, prelude_lead_tone_cycles, postlude_lead_tone_cycles)) {
                 *mFout << "Failed to write " << prelude_lead_tone_cycles <<
                     " cycles prelude tone and dummy byte 0xaa followed by " << lead_tone_duration << " s postlude tone\n";
             }
         }
         else {
-            if (!writeCarrierChunk(fout, lead_tone_duration)) {
+            if (!writeCarrierChunk(*mTapeFile_p, lead_tone_duration)) {
                 *mFout << "Failed to write " << mBaseFrequency * 2 <<
                     " lead tone of duration " << lead_tone_duration << "\n";
             }
@@ -212,7 +213,7 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
         Bytes preamble;
         Word dummy_CRC;
         preamble.push_back(0x2a);
-        if (!writeSimpleDataChunk(fout, preamble, dummy_CRC)) {
+        if (!writeSimpleDataChunk(*mTapeFile_p, preamble, dummy_CRC)) {
             *mFout << "Failed to write block preamble data chunk for block #" << block_no << "\n";
         }
 
@@ -228,7 +229,7 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
         }
 
         // Write header excluding the CRC
-        if (!writeComplexDataChunk(fout, 8, 'N', 1, header_data, header_CRC)) {
+        if (!writeComplexDataChunk(*mTapeFile_p, 8, 'N', 1, header_data, header_CRC)) {
             *mFout << "Failed to write block header data chunk for block #" << block_no << "\n";
         }
 
@@ -237,7 +238,7 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
         dummy_CRC = 0;
         header_CRC_bytes.push_back(header_CRC / 256);
         header_CRC_bytes.push_back(header_CRC % 256);
-        if (!writeSimpleDataChunk(fout, header_CRC_bytes, dummy_CRC)) {
+        if (!writeSimpleDataChunk(*mTapeFile_p, header_CRC_bytes, dummy_CRC)) {
             *mFout << "Failed to write header CRC data chunk for block #" << block_no << "\n";
         }
 
@@ -260,7 +261,7 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
         Bytes block_data;
         while (bi < file_block_iter->data.end())
             block_data.push_back(*bi++);
-        if (!writeComplexDataChunk(fout, 8, 'N', 1, block_data, data_CRC)) {
+        if (!writeComplexDataChunk(*mTapeFile_p, 8, 'N', 1, block_data, data_CRC)) {
             *mFout << "Failed to write block header data chunk\n";
         }
 
@@ -268,7 +269,7 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
         Bytes data_CRC_bytes;
         data_CRC_bytes.push_back(data_CRC / 256);
         data_CRC_bytes.push_back(data_CRC % 256);
-        if (!writeSimpleDataChunk(fout, data_CRC_bytes, dummy_CRC)) {
+        if (!writeSimpleDataChunk(*mTapeFile_p, data_CRC_bytes, dummy_CRC)) {
             *mFout << "Failed to write data CRC chunk\n";
         }
 
@@ -285,14 +286,14 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
             // Write a trailer carrier
             if (mUseOriginalTiming && tapeFile.validTiming)
                 trailer_tone_duration = (file_block_iter->trailerToneCycles) / (2 * mBaseFrequency);
-            if (!writeCarrierChunk(fout, trailer_tone_duration)) {
+            if (!writeCarrierChunk(*mTapeFile_p, trailer_tone_duration)) {
                 *mFout << "Failed to write trailer lead tone chunk\n";
             }
 
             // write a gap
             if (mUseOriginalTiming && tapeFile.validTiming)
                 last_block_gap = file_block_iter->blockGap;
-            if (!writeFloatPrecGapChunk(fout, last_block_gap)) {
+            if (!writeFloatPrecGapChunk(*mTapeFile_p, last_block_gap)) {
                 *mFout << "Failed to write " << last_block_gap << "s of gap for last block\n";
             }
         };
@@ -308,7 +309,7 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile, ogzstream& fout)
     return true;
 }
 
-bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout)
+bool UEFCodec::encodeAtom(TapeFile& tapeFile)
 {
     
     FileBlockIter file_block_iter = tapeFile.blocks.begin();
@@ -335,7 +336,7 @@ bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout)
         // Write a lead tone for the block
         if (mUseOriginalTiming && tapeFile.validTiming)
             lead_tone_duration = (file_block_iter->leadToneCycles) / (2 * mBaseFrequency);
-        if (!writeCarrierChunk(fout, lead_tone_duration)) {
+        if (!writeCarrierChunk(*mTapeFile_p, lead_tone_duration)) {
             *mFout << "Failed to write " << mBaseFrequency * 2 << " Hz lead tone of duration " << lead_tone_duration << "s\n";
         }
         
@@ -388,7 +389,7 @@ bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout)
         header_data.push_back(file_block_iter->atomHdr.loadAdrLow);
 
 
-        if (!writeComplexDataChunk(fout, 8, 'N', -1, header_data, CRC)) {
+        if (!writeComplexDataChunk(*mTapeFile_p, 8, 'N', -1, header_data, CRC)) {
             *mFout << "Failed to write block header data chunk\n";
         }
 
@@ -401,7 +402,7 @@ bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout)
         // Add micro tone between header and data
         if (mUseOriginalTiming && tapeFile.validTiming)
             data_block_micro_lead_tone_duration = file_block_iter->microToneCycles / (2 * mBaseFrequency);
-        if (!writeCarrierChunk(fout, data_block_micro_lead_tone_duration)) {
+        if (!writeCarrierChunk(*mTapeFile_p, data_block_micro_lead_tone_duration)) {
             *mFout << "Failed to write " << 2 * mBaseFrequency << " Hz micro lead tone of duration " << 
                 data_block_micro_lead_tone_duration << "s\n";
         }
@@ -418,7 +419,7 @@ bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout)
         Bytes block_data;
         while (bi < file_block_iter->data.end())
             block_data.push_back(*bi++);
-        if (!writeComplexDataChunk(fout, 8, 'N', -1, block_data, CRC)) {
+        if (!writeComplexDataChunk(*mTapeFile_p, 8, 'N', -1, block_data, CRC)) {
             *mFout << "Failed to write block header data chunk\n";
         }
 
@@ -431,7 +432,7 @@ bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout)
         Bytes CRC_data;
         Word dummy_CRC = 0;
         CRC_data.push_back(CRC & 0xff);
-        if (!writeComplexDataChunk(fout, 8, 'N', -1, CRC_data, dummy_CRC)) {
+        if (!writeComplexDataChunk(*mTapeFile_p, 8, 'N', -1, CRC_data, dummy_CRC)) {
             *mFout << "Failed to write CRC data chunk\n";
         }
 
@@ -445,7 +446,7 @@ bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout)
 
         // Write 1 security cycle
         /*
-        if (!writeSecurityCyclesChunk(fout, 1, 'W', 'P', { 1 })) {
+        if (!writeSecurityCyclesChunk(*mTapeFile_p, 1, 'W', 'P', { 1 })) {
             *mFout << "Failed to write security bytes\n";
         }
         */
@@ -455,7 +456,7 @@ bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout)
             block_gap = last_block_gap;
         if (mUseOriginalTiming && tapeFile.validTiming)
             block_gap = file_block_iter->blockGap;
-        if (!writeFloatPrecGapChunk(fout, block_gap)) {
+        if (!writeFloatPrecGapChunk(*mTapeFile_p, block_gap)) {
             *mFout << "Failed to write " << block_gap << "s of block gap\n";
         }
 
@@ -469,22 +470,59 @@ bool UEFCodec::encodeAtom(TapeFile& tapeFile, ogzstream& fout)
     return true;
 }
 
-bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
+bool UEFCodec::openTapeFile(string& filePath)
 {
-    if (tapeFile.blocks.empty()) 
-        return false;
-
-    ogzstream  fout(filePath.c_str());
-    if (!fout.good()) {
-        cout << "Can't write to UEF file '" << filePath << "\n";
+    mTapeFilePath = filePath;
+    mTapeFile_p = new ogzstream(filePath.c_str());
+    if (!mTapeFile_p->good()) {
+        cout << "Can't write to UEF file '" << mTapeFilePath << "\n";
         return false;
     }
+
+    mFirstFile = true;
+
+    return true;
+}
+
+bool UEFCodec::closeTapeFile()
+{
+    mTapeFile_p->close();
+
+    if (!mTapeFile_p->good()) {
+        cout << "Failed writing to file '" << mTapeFilePath << "' for compressed output\n";
+        return false;
+    }
+
+    return true;
+}
+
+
+bool UEFCodec::encode(TapeFile& tapeFile, string& filePath)
+{
+    if (!openTapeFile(filePath))
+        return false;
 
     string tapeFileName;
 
     if (mDebugInfo.verbose)
-        *mFout << "Encoding program '" << tapeFileName << "' as an UEF file...\n\n";
+        *mFout << "Encoding program '" << tapeFileName << "' into UEF file...\n\n";
 
+    encode(tapeFile);
+
+    if (!closeTapeFile())
+        return false;
+
+    if (mDebugInfo.verbose)
+        *mFout << "\nDone encoding program '" << tapeFileName << "' as an UEF file...\n\n";
+
+    return true;
+}
+
+bool UEFCodec::writeFileIndepPart(TapeFile& tapeFile)
+{
+
+
+    string tapeFileName = "???";
 
     //
     // Write data-independent part of UEF file
@@ -509,65 +547,70 @@ bool UEFCodec::encode(TapeFile &tapeFile, string &filePath)
 
     // Header: UEF File!
     UefHdr hdr;
-    fout.write((char*)&hdr, sizeof(hdr));
+    mTapeFile_p->write((char*)&hdr, sizeof(hdr));
 
 
     // Add origin
     string origin = "AtomTapeUtils";
-    if (!writeOriginChunk(fout, origin)) {
+    if (!writeOriginChunk(*mTapeFile_p, origin)) {
         *mFout << "Failed to write origin chunk with string '" << origin << "'\n";
     }
 
     // Write target
-    if (!writeTargetChunk(fout)) {
+    if (!writeTargetChunk(*mTapeFile_p)) {
         *mFout << "Failed to write target chunk with target " << _TARGET_MACHINE(mTargetMachine) << "\n";
     }
 
 
     // Baudrate
-    if (!writeBaudrateChunk(fout)) {
+    if (!writeBaudrateChunk(*mTapeFile_p)) {
         *mFout << "Failed to write baudrate chunk with baudrate " << baudrate << "\n";
     }
 
 
     // Phaseshift
-    if (!writePhaseChunk(fout)) {
+    if (!writePhaseChunk(*mTapeFile_p)) {
         *mFout << "Failed to write phaseshift chunk with phase shift " << mPhase << " degrees\n";
     }
 
     // Write base frequency
-    if (!writeBaseFrequencyChunk(fout)) {
+    if (!writeBaseFrequencyChunk(*mTapeFile_p)) {
         *mFout << "Failed to encode base frequency " << mBaseFrequency << " Hz as double\n";
     }
 
-
     // Write an intial gap before the file starts
-    if (!writeFloatPrecGapChunk(fout, first_block_gap)) {
+    if (!writeFloatPrecGapChunk(*mTapeFile_p, first_block_gap)) {
         *mFout << "Failed to write " << first_block_gap << "s gap\n";
     }
 
+    return true;
+}
+
+/*
+ * Encode TAP File structure into already open UEF file
+ */
+bool UEFCodec::encode(TapeFile& tapeFile)
+{
+    if (tapeFile.blocks.empty()) 
+        return false;
+
+    if (mFirstFile) {
+        mFirstFile = false;
+        mTargetMachine = tapeFile.fileType;
+        if (!writeFileIndepPart(tapeFile))
+            return false;
+    }
+
     if (mTargetMachine <= BBC_MASTER) {
-        encodeBBM(tapeFile, fout);
-        tapeFileName = tapeFile.blocks[0].atomHdr.name;
+        encodeBBM(tapeFile);
     }
     else if (mTargetMachine <= ACORN_ATOM) {
-        encodeAtom(tapeFile, fout);
-        tapeFileName = tapeFile.blocks[0].atomHdr.name;
+        encodeAtom(tapeFile);
     }
     else {
         *mFout << "Unknown target machine " << hex << mTargetMachine << "\n";
         return false;
-    }
-
-    fout.close();
-
-    if (!fout.good()) {
-        cout << "Failed writing to file '" << filePath << "' for compression output\n";
-        return false;
-    }
-
-    if (mDebugInfo.verbose)
-        *mFout << "\nDone encoding program '" << tapeFileName << "' as an UEF file...\n\n";
+    }  
 
     return true;
 
