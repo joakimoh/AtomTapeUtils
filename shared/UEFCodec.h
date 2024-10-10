@@ -335,8 +335,8 @@ private:
 	
 public:
 
-	bool UEFCodec::openTapeFile(string& filePath);
-	bool UEFCodec::closeTapeFile();
+	bool openTapeFile(string& filePath);
+	bool closeTapeFile();
 
 	bool setStdOut(ostream* fout);
 
