@@ -31,6 +31,8 @@ bool TAPCodec::closeTapeFile()
 
     mTapeFile_p->close();
 
+    delete mTapeFile_p;
+
     return true;
 }
 

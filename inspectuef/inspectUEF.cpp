@@ -51,8 +51,10 @@ int main(int argc, const char* argv[])
         cout << "Failed to decode UEF file '" << arg_parser.srcFileName << "'\n";
     }
 
-    if (arg_parser.dstFileName != "")
+    if (arg_parser.dstFileName != "") {
         ((ofstream*)fout_p)->close();
+        delete fout_p;
+    }
 
     return 0;
 }

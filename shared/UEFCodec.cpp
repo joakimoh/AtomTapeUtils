@@ -493,6 +493,8 @@ bool UEFCodec::closeTapeFile()
         return false;
     }
 
+    delete mTapeFile_p;
+
     return true;
 }
 
