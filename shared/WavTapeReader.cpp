@@ -135,6 +135,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 		else if (carrier_half_cycle_count == 0) {
 			t_start = -1;
 			t_dummy_byte_start = -1;
+			detected_dummy_byte = false;
 			t_dummy_byte = -1;
 			preludeCycles = -1;
 		}
@@ -147,6 +148,9 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 
 		double half_cycle_duration = getTime() - t12_start;
 
+		bool check_for_dummy_byte = false;
+		bool check_for_header = false;
+
 		// Increase carrier count for F2 cycle and decrease it for F1/undefined type of 1/2 cycles
 		if (mCycleDecoder.lastHalfCycleFrequency() == Frequency::F2) {
 			carrier_half_cycle_count++;
@@ -155,13 +159,18 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 			n_continuous_f2_half_cycles++;
 		} 
 		else {
+			if (n_continuous_f2_half_cycles >= 8)
+				check_for_dummy_byte = true;
+			if (n_continuous_f2_half_cycles >= 8 && carrier_half_cycle_count > 2400)
+				check_for_header = true;
+			n_continuous_f2_half_cycles = 0;
 			carrier_half_cycle_count -= (int)round(half_cycle_duration * carrierFreq() * 2); // decrease = time passed in F2 units
 		}
 
 
-		// Check for a dummy byte if at least two consecutive carrier 1/2 cycles have been detected before
+		// Check for a dummy byte if at least 8 consecutive carrier 1/2 cycles have been detected before
 		// the F1 1/2 cycle was detected. An F1 1/2 cycle means it could be the start bit of a dummy byte.
-		if (!detected_dummy_byte && detectDummyByte && mCycleDecoder.lastHalfCycleFrequency() == Frequency::F1 && n_continuous_f2_half_cycles > 2) {
+		if (!detected_dummy_byte && detectDummyByte && mCycleDecoder.lastHalfCycleFrequency() == Frequency::F1 && check_for_dummy_byte) {
 
 			// Check for a dummy byte (0xaa)
 			t_dummy_byte_start = getTime();
@@ -171,9 +180,6 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 				preludeCycles = (int)round((t_dummy_byte_start - t_start) * mCycleDecoder.carrierFreq());
 				t_dummy_byte = getTime() - t_dummy_byte_start; // stop bits not included as not read for a byte
 				int dummy_byte_half_cycles = (int)round(t_dummy_byte * carrierFreq() * 2);
-				if (mDebugInfo.verbose) {
-					cout << "Dummy byte 0x" << hex << (int)foundDummyByte << " starts at " << Utility::encodeTime(t_dummy_byte_start) << "\n";
-				}
 				detected_dummy_byte = true;
 
 			}
@@ -182,17 +188,15 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 				int elapsed_half_cycles = (int)round(t_elapsed * carrierFreq() * 2);
 				carrier_half_cycle_count -= elapsed_half_cycles;
 			}
-
-			n_continuous_f2_half_cycles = 0;
 		}
 
 		// If a block header (and not a gap) is expected after the carrier, then check for a block header.
 		// Shouldn't really see the start of the header before the min carrier time has passed
 		// but in case it still comes we need to stop...
-		// At least 0.5s of carrier (2400 1/2 cycles) and a preceeding 4 carrier 1/2 cycles is required to avoid noise
+		// At least 0.5s of carrier (2400 1/2 cycles) and a preceeding 8 carrier 1/2 cycles is required to avoid noise
 		// being mistaken for the start of a block header (i.e. the preamble).
 		if (afterCarrierType == STARTBIT_FOLLOWS && detected_dummy_byte && mCycleDecoder.lastHalfCycleFrequency() == Frequency::F1 
-			&& n_continuous_f2_half_cycles > 4 && carrier_half_cycle_count > 2400) {
+			&& check_for_header) {
 			Byte preamble = -1;
 			checkpoint();
 			if (readByte(preamble, false) && preamble == 0x2a) { // try to read a preamble from a header
@@ -208,12 +212,8 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 				// No preamble was read => treat this as noise in the carrier and continue
 				rollback(); // rollback to before attempt ot read preamble
 				regretCheckpoint(); // remove last checkpoint (to keep the detected F1 1/2 cycle)
-				if (mDebugInfo.verbose && n_continuous_f2_half_cycles > 4) {
-					//cout << "Noise (before min carrier time has elapsed) at " << Utility::encodeTime(getTime()) << "\n";
-				}
 			}
-			
-			n_continuous_f2_half_cycles = 0;
+
 		}
 		else {
 			regretCheckpoint();
@@ -226,7 +226,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 
 	if (mDebugInfo.verbose) {
 		if (detected_dummy_byte)
-			cout << "Found dummy byte 0x" << hex << (int)foundDummyByte << " at " << Utility::encodeTime(getTime()) << "\n";
+			cout << "Found dummy byte 0x" << hex << (int)foundDummyByte << " at " << Utility::encodeTime(t_dummy_byte_start) << "\n";
 
 		cout << "Min carrier" << s << " of length " << (double)carrier_half_cycle_count / 2 << " cycles (" <<
 			(double)carrier_half_cycle_count / 2 / carrierFreq() << "s) detected at " << Utility::encodeTime(getTime()) << "\n";
