@@ -37,7 +37,8 @@ string FileDecoder::timeToStr(double t) {
 bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchName)
 {
     tapFile.init();
-    tapFile.fileType = mTarget;
+    FileMetaData meta_data("", 0x0, 0x0, mTarget);
+    tapFile.metaData = meta_data;
 
     bool file_selected = false;
 
@@ -172,7 +173,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
                 if (mDebugInfo.verbose && file_selected) {
 
                     string block_no_s = "#" + to_string(block_no);
-                    string block_type_s = _BLOCK_ORDER(read_block.blockType);
+                    string block_type_s = _BLOCK_ORDER(read_block.getBlockType());
 
                     printf("*** ERROR *** Only correctly read %d bytes of file '%s': block %s (%s)!\n",
                         mBlockDecoder.nReadBytes, fn.c_str(), block_no_s.c_str(), block_type_s.c_str()
@@ -191,7 +192,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
             last_valid_load_adr_UB = load_adr_UB;
             last_valid_exec_adr = exec_adr;
             last_valid_block_sz = block_sz;
-            last_valid_block_type = read_block.blockType;
+            last_valid_block_type = read_block.getBlockType();
             last_valid_block_start_time = block_start_time;
 
             double block_end_time = mBlockDecoder.getTime();

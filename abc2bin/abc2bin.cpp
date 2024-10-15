@@ -20,7 +20,7 @@ using namespace std::filesystem;
 
 /*
  *
- * Create Binary file from DATA file
+ * Create Binary file from Program file
  * *
  */
 int main(int argc, const char* argv[])

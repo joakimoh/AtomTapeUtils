@@ -19,7 +19,7 @@ bool UEFTapeReader::readByte(Byte& byte)
 {
 	Bytes data;
 	
-	if (!mUEFCodec.readfromDataChunk(1, data) || data.size() == 0) {
+	if (!mUEFCodec.readFromDataChunk(1, data) || data.size() == 0) {
 		return false;
 	}
 	byte = data[0] ;
@@ -108,7 +108,7 @@ bool UEFTapeReader::waitForCarrierWithDummyByte(
 
 
 	Bytes dummy_byte_data;
-	if (!mUEFCodec.readfromDataChunk(1, dummy_byte_data) || dummy_byte_data.size() != 1) {
+	if (!mUEFCodec.readFromDataChunk(1, dummy_byte_data) || dummy_byte_data.size() != 1) {
 		// Could be and of tape and not necessary an error
 		cout << "Failed to read dummy byte at " << Utility::encodeTime(getTime()) << "\n";
 		return false;

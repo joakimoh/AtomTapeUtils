@@ -26,7 +26,7 @@ public:
 	/*
 	 * Decode DATA file as TAP File structure
 	 */
-	bool decode(string& tapFileName, TapeFile &tapFile, TargetMachine targetMachine);
+	bool decode(string& dataFileName, TargetMachine targetMachine, TapeFile &tapFile);
 
 	bool data2Bytes(string& dataFileName, int& startAdress, Bytes& data);
 

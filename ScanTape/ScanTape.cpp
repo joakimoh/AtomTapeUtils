@@ -219,7 +219,7 @@ int main(int argc, const char* argv[])
                 //return -1;
             }
             if (arg_parser.logging.verbose)
-                cout << (tape_file.fileType == ACORN_ATOM ? "Atom" : "BBC Micro") << " Tape File '" << tape_file.blocks.front().blockName() <<
+                cout << (tape_file.metaData.targetMachine == ACORN_ATOM ? "Atom" : "BBC Micro") << " Tape File '" << tape_file.blocks.front().blockName() <<
                 "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
 
             DataCodec DATA_codec = DataCodec(arg_parser.logging);
@@ -231,12 +231,12 @@ int main(int argc, const char* argv[])
 
             AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
             string ABC_file_name;
-            if (tape_file.fileType == ACORN_ATOM)
+            if (tape_file.metaData.targetMachine == ACORN_ATOM)
                 ABC_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "abc");
-            else if (tape_file.fileType <= BBC_MASTER)
+            else if (tape_file.metaData.targetMachine <= BBC_MASTER)
                 ABC_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "bbc");
             else {
-                cout << "Unknwon target machine " << hex << tape_file.fileType << "\n";
+                cout << "Unknwon target machine " << hex << tape_file.metaData.targetMachine << "\n";
                 return -1;
             }
             if (!ABC_codec.encode(tape_file, ABC_file_name)) {

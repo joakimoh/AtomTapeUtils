@@ -15,6 +15,18 @@ enum BlockType { First = 0x1, Last = 0x2, Other = 0x4, Single = 0x3, Unknown = 0
 
 #define _BLOCK_ORDER(x) (x==BlockType::First?"First":(x==BlockType::Last?"Last":(x==BlockType::Other?"Other":(x==BlockType::Single?"Single":"Unknown"))))
 
+class FileMetaData {
+public:
+	string name;
+	uint32_t loadAdr;
+	uint32_t execAdr;
+	TargetMachine targetMachine;
+
+	FileMetaData(string n, uint32_t LA, uint32_t EA, TargetMachine t) : name(n), loadAdr(LA), execAdr(EA), targetMachine(t) {}
+
+	void init() { name = "???"; loadAdr = 0x0; execAdr = 0x0; targetMachine = TargetMachine::UNKNOWN_TARGET; }
+	void init(TargetMachine t) { name = "???"; loadAdr = 0x0; execAdr = 0x0; targetMachine = t; }
+};
 
 class FileBlock {
 
@@ -29,7 +41,7 @@ public:
 		BTMHdr bbmHdr;
 	};
 
-	BlockType blockType = BlockType::Unknown;
+	
 	int blockNo = -1; // ATM header lacks block no so add it here
 
 	vector<Byte> data;
@@ -49,6 +61,7 @@ public:
 
 protected:
 	
+	BlockType blockType = BlockType::Unknown;
 
 private:
 
@@ -65,6 +78,9 @@ private:
 	static string bbmFilenameFromBlockName(TargetMachine targetMachine, string fileName);
 
 public:
+
+	BlockType getBlockType();
+	void setBlockType(BlockType bt);
 
 	FileBlock(TargetMachine bt);
 	
@@ -113,9 +129,11 @@ class TapeFile {
 
 public:
 
-	TargetMachine fileType;
+	FileMetaData metaData;
 
-	TapeFile(TargetMachine ft) { fileType = ft; }
+	TapeFile(TargetMachine targetMachine) : metaData("???", 0x0, 0x0, targetMachine) {}
+	TapeFile(FileMetaData md) : metaData(md.name, md.loadAdr, md.execAdr, md.targetMachine) { }
+	TapeFile() : metaData("???", 0x0, 0x0, TargetMachine::UNKNOWN_TARGET) {}
 
 	vector<FileBlock> blocks;
 
@@ -137,6 +155,15 @@ public:
 	void logTAPFileHdr(ostream* fout);
 	void logTAPFileHdr();
 	void init();
+	void init(TargetMachine targetMachine);
+
+	//
+	// Iterate over all blocks and update their block types (SINGLE, FIRST, OTHER, LAST)
+	//
+	// Required when the no of blocks in the tape file is not known
+	// when creating the tape file (but only after creation of it)
+	//
+	bool setBlockTypes();
 
 };
 

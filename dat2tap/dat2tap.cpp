@@ -51,7 +51,7 @@ int main(int argc, const char* argv[])
 
     DataCodec DATA_codec = DataCodec(arg_parser.logging);
     TapeFile TAP_file(ACORN_ATOM);
-    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file, ACORN_ATOM)) {
+    if (!DATA_codec.decode(arg_parser.srcFileName, ACORN_ATOM, TAP_file)) {
         printf("Failed to decode DATA file '%s'\n", arg_parser.srcFileName.c_str());
     }
 

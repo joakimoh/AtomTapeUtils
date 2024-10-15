@@ -37,7 +37,7 @@ int main(int argc, const char* argv[])
         cout << "Output file name = " << arg_parser.dstFileName << "\n";
 
     TAPCodec TAP_codec = TAPCodec(arg_parser.logging);
-    TapeFile TAP_file(ACORN_ATOM);
+    TapeFile TAP_file;
     if (!TAP_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode TAP file '%s'\n", arg_parser.srcFileName.c_str());
     }

@@ -90,7 +90,7 @@ bool DataCodec::encode(TapeFile& tapeFile, string& filePath)
         return false;
     }
 
-    if (tapeFile.fileType == ACORN_ATOM)
+    if (tapeFile.metaData.targetMachine == ACORN_ATOM)
         return encodeAtom(tapeFile, filePath, fout);
     else
         return encodeBBM(tapeFile, filePath, fout);
@@ -268,9 +268,9 @@ bool DataCodec::encodeAtom(TapeFile &tapeFile, string& filePath, ofstream &fout)
 
 
 /*
- * Decode DATA file as TAP File structure
+ * Decode DATA file as Tape File structure
  */
-bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine targetMachine)
+bool DataCodec::decode(string& dataFileName, TargetMachine targetMachine, TapeFile& tapeFile)
 {
     Bytes data;
     int load_adr;
@@ -291,21 +291,13 @@ bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine t
     int file_load_adr;
     FileBlock block(targetMachine);
     
-    block_name = FileBlock::blockNameFromFilename(ACORN_ATOM, file_name);
-    if (targetMachine) {
-        file_load_adr = 0xffff0e00;
-        exec_adr = load_adr;
-    } else {
-        exec_adr = 0xc2b2;
-        file_load_adr = 0x2900;
-    }
+    block_name = FileBlock::blockNameFromFilename(targetMachine, file_name);
+    file_load_adr = load_adr;
 
     tapeFile.init();
     tapeFile.complete = true;
     tapeFile.validFileName = file_name;
-    tapeFile.isBasicProgram = true;
-
-    
+    tapeFile.isBasicProgram = true; 
 
     int block_no = 0;
     bool new_block = true;
@@ -348,13 +340,14 @@ bool DataCodec::decode(string& dataFileName, TapeFile& tapeFile, TargetMachine t
             
             load_adr += count;
             block_no++;
-            //BytesIter block_iterator = block.data.begin();
-            // if (DEBUG_LEVEL == DBG && mDebugInfo.verbose) Utility::logData(load_address, block_iterator, block.data.size());
         }
 
 
     }
 
+    // Set the type for each block (FIRST, LAST, OTHER or SINGLE) - can only be made when the no of blocks are known
+    if (!tapeFile.setBlockTypes())
+        return false;
 
     //if (DEBUG_LEVEL == DBG && mDebugInfo.verbose) Utility::logData(load_address, block_iterator, block.data.size());
 

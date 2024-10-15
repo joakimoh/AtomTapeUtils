@@ -23,7 +23,7 @@ add_library(
 	"Utility.cpp"
 	"WavEncoder.cpp"
 	"zpipe.cpp" 
-	"BBMBlockTypes.h" "FileBlock.h"  "TapeReader.h")
+	"BBMBlockTypes.h" "FileBlock.h"  "TapeReader.h" "DiscCodec.h" "DiscCodec.cpp" "BinCodec.cpp" "BinCodec.h")
 
 # Locate zlib
 find_package(ZLIB REQUIRED)

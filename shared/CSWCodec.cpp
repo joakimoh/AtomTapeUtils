@@ -90,7 +90,7 @@ bool CSWCodec::encode(TapeFile& tapeFile, string& filePath)
 
 bool CSWCodec::encode(TapeFile& tapeFile)
 {
-    if (tapeFile.fileType <= BBC_MASTER)
+    if (tapeFile.metaData.targetMachine <= BBC_MASTER)
         return encodeBBM(tapeFile);
     else
         return encodeAtom(tapeFile);

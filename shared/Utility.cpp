@@ -1,13 +1,47 @@
 #include "Utility.h"
 #include "CommonTypes.h"
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include "Logging.h"
 #include <filesystem>
 #include "WaveSampleTypes.h"
 #include <cmath>
-#include <cstdint>
+#include <cstdint>'
+#include <string>
 
+string Utility::paddedCharArray2String(Byte* a, int n)
+{
+    string s;
+    for (int i = 0; i <n && a[i] != 0x0 && a[i] != (Byte) ' '; i++)
+        s += (char) a[i];
+
+    return s;
+}
+bool Utility::move2FilePos(ifstream& fin, streampos pos)
+{
+    if (!fin.seekg(pos))
+        return false;
+
+    return true;
+}
+bool Utility::readBytes(ifstream &fin, Byte* bytes, int n)
+{
+    if (!fin.read((char*)bytes, (streamsize)n))
+        return false;
+
+    return true;
+}
+
+bool Utility::readBytes(ifstream &fin, streampos pos, Byte* bytes, int n)
+{
+
+    fin.seekg(pos);
+    if (!fin.read((char*)bytes, (streamsize)n))
+        return false;
+
+    return true;
+}
 
 string Utility::roundedPD(string prefix, double d, string suffix)
 {

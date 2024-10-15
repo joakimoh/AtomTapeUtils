@@ -42,28 +42,25 @@ TAPCodec::TAPCodec(Logging logging) : mDebugInfo(logging)
 
 }
 
-bool TAPCodec::bytes2TAP(Bytes& data, TargetMachine targetMachine, string tapeFileName, uint32_t fileLoadAdr, uint32_t execAdr, TapeFile& tapeFile)
+bool TAPCodec::bytes2TAP(Bytes& data, FileMetaData fileMetaData, TapeFile& tapeFile)
 {
     tapeFile.init();
 
-    if (targetMachine) {
-        tapeFile.fileType = BBC_MODEL_B;
+    tapeFile.metaData = fileMetaData;
+    if (fileMetaData.targetMachine <= BBC_MASTER)
         tapeFile.baudRate = 1200;
-    }
-    else {
-        tapeFile.fileType = ACORN_ATOM;
+    else
         tapeFile.baudRate = 300;
-    }
 
     tapeFile.isBasicProgram = false;
     tapeFile.complete = true;
-    tapeFile.validFileName = FileBlock::filenameFromBlockName(targetMachine, tapeFileName);
+    tapeFile.validFileName = FileBlock::filenameFromBlockName(fileMetaData.targetMachine, fileMetaData.name);
     tapeFile.validTiming = false;
     
 
     BytesIter data_iter = data.begin();
     int count = 0;
-    uint32_t load_adr = fileLoadAdr;
+    uint32_t load_adr = fileMetaData.loadAdr;
     uint32_t block_no = 0;
     FileBlock block(ACORN_ATOM);
     uint32_t block_sz;
@@ -74,8 +71,8 @@ bool TAPCodec::bytes2TAP(Bytes& data, TargetMachine targetMachine, string tapeFi
                 block_sz = (int) (data.end() - data_iter);
             if (!block.init())
                 return false;
-            if (!block.encodeTAPHdr(tapeFileName, fileLoadAdr, load_adr, execAdr, block_no, block_sz)) {
-                cout << "Failed to create Tape Block for Tape File " << tapeFileName << "\n";
+            if (!block.encodeTAPHdr(fileMetaData.name, fileMetaData.loadAdr, load_adr, fileMetaData.execAdr, block_no, block_sz)) {
+                cout << "Failed to create Tape Block for Tape File " << fileMetaData.name << "\n";
                 return false;
             }
             tapeFile.blocks.push_back(block);
@@ -90,6 +87,10 @@ bool TAPCodec::bytes2TAP(Bytes& data, TargetMachine targetMachine, string tapeFi
         }
     }
 
+    // Set the type for each block (FIRST, LAST, OTHER or SINGLE) - can only be made when the no of blocks are known
+    if (!tapeFile.setBlockTypes())
+        return false;
+
     return true;
 }
 
@@ -100,7 +101,7 @@ bool TAPCodec::tap2Bytes(TapeFile& tapeFile, uint32_t& loadAdress, Bytes& data)
     if (tapeFile.blocks.size() == 0)
         return false;
 
-    if (tapeFile.fileType == ACORN_ATOM)
+    if (tapeFile.metaData.targetMachine == ACORN_ATOM)
         loadAdress = block_iter->atomHdr.execAdrHigh * 256 + block_iter->atomHdr.execAdrLow;
     else
         loadAdress = Utility::bytes2uint(&block_iter->bbmHdr.loadAdr[0], 4, true);
@@ -255,7 +256,7 @@ bool TAPCodec::decodeMultipleFiles(string& tapFileName, vector<TapeFile> &atomFi
         cout << "\nDecoding TAP file '" << tapFileName << "'...\n\n";
 
     // Read one Atom File from the TAP file
-    TapeFile TAP_file(ACORN_ATOM);
+    TapeFile TAP_file;
     while (decodeSingleFile(fin, file_size, TAP_file)) {
         atomFiles.push_back(TAP_file);
     }
@@ -291,6 +292,10 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
         tapeFile.complete = true;
         tapeFile.isBasicProgram = true;
         tapeFile.baudRate = 300;
+        tapeFile.metaData.targetMachine = TargetMachine::ACORN_ATOM;
+        tapeFile.metaData.execAdr = 0x2900;
+        tapeFile.metaData.loadAdr = 0xc2b2;
+        tapeFile.metaData.name = atom_filename;
     }
     else {
         cout << "Invalid TAP header detected!\n";
@@ -329,10 +334,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
             read_bytes += expected_block_sz;
 
             block.blockNo = block_no;
-            if (block_no == 0)
-                block.blockType = BlockType::First;
-            else
-                block.blockType = BlockType::Other;
+
             tapeFile.blocks.push_back(block);
 
             tapeFile.lastBlock = block_no;
@@ -353,9 +355,10 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
         else
             done = true;
     }
-    if (block_no == 1)
-        tapeFile.blocks[0].blockType = BlockType::Single;
-    tapeFile.blocks[tapeFile.blocks.size() - 1].blockType = BlockType::Last;
+
+    // Set the type for each block (FIRST, LAST, OTHER or SINGLE) - can only be made when the no of blocks are known
+    if (!tapeFile.setBlockTypes())
+        return false;
 
     if (mDebugInfo.verbose) {
         cout << "\n";

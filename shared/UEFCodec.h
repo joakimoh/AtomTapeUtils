@@ -100,24 +100,39 @@ private:
 
 	enum CHUNK_ID {
 		ORIGIN_CHUNK = 0x0000, TARGET_CHUNK = 0x0005,
-		SIMPLE_DATA_CHUNK = 0x100, COMPLEX_DATA_CHUNK = 0x0104,
+		IMPLICIT_DATA_BLOCK_CHUNK = 0x100, DEFINED_TAPE_FORMAT_DATA_BLOCK_CHUNK = 0x0104,
 		CARRIER_TONE_CHUNK = 0x0110, CARRIER_TONE_WITH_DUMMY_BYTE = 0x0111,
 		INTEGER_GAP_CHUNK = 0x0112,
-		BASE_FREQ_CHUNK = 0x113, SECURITY_CHUNK = 0x0114, PHASE_CHUNK = 0x0115, FLOAT_GAP_CHUNK = 0x0116, 
-		BAUD_RATE_CHUNK = 0x117,
-		UNKNOWN_CHUNK = 0xffff
+		BASE_FREQ_CHUNK = 0x113, SECURITY_CHUNK = 0x0114, PHASE_CHUNK = 0x0115, FP_GAP_CHUNK = 0x0116, 
+		DATA_ENCODING_FORMAT_CHANGE_CHUNK = 0x117,
+		UNKNOWN_CHUNK = 0xffff,
+		// Currently unsupported general chunks:
+		MANUAL_CHUNK = 0x0001,
+		INLAY_SCAN_CHUNK = 0x0003,
+		BIT_MULTIPLEXING_INFO_CHUNK = 0x0006,
+		EXTRA_PALETTE_CHUNK = 0x0007,
+		ROM_HINT_CHUNK = 0x0008,
+		SHORT_TITLE_CHUNK = 0x0009,
+		VISIBLE_AREA_CHUNK = 0x000a,
+		// Currently unsupported tape chunks:
+		MULTIPLEXED_DATA_BLOCK_CHUNK = 0x0101,
+		EXPLICIT_TAPE_DATA_BLOCK_CHUNK = 0x0102,
+		POSITION_MARKER = 0x0120,
+		TAPE_SET_INFO = 0x0130,
+		START_OF_TAPE_SIDE = 0x0131,
+
 	} ;
 #define CHUNK_ID_BYTES(x) {x & 0xff, (x >> 8) & 0xff}
 #define _CHUNK_ID(x) \
 	(x==ORIGIN_CHUNK?"ORIGIN_CHUNK":\
-	(x==SIMPLE_DATA_CHUNK?"SIMPLE_DATA_CHUNK":\
-	(x==COMPLEX_DATA_CHUNK?"COMPLEX_DATA_CHUNK":\
+	(x==IMPLICIT_DATA_BLOCK_CHUNK?"IMPLICIT_DATA_BLOCK_CHUNK":\
+	(x==DEFINED_TAPE_FORMAT_DATA_BLOCK_CHUNK?"DEFINED_TAPE_FORMAT_DATA_BLOCK_CHUNK":\
 	(x==CARRIER_TONE_CHUNK?"CARRIER_TONE_CHUNK":\
 	(x==PHASE_CHUNK?"PHASE_CHUNK":\
-	(x==BAUD_RATE_CHUNK?"BAUD_RATE_CHUNK":\
+	(x==DATA_ENCODING_FORMAT_CHANGE_CHUNK?"DATA_ENCODING_FORMAT_CHANGE_CHUNK":\
 	(x==SECURITY_CHUNK?"SECURITY_CHUNK":\
 	(x==INTEGER_GAP_CHUNK?"INTEGER_GAP_CHUNK":\
-	(x==FLOAT_GAP_CHUNK?"FLOAT_GAP_CHUNK":\
+	(x==FP_GAP_CHUNK?"FP_GAP_CHUNK":\
 	(x==BASE_FREQ_CHUNK?"BASE_FREQ_CHUNK":\
 	(x==TARGET_CHUNK?"TARGET_CHUNK":\
 	(x== CARRIER_TONE_WITH_DUMMY_BYTE?"CARRIER_TONE_WITH_DUMMY_BYTE":"???")\
@@ -151,7 +166,7 @@ private:
 
 	// UEF gap chunk type 116
 	typedef struct FPGapChunk_struct {
-		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(FLOAT_GAP_CHUNK), {4, 0, 0, 0}};
+		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(FP_GAP_CHUNK), {4, 0, 0, 0}};
 		Byte gap[4]; // 32-bit IEEE 754 number representing gap in seconds
 	} FPGapChunk;
 
@@ -172,10 +187,10 @@ private:
 	} SecurityCyclesChunkHdr;
 
 	// UEF baudrate chunk
-	typedef struct BaudRateChunk_struct {
-		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(BAUD_RATE_CHUNK), {2, 0, 0, 0}};
+	typedef struct DataEncodingFormatChangeChunk_struct {
+		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(DATA_ENCODING_FORMAT_CHANGE_CHUNK), {2, 0, 0, 0}};
 		Byte baudRate[2]; // Baudrate, .e.g., 300 = {44, 1} <=> 1 * 256 + 44 = 300
-	} BaudRateChunk;
+	} DataEncodingFormatChangeChunk;
 
 	// UEF pahse shift chunk
 	typedef struct PhaseChunk_struct {
@@ -204,18 +219,18 @@ private:
 	// Data blocks are always stored in the chunk as whole byte quantities.
 	// If the number of data bits is seven then the most significant bits
 	// of all bytes in the chunk are unused and should be zero
-	typedef struct ComplexDataBlockChunkHdr_struct {
-		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(COMPLEX_DATA_CHUNK), {0, 0, 0, 0}}; // chunk size = #packets + 3
+	typedef struct DefinedTapeFormatDBChunkHdr_struct {
+		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(DEFINED_TAPE_FORMAT_DATA_BLOCK_CHUNK), {0, 0, 0, 0}}; // chunk size = #packets + 3
 		Byte bitsPerPacket = 8; // (8 for Acorn Atom)
 		Byte parity = 'N'; // 'N', E' or 'O' <=> None, Even or Odd ('N' for Acorn Atom)
 		Byte stopBitInfo = -1; // > 0 => #stop bits < 0 >= #stop bits with extra short wave cycle (-1 for Acorn Atom)
 
-	} ComplexDataBlockChunkHdr;
+	} DefinedTapeFormatDBChunkHdr;
 
 	// UEF data chunk of type 0100
-	typedef struct SimpleDataBlockChunkHdr_struct {
-		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(SIMPLE_DATA_CHUNK), {0, 0, 0, 0}};
-	} SimpleDataBlockChunkHdr;
+	typedef struct ImplicitDataChunkHdr_struct {
+		ChunkHdr chunkHdr = { CHUNK_ID_BYTES(IMPLICIT_DATA_BLOCK_CHUNK), {0, 0, 0, 0}};
+	} ImplicitDataBlockChunkHdr;
 
 	// UEF origin chunk
 	typedef struct OriginChunk_struct {
@@ -374,7 +389,7 @@ public:
 
 	double getBaseFreq();
 
-	bool readfromDataChunk(int n, Bytes& data);
+	bool readFromDataChunk(int n, Bytes& data);
 	bool detectGap(double& duration1);
 	bool detectCarrierWithDummyByte(double& waitingTime, double& duration1, double& duration2);
 	bool detectCarrierWithDummyByte(double& duration1, double& duration2);

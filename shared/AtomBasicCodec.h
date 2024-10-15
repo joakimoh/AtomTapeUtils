@@ -167,8 +167,9 @@ public:
 	/*
 	 * Decode Atom Basic program file as TAP File Structure
 	 */
-	bool decode(string &fullPathFileName, TapeFile& tapFile);
+	bool decode(string &fullPathFileName, TapeFile& tapeFile);
 	bool decode(Bytes& data, string& filePath);
+	bool decode(FileMetaData fileMetaData, Bytes& data, TapeFile& tapeFile);
 
 
 public:
@@ -180,8 +181,8 @@ public:
 	bool encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& fout);
 	bool encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout);
 
-	bool decodeAtom(Bytes &data, TapeFile& tapeFile, string file_name, string block_name);
-	bool decodeBBM(Bytes &data, TapeFile& tapeFile, string file_name,  string block_name);
+	bool decodeAtom(FileMetaData fileMetaData, Bytes &data, TapeFile& tapeFile);
+	bool decodeBBM(FileMetaData fileMetaData, Bytes &data, TapeFile& tapeFile);
 
 	bool tokenizeLine(string &line, string  &tCode);
 

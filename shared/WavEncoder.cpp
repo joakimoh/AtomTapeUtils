@@ -84,7 +84,7 @@ bool WavEncoder::encode(TapeFile& tapeFile, string& filePath)
 // Get samples from tape file and add it to the total set of samples
 bool WavEncoder::encode(TapeFile& tapeFile)
 {
-    if (tapeFile.fileType <= BBC_MASTER)
+    if (tapeFile.metaData.targetMachine <= BBC_MASTER)
         return encodeBBM(tapeFile);
     else
         return encodeAtom(tapeFile); 

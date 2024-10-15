@@ -41,7 +41,7 @@ int main(int argc, const char* argv[])
 
     TapeFile TAP_file(arg_parser.targetMachine);
 
-    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file, arg_parser.targetMachine)) {
+    if (!DATA_codec.decode(arg_parser.srcFileName, arg_parser.targetMachine, TAP_file)) {
         printf("Failed to encode DATA file '%s' as WAW file '%s'\n",
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );

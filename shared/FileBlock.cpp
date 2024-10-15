@@ -7,9 +7,53 @@
 #include <filesystem>
 #include "WaveSampleTypes.h"
 
+BlockType FileBlock::getBlockType()
+{
+    return blockType;
+}
+
+void FileBlock::setBlockType(BlockType bt)
+{
+    blockType = bt;
+}
+
+//
+// Iterate over all blocks and update their block types (SINGLE, FIRST, OTHER, LAST)
+//
+// Required when the no of blocks in the tape file is not known
+// when creating the tape file (but only after creation of it)
+//
+bool TapeFile::setBlockTypes()
+{
+    if (this->blocks.size() == 0)
+        return true;
+
+    // Type of last block
+    this->blocks[this->blocks.size() - 1].setBlockType(BlockType::Last);
+    if (this->metaData.targetMachine <= BBC_MASTER)
+        this->blocks[this->blocks.size() - 1].bbmHdr.blockFlag |= 0x80;
+
+    // Type of first block
+    if (this->blocks.size() == 1)
+        this->blocks[0].setBlockType(BlockType::Single); // if first block = last block = only block
+    else
+        this->blocks[0].setBlockType(BlockType::First);
+
+    // Types of intermediate blocks
+    for (int i = 1; i < this->blocks.size()-1; i++)
+        this->blocks[i].setBlockType(BlockType::Other);
+
+    return true;
+}
+
 void TapeFile::init()
 {
-    fileType = TargetMachine::UNKNOWN_TARGET;
+    init(TargetMachine::UNKNOWN_TARGET);
+}
+
+void TapeFile::init(TargetMachine targetMachine)
+{
+    metaData.init(targetMachine);
     blocks.clear();
     complete = false;
     corrupted = false;
@@ -427,7 +471,10 @@ bool FileBlock::logHdr(ostream* fout)
         }
     }
 
-    *fout << " " << Utility::encodeTime(this->tapeStartTime) << " => " << Utility::encodeTime(this->tapeEndTime) << "\n";
+    if (this->tapeStartTime < 0)
+        *fout << "\n";
+    else
+        *fout << " " << Utility::encodeTime(this->tapeStartTime) << " => " << Utility::encodeTime(this->tapeEndTime) << "\n";
 
     return true;
 }
@@ -450,7 +497,7 @@ void TapeFile::logTAPFileHdr(ostream* fout)
     FileBlock& block = blocks[0];
     FileBlock& last_block = blocks[blocks.size()-1];
 
-    if (fileType == ACORN_ATOM) {
+    if (metaData.targetMachine == ACORN_ATOM) {
         uint32_t exec_adr = block.atomHdr.execAdrHigh * 256 + block.atomHdr.execAdrLow;
         uint32_t load_adr = block.atomHdr.loadAdrHigh * 256 + block.atomHdr.loadAdrLow;
         uint32_t n_blocks = (uint32_t)blocks.size();
@@ -460,7 +507,7 @@ void TapeFile::logTAPFileHdr(ostream* fout)
         *fout << setw(13) << block.atomHdr.name << " " << hex << setw(4) << load_adr << " " <<
             load_adr + file_sz - 1 << " " << exec_adr << " " << n_blocks;
     }
-    else if (fileType <= BBC_MASTER) {
+    else if (metaData.targetMachine <= BBC_MASTER) {
         uint32_t exec_adr = Utility::bytes2uint(&block.bbmHdr.execAdr[0], 4, true);
         uint32_t load_adr = Utility::bytes2uint(&block.bbmHdr.loadAdr[0], 4, true);
         uint32_t block_no = Utility::bytes2uint(&block.bbmHdr.blockNo[0], 2, true);
@@ -476,7 +523,10 @@ void TapeFile::logTAPFileHdr(ostream* fout)
     else {
     }
 
-    *fout << setfill(' ') << " " << Utility::encodeTime(block.tapeStartTime) << " => " << Utility::encodeTime(last_block.tapeEndTime) << "\n";
+    if (block.tapeStartTime < 0)
+        *fout << setfill(' ') << "\n";
+    else
+        *fout << setfill(' ') << " " << Utility::encodeTime(block.tapeStartTime) << " => " << Utility::encodeTime(last_block.tapeEndTime) << "\n";
 
 }
 
@@ -512,6 +562,11 @@ bool FileBlock::encodeTAPHdr(
         atomHdr.lenHigh = BlockSz / 256;
         atomHdr.lenLow = BlockSz % 256;
     }
+    if (blockNo == 0)
+        this->blockType = BlockType::First;
+    else
+        this->blockType = BlockType::Other;
+    this->blockNo = blockNo;
 
     return true;
 }

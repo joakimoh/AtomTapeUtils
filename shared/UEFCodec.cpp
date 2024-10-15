@@ -598,7 +598,7 @@ bool UEFCodec::encode(TapeFile& tapeFile)
 
     if (mFirstFile) {
         mFirstFile = false;
-        mTargetMachine = tapeFile.fileType;
+        mTargetMachine = tapeFile.metaData.targetMachine;
         if (!writeFileIndepPart(tapeFile))
             return false;
     }
@@ -738,7 +738,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 break;
             }
 
-            case FLOAT_GAP_CHUNK: // Floating-point gap
+            case FP_GAP_CHUNK: // Floating-point gap
             {
                 if (chunk_sz != 4) {
                     *mFout << "Size of Floating-point gap chunk 0116 has an incorrect chunk size " << chunk_sz << " (should have been 4)\n";
@@ -786,19 +786,19 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 break;
             }
 
-            case BAUD_RATE_CHUNK: // Baudrate Chunk 0117: baudrate = value
+            case DATA_ENCODING_FORMAT_CHANGE_CHUNK: // Data Encoding Format Chunk 0117: baudrate = value
             {
                 if (chunk_sz != 2) {
-                    *mFout << "Size of Baudrate chunk 0117 has an incorrect chunk size " << chunk_sz << " (should have been 2)\n";;
+                    *mFout << "Size of Data Encoding Format chunk 0117 has an incorrect chunk size " << chunk_sz << " (should have been 2)\n";;
                     return false;
                 }
-                BaudRateChunk baudrate_chunk;
+                DataEncodingFormatChangeChunk baudrate_chunk;
                 if (!readBytes(baudrate_chunk.baudRate, sizeof(baudrate_chunk.baudRate))) return false;
                 mBaudRate = (baudrate_chunk.baudRate[0] + (baudrate_chunk.baudRate[1] << 8));
 
                 
                 if (mDebugInfo.verbose)
-                    *mFout << "Baudrate chunk 0117 of size " << chunk_sz << " and baudrate of " << mBaudRate << ".\n";
+                    *mFout << "Data Encoding Format chunk 0117 of size " << chunk_sz << " and baudrate of " << mBaudRate << ".\n";
 
                 // Update bit timing as impacted by the change of the Baudrate
                 BitTiming bit_timing = BitTiming(mBitTiming.fS, mBaseFrequency, mBaudRate, mTargetMachine);
@@ -849,10 +849,10 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 break;
             }
 
-            case CARRIER_TONE_CHUNK: // Carrier Chunk 0110: duration = value / (mBaseFrequency * 2)
+            case CARRIER_TONE_CHUNK: // Carrier Tone Chunk 0110: duration = value / (mBaseFrequency * 2)
             {
                 if (chunk_sz != 2) {
-                    *mFout << "Size of Carrier chunk 0110 has an incorrect chunk size  " << chunk_sz << " (should have been 2)\n";;
+                    *mFout << "Size of Carrier tone chunk 0110 has an incorrect chunk size  " << chunk_sz << " (should have been 2)\n";;
                     return false;
                 }
                 CarrierChunk tone_chunk;
@@ -860,7 +860,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 if (!readBytes(tone_chunk.duration, sizeof(tone_chunk.duration))) return false;
                 double tone_duration = double(tone_chunk.duration[0] + (tone_chunk.duration[1] << 8)) / (mBaseFrequency * 2);
                 if (mDebugInfo.verbose)
-                    *mFout << "High tone chunk 0110 of size " << chunk_sz << " and specifying a duration of " << tone_duration << " s.\n";
+                    *mFout << "Carrier tone chunk 0110 of size " << chunk_sz << " and specifying a duration of " << tone_duration << " s.\n";
 
                 chunkInfo.chunkInfoType = ChunkInfoType::CARRIER;
                 chunkInfo.data1_fp = tone_duration;
@@ -873,7 +873,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
             case CARRIER_TONE_WITH_DUMMY_BYTE: // Carrier Chunk with dummy byte 0111: durations in carrier tone cycles
             {
                 if (chunk_sz != 4) {
-                    *mFout << "Size of Carrier chunk 0111 has an incorrect chunk size " << chunk_sz << " (should have been 2)\n";;
+                    *mFout << "Size of Carrier tone with dummy byte chunk 0111 has an incorrect chunk size " << chunk_sz << " (should have been 2)\n";;
                     return false;
                 }
                 CarrierChunkDummy tone_chunk;
@@ -885,7 +885,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 double following_duration = following_cycles / (2 * mBaseFrequency);
 
                 if (mDebugInfo.verbose)
-                    *mFout << "Carrier chunk with dummy byte 0111 of size " << chunk_sz << " and specifying " << first_cycles <<
+                    *mFout << "Carrier tone chunk with dummy byte 0111 of size " << chunk_sz << " and specifying " << first_cycles <<
                     " cycles of carrier followed by a dummy byte 0xaa, and ending with " << following_duration << "s of carrier.\n";
 
                 chunkInfo.chunkInfoType = ChunkInfoType::CARRIER_DUMMY;
@@ -955,7 +955,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 break;
             }
 
-            case SIMPLE_DATA_CHUNK: // Data Block Chunk 0100; default start & stop bits
+            case IMPLICIT_DATA_BLOCK_CHUNK: // Implicit Data Block Chunk 0100; default start & stop bits
             {
                 int count = 0;
                 chunkInfo.chunkInfoType = ChunkInfoType::DATA;
@@ -973,16 +973,16 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 mTime += chunkInfo.data1_fp;
 
                 if (mDebugInfo.verbose) {
-                    *mFout << "Simple data chunk 0100 of size " << chunk_sz << ":";
+                    *mFout << "Implicit Data Block chunk 0100 of size " << chunk_sz << ":";
                     BytesIter di = chunkInfo.data.begin();
                     Utility::logData(mFout, 0x0, di, (int) chunkInfo.data.size());
                 }
                 break;
             }
 
-            case COMPLEX_DATA_CHUNK: // Data Block Chunk 0104
+            case DEFINED_TAPE_FORMAT_DATA_BLOCK_CHUNK: // Data Block Chunk 0104
             {
-                ComplexDataBlockChunkHdr hdr;
+                DefinedTapeFormatDBChunkHdr hdr;
                 hdr.chunkHdr = chunk_hdr;
                 if (!readBytes(&hdr.bitsPerPacket, sizeof(hdr.bitsPerPacket))) return false;
                 if (!readBytes(&hdr.parity, sizeof(hdr.parity))) return false;
@@ -1005,7 +1005,7 @@ bool UEFCodec::processChunk(ChunkInfo &chunkInfo)
                 chunkInfo.dataEncoding.extraShortWave = extra_short_wave;
 
                 if (mDebugInfo.verbose) {
-                    *mFout << "Complex data chunk 0104 of size " << chunk_sz << " and with encoding " <<
+                    *mFout << "Defined Tape Format Data Block chunk 0104 of size " << chunk_sz << " and with encoding " <<
                         dec << (int) hdr.bitsPerPacket  << hdr.parity << n_stop_bits << ":";
                     BytesIter di = chunkInfo.data.begin();
                     Utility::logData(mFout, 0x0, di, (int) chunkInfo.data.size());
@@ -1061,7 +1061,7 @@ void UEFCodec::consume_bytes(int &n, Bytes &data) {
     n -= n_read;
 }
 
-bool UEFCodec::readfromDataChunk(int n, Bytes& data)
+bool UEFCodec::readFromDataChunk(int n, Bytes& data)
 {
     ChunkInfo chunk_info;
     bool end_of_file = false;
@@ -1381,7 +1381,7 @@ bool UEFCodec::writeBaudrateChunk(ogzstream&fout)
     if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
-    BaudRateChunk chunk;
+    DataEncodingFormatChangeChunk chunk;
     chunk.baudRate[0] = mBaudRate & 0xff;
     chunk.baudRate[1] = mBaudRate >> 8;
     fout.write((char*)&chunk, sizeof(chunk));
@@ -1456,7 +1456,7 @@ bool UEFCodec::writeComplexDataChunk(ogzstream &fout, Byte bitsPerPacket, Byte p
     if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
-    ComplexDataBlockChunkHdr chunk;
+    DefinedTapeFormatDBChunkHdr chunk;
     int block_size = (int) data.size() + 3; // add 3 bytes for the #bits/packet, parity & stop bit
     chunk.chunkHdr.chunkSz[0] = block_size & 0xff;
     chunk.chunkHdr.chunkSz[1] = (block_size >> 8) & 0xff;
@@ -1493,7 +1493,7 @@ bool UEFCodec::writeSimpleDataChunk(ogzstream &fout, Bytes data, Word &CRC)
     if (mDebugInfo.verbose)
         *mFout << "\n" << Utility::encodeTime(getTime()) << ":\n";
 
-    SimpleDataBlockChunkHdr chunk;
+    ImplicitDataBlockChunkHdr chunk;
     int block_size = (int) data.size();
     chunk.chunkHdr.chunkSz[0] = block_size & 0xff;
     chunk.chunkHdr.chunkSz[1] = (block_size >> 8) & 0xff;

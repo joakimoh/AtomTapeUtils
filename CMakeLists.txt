@@ -153,6 +153,12 @@ add_executable(
 target_link_libraries(ScanTape PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
 
 add_executable(
+	ScanDisc "ScanDisc/ScanDisc.cpp"
+	"ScanDisc/ArgParser.h" "ScanDisc/ArgParser.cpp"
+)
+target_link_libraries(ScanDisc PUBLIC shared gzstream PRIVATE ZLIB::ZLIB)
+
+add_executable(
 	ScanTAP "ScanTAP/ScanTAP.cpp"
 	"ScanTAP/ArgParser.h" "ScanTAP/ArgParser.cpp"
 )

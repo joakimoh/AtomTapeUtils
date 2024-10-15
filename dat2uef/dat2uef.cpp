@@ -40,7 +40,7 @@ int main(int argc, const char* argv[])
     Bytes data;
     TapeFile TAP_file(arg_parser.targetMachine);
 
-    if (!DATA_codec.decode(arg_parser.srcFileName, TAP_file, arg_parser.targetMachine)) {
+    if (!DATA_codec.decode(arg_parser.srcFileName, arg_parser.targetMachine, TAP_file)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
         return false;
     }

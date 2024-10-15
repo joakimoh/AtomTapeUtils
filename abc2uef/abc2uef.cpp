@@ -41,10 +41,11 @@ int main(int argc, const char* argv[])
     AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
 
     TapeFile TAP_file(arg_parser.targetMachine);
-     
+
     if (!ABC_codec.decode(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
     }
+ 
 
 
 
