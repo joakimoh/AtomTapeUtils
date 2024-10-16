@@ -6,6 +6,7 @@
 #include "CommonTypes.h"
 #include "Logging.h"
 #include <sstream>
+#include "FileBlock.h"
 
 //
 // Codec for Acorn DFS discs (SSD)
@@ -117,6 +118,7 @@ protected:
 public:
 	DiscCodec(Logging logging);
 	bool read(string discPath, Disc & disc);
+	bool write(string title, string discPath, vector<TapeFile> &tapeFiles);
 };
 
 #endif

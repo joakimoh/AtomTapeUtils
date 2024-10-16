@@ -751,3 +751,12 @@ string FileBlock::bbmBlockNameFromFilename(TargetMachine targetMachine, string f
 
     return s;
 }
+
+int TapeFile::size()
+{
+    int sz = 0;
+    for (int i = 0; i < this->blocks.size(); i++)
+        sz += this->blocks[i].data.size();
+
+    return sz;
+}

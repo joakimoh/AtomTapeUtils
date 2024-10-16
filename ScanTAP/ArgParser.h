@@ -26,6 +26,7 @@ public:
 	bool genUEF = false;
 	bool genCSW = false;
 	bool genWAV = false;
+	bool genSSD = false;
 
 	string dstFileName;
 

@@ -15,7 +15,7 @@ bool ArgParser::failed()
 void ArgParser::printUsage(const char* name)
 {
 	cout << "Usage:\t" << name << " <Disc file> [-v] [-bbm]\n";
-	cout << " \t -g <generate dir path | -uef <file> | -wav <file> | -csw <file>\n";
+	cout << " \t -g <generate dir path | -uef <file> | -wav <file> | -csw <file> | -tap <file>\n";
 	cout << "<Disc file>:\n\tAcorn DFS disc file to decode\n\n";
 	cout << "If no output file is specified, each output file name will default to the\n";
 	cout << "input file name (excluding extension) with the type-specific suffix (e.g.,  '.dat').\n\n";
@@ -24,7 +24,8 @@ void ArgParser::printUsage(const char* name)
 	cout << "-euf <file>:\nGenerate one UEF tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
 	cout << "-csw <file>:\nGenerate one CSW tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
 	cout << "-wav <file>:\nGenerate one WAV tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
-	cout << "-bbm:\nScan for BBC Micro (default is Acorn Atom)\n\n"; 
+	cout << "-tap <file>:\nGenerate one TAP tape file (Acorn Atom only) with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
+	cout << "-bbm:\nScan for BBC Micro (default is Acorn Atom)\n\n";
 	cout << "\n";
 }
 
@@ -71,6 +72,11 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			find_file_name = argv[ac + 1];
 			ac++;
 		}
+		else if (strcmp(argv[ac], "-tap") == 0) {
+			genTAP = true;
+			dstFileName = argv[ac + 1];
+			ac++;
+		}
 		else if (strcmp(argv[ac], "-uef") == 0) {
 			genUEF = true;
 			dstFileName = argv[ac + 1];
@@ -104,11 +110,24 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		ac++;
 	}
 
-	if ((int)genFiles + (int)genUEF + (int)genWAV + (int)genCSW > 1) {
-		cout << "Only one of options -g, -uef, -csw and -wav can be specifed!\n";
+	if ((int)genFiles + (int)genUEF + (int)genWAV + (int)genCSW + (int)genTAP > 1) {
+		cout << "Only one of options -g, -uef, -wav, -csw and -tap can be specifed!\n";
 		printUsage(argv[0]);
 		return;
 	}
+
+	if ((int)genFiles + (int)genUEF + (int)genWAV + (int)genCSW + (int)genTAP == 1 && cat) {
+		cout << "Only one of options -g, -uef, -wav, -csw and -tap can be specifed!\n";
+		printUsage(argv[0]);
+		return;
+	}
+
+	if (genTAP && targetMachine <= BBC_MASTER) {
+		cout << "Option -tap cannot be combined with option -bbm!\n";
+		printUsage(argv[0]);
+		return;
+	}
+
 	if (cat && argc < 3) {
 		printUsage(argv[0]);
 		return;

@@ -82,6 +82,11 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			dstFileName = argv[ac + 1];
 			ac++;
 		}
+		else if (strcmp(argv[ac], "-ssd") == 0) {
+			genSSD = true;
+			dstFileName = argv[ac + 1];
+			ac++;
+		}
 		else if (strcmp(argv[ac], "-g") == 0 && ac + 1 < argc) {
 			filesystem::path dir_path = argv[ac + 1];
 			if (!filesystem::is_directory(dir_path))
@@ -100,11 +105,18 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		ac++;
 	}
 
-	if ((int)genFiles + (int)genUEF + (int)genWAV + (int)genCSW > 1) {
-		cout << "Only one of options -g, -uef, -csw and -wav can be specifed!\n";
+	if ((int)genFiles + (int)genUEF + (int)genWAV + (int)genCSW + (int)genSSD > 1) {
+		cout << "Only one of options -g, -uef, -wav, -csw and -ssd can be specifed!\n";
 		printUsage(argv[0]);
 		return;
 	}
+
+	if ((int)genFiles + (int)genUEF + (int)genWAV + (int)genCSW + (int)genSSD == 1 && cat) {
+		cout << "Only one of options -g, -uef, -wav, -csw and -ssd can be specifed!\n";
+		printUsage(argv[0]);
+		return;
+	}
+
 	if (cat && argc < 3) {
 		printUsage(argv[0]);
 		return;

@@ -125,6 +125,18 @@ string Utility::crDefaultOutFileName(string filePath, string fileExt)
 
     return file_out_path.string();
 }
+
+string Utility::crReadableString(string s, int n)
+{
+    string rs = "";
+    for (int i = 0; i < s.size(); i++) {
+        if (s[i] >= (char)32 && s[i] <= (char)127)
+            rs += s[i];
+    }
+
+    return rs;
+}
+
 string Utility::crDefaultOutFileName(string filePath)
 {
     filesystem::path file_path = filePath;
@@ -139,7 +151,16 @@ string Utility::crDefaultOutFileName(string filePath)
 
     return file_out_path.string();
 }
-string Utility::crEncodedFileNamefromDir(string dirPath, TapeFile tapeFile, string fileExt)
+
+string Utility::crEncodedProgramFileNamefromDir(string dirPath, TargetMachine targetMachine, TapeFile &tapeFile)
+{
+    if (targetMachine <= BBC_MASTER)
+        return crEncodedFileNamefromDir(dirPath, tapeFile, "bbc");
+    else
+        return crEncodedFileNamefromDir(dirPath, tapeFile, "abc");
+}
+
+string Utility::crEncodedFileNamefromDir(string dirPath, TapeFile &tapeFile, string fileExt)
 {
     filesystem::path dir_path = dirPath;
     filesystem::path file_base = tapeFile.validFileName;

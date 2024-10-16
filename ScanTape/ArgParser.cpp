@@ -17,7 +17,7 @@ void ArgParser::printUsage(const char *name)
 	cout << "Usage:\t" << name << " <WAV/CSW/UEF file> [-d <debug start time> <debug stop time>] [-b <b>]\n";
 	cout << "\t[-f <freq tolerance>] [-l <level tolerance>] [-s <start time> ] [-e] [-t] [-pot]\n";
 	cout << "\t[-lt <duration>] [-slt <duration>] [-ml <duration>] [-v] [-bbm] [-n <tape file name>] [-c]\n";
-	cout << "\t-g <generate dir path | -uef <file> | -wav <file> | -csw <file> | -tap <file>\n";
+	cout << "\t-g <generate dir path | -uef <file> | -wav <file> | -csw <file> | -tap <file> | -ssd <file>\n";
 	cout << "\n";
 	cout << "<WAV/CSW/UEF file>:\n\t16-bit PCM WAV/CSW/UEF file to analyse\n\n";
 	cout << "\n";
@@ -41,7 +41,8 @@ void ArgParser::printUsage(const char *name)
 	cout << "-euf <file>:\nGenerate one UEF tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
 	cout << "-csw <file>:\nGenerate one CSW tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
 	cout << "-wav <file>:\nGenerate one WAV tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
-	cout << "-wav <file>:\nGenerate one TAP tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n";
+	cout << "-tap <file>:\nGenerate one TAP tape (Acorn Atom only) file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n";
+	cout << "-ssd <file>:\nGenerate one disc image (SSD) file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
 	cout << "\tand only valid for Acorn Atom (i.e. cannot be combibed with option -bbm).\n\n";
 	cout << "\n";
 }
@@ -105,6 +106,11 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		}
 		else if (strcmp(argv[ac], "-tap") == 0) {
 			genTAP = true;
+			dstFileName = argv[ac + 1];
+			ac++;
+		}
+		else if (strcmp(argv[ac], "-ssd") == 0) {
+			genSSD = true;
 			dstFileName = argv[ac + 1];
 			ac++;
 		}
@@ -214,16 +220,24 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		ac++;
 	}
 
-	if ((int) genFiles + (int) genUEF + (int) genWAV + (int) genCSW + (int) genTAP > 1) {
-		cout << "Only one of options -g, -uef, -csw, -tap and -wav can be specifed!\n";
+	if ((int)genFiles + (int)genUEF + (int)genWAV + (int)genCSW + (int)genTAP + (int)genSSD > 1) {
+		cout << "Only one of options -g, -uef, -wav, -csw, -tap and -ssd can be specifed!\n";
 		printUsage(argv[0]);
 		return;
 	}
+
+	if ((int)genFiles + (int)genUEF + (int)genWAV + (int)genCSW + (int)genTAP + (int)genSSD == 1 && cat) {
+		cout << "Only one of options -g, -uef, -wav, -csw, -tap and -ssd can be specifed!\n";
+		printUsage(argv[0]);
+		return;
+	}
+
 	if (genTAP && targetMachine <= BBC_MASTER) {
 		cout << "Option -tap cannot be combined with option -bbm!\n";
 		printUsage(argv[0]);
 		return;
 	}
+
 	if (cat && argc < 3) {
 		printUsage(argv[0]);
 		return;

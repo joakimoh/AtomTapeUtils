@@ -27,6 +27,7 @@
 #include "../shared/TAPCodec.h"
 #include "../shared/FileBlock.h"
 #include "../shared/WavEncoder.h"
+#include "../shared/DiscCodec.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -203,48 +204,88 @@ int main(int argc, const char* argv[])
     }
 
     // Read complete tape files using the File Decoder
-    bool read_file;
     bool selected_file_found = false;
-    while ((read_file = fileDecoder.readFile(*fout_p, tape_file, arg_parser.find_file_name))) {
+    vector<TapeFile> tape_files;
+    while (fileDecoder.readFile(*fout_p, tape_file, arg_parser.find_file_name)) {
 
+        // If the file was read without errors, add it to the list of tape files
+        if (tape_file.blocks.size() > 0 && tape_file.complete && !tape_file.corrupted)
+            tape_files.push_back(tape_file);
+
+        // 
+        selected_file_found = (arg_parser.find_file_name == "" || tape_file.validFileName == arg_parser.find_file_name);
+
+        // If the file was with errors, then log it (-c) or generate (-g) incomplete DATA and ABC/BBC files
+        // to facilitate recovering of the file.
         if (
-            !genTapeFile && !arg_parser.cat &&
-            tape_file.blocks.size() > 0 &&
-            (arg_parser.find_file_name == "" || tape_file.validFileName == arg_parser.find_file_name)
-            ) {
+            selected_file_found &&
+            !(tape_file.blocks.size() > 0 && tape_file.complete && !tape_file.corrupted)
+        ) {
 
-            selected_file_found = true;
-            if (!read_file) {
-                cout << "Failed to scan the WAV file!\n";
-                //return -1;
+            if (arg_parser.cat) {
+
+                // Log the header for the corrupted file
+                tape_file.logTAPFileHdr();
             }
-            if (arg_parser.logging.verbose)
-                cout << (tape_file.metaData.targetMachine == ACORN_ATOM ? "Atom" : "BBC Micro") << " Tape File '" << tape_file.blocks.front().blockName() <<
-                "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
-
-            DataCodec DATA_codec = DataCodec(arg_parser.logging);
-            string DATA_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "dat");
-            if (!DATA_codec.encode(tape_file, DATA_file_name)) {
-                cout << "Failed to write the DATA file!\n";
-                //return -1;
-            }
-
-            AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
-            string ABC_file_name;
-            if (tape_file.metaData.targetMachine == ACORN_ATOM)
-                ABC_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "abc");
-            else if (tape_file.metaData.targetMachine <= BBC_MASTER)
-                ABC_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "bbc");
             else {
-                cout << "Unknwon target machine " << hex << tape_file.metaData.targetMachine << "\n";
-                return -1;
-            }
-            if (!ABC_codec.encode(tape_file, ABC_file_name)) {
-                cout << "Failed to write the program file!\n";
-                //return -1;
+
+                // Try to generate DATA and ABC/BBC files for the incomplete tape file
+
+                if (arg_parser.logging.verbose)
+                    cout << (tape_file.metaData.targetMachine == ACORN_ATOM ? "Atom" : "BBC Micro") << " Tape File '" << tape_file.blocks.front().blockName() <<
+                    "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
+
+                DataCodec DATA_codec = DataCodec(arg_parser.logging);
+                string DATA_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "dat");
+                if (!DATA_codec.encode(tape_file, DATA_file_name)) {
+                    cout << "Failed to write the DATA file!\n";
+                    //return -1;
+                }
+
+                AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
+                string ABC_file_name = Utility::crEncodedProgramFileNamefromDir(arg_parser.genDir, arg_parser.targetMachine, tape_file);
+                if (!ABC_codec.encode(tape_file, ABC_file_name)) {
+                    cout << "Failed to write the program file!\n";
+                    //return -1;
+                }
             }
 
-            if (tape_file.complete) { // Only generate files if the Tape file was completed (without missing blocks)
+        } 
+
+    }
+
+    if (arg_parser.find_file_name != "" && !selected_file_found)
+        cout << "Couldn't find tape file '" << arg_parser.find_file_name << "!'\n";
+
+    // Should files be extac
+    if (selected_file_found && !arg_parser.genSSD) {
+
+        // Generate the different types of files (DATA, ABC/BBC, TAP, UEF, BIN) for the each file
+        for (int i = 0; i < tape_files.size(); i++) {
+
+            TapeFile& tape_file = tape_files[i];
+
+            if (!genTapeFile && !arg_parser.cat) {
+
+                if (arg_parser.logging.verbose)
+                    cout << "Atom Tape File '" << tape_file.blocks.front().atomHdr.name <<
+                    "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
+
+                // Creata DATA file
+                DataCodec DATA_codec = DataCodec(arg_parser.logging);
+                string DATA_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "dat");
+                if (!DATA_codec.encode(tape_file, DATA_file_name)) {
+                    cout << "Failed to write the DATA file!\n";
+                    //return -1;
+                }
+
+                // Creata ABC/BBC program file
+                AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
+                string ABC_file_name = Utility::crEncodedProgramFileNamefromDir(arg_parser.genDir, arg_parser.targetMachine, tape_file);
+                if (!ABC_codec.encode(tape_file, ABC_file_name)) {
+                    cout << "Failed to write the program file!\n";
+                    //return -1;
+                }
 
                 // Create TAP file (Acorn Atom only)
                 if (arg_parser.targetMachine == ACORN_ATOM) {
@@ -263,22 +304,25 @@ int main(int argc, const char* argv[])
                     //return -1;
                 }
 
-                // Create binary file
-                string BIN_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "");
+                // Create BIN file
+                string BIN_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "bin");
                 if (!TAPCodec::data2Binary(tape_file, BIN_file_name)) {
                     cout << "can't create Binary file " << BIN_file_name << "\n";
                     //return -1;
                 }
 
-
             }
-        } 
-        else if (!genTapeFile && arg_parser.cat && tape_file.blocks.size() > 0) {
-            tape_file.logTAPFileHdr();
-        }
-        else if (genTapeFile) {
-            if (tape_file.complete && !tape_file.corrupted) {
-                // Only include program if it was successfully decoded   
+
+            else if (!genTapeFile && arg_parser.cat) {
+
+                // Log found file
+                tape_file.logTAPFileHdr();
+            }
+
+            else if (genTapeFile) {
+
+                // Add program to UEF/CSW/WAV tape file
+
                 if (arg_parser.genUEF) {
                     if (!UEF_encoder.encode(tape_file)) {
                         cout << "Failed to update the UEF file!\n";
@@ -300,23 +344,23 @@ int main(int argc, const char* argv[])
                         return -1;
                     }
                 }
-                else if (arg_parser.genTAP) {
-                    if (!TAP_encoder.encode(tape_file)) {
-                        cout << "Failed to update the TAP file!\n";
-                        TAP_encoder.closeTapeFile();
-                        return -1;
-                    }
-                }
                 else {
                     return (-1);
                 }
             }
+
         }
-
     }
-
-    if (arg_parser.find_file_name != "" && !selected_file_found)
-        cout << "Couldn't find tape file '" << arg_parser.find_file_name << "!'\n";
+    else if (selected_file_found) {
+        // Create disc image from tape files
+        DiscCodec DISC_codec = DiscCodec(arg_parser.logging);
+        filesystem::path file_path = arg_parser.wavFile;
+        string title = Utility::crReadableString(file_path.stem().string(), 12);
+        if (!DISC_codec.write(title, arg_parser.dstFileName, tape_files)) {
+            cout << "Failed to create disc image!\n";
+            return -1;
+        }
+    }
 
     
     if (tape_reader != NULL)

@@ -165,6 +165,8 @@ public:
 	//
 	bool setBlockTypes();
 
+	int size();
+
 };
 
 #endif

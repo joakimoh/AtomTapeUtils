@@ -28,6 +28,7 @@ public:
 	bool genCSW = false;
 	bool genWAV = false;
 	bool genTAP = false;
+	bool genSSD = false;
 
 	string dstFileName;
 

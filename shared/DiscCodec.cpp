@@ -336,3 +336,198 @@ bool DiscCodec::read(string discPath, Disc& disc)
 
     return true;
 }
+
+bool DiscCodec::write(string title, string discPath, vector<TapeFile> &tapeFiles)
+{
+    if (tapeFiles.size() == 0 || tapeFiles.size() > 31) {
+        cout << "No of files to write to image was " << tapeFiles.size() << " but must be between 1 and 31!\n";
+        return false;
+    }
+
+    for (int f = 0; f < tapeFiles.size(); f++) {
+        if (tapeFiles[f].blocks.size() == 0) {
+            cout << "At least one file to write to image was empty!\n";
+            return false;
+        }
+    }
+
+    // single density, 80 tracks, 10 sectors per track, 256 bytes per sector
+    char zero_sector[256] = { 0 };
+    char zero_block[8] = { 0 };
+    char z = 0x0;
+    const int block_size = 8;
+    const int sector_size = 256; 
+    const int no_of_tracks = 80;
+    const int sectors_per_track = 10;
+
+    if (mVerbose)
+        cout << tapeFiles.size() << " files to be written into disc image '" << discPath << "' with volume name '" << title << "'\n";
+
+    // Create disc image file for writing
+    ofstream fout(discPath, ios::out | ios::binary | ios::ate);
+    if (!fout) {
+        cout << "can't write to disc image file " << discPath << "\n";
+        return false;
+    }
+
+    // Write first 8 chars of Volume title (in Sector 0)
+    for (int i = 0;  i < 8; i++) {
+        char c = ' ';
+        if (i < title.length())
+            c = title[i];
+        if (!fout.write((char*)&c, sizeof(c))) {
+            cout << "Failed to write first 8 chars of volume title\n";
+            return false;
+        }
+    }
+
+    // Write file names and their directories (in Sector 0)
+    for (int f = 0; f < tapeFiles.size(); f++) {
+        cout << "File #" << f << " '" << tapeFiles[f].validFileName << "'\n";
+        for (int i = 0; i < 7; i++) {
+            char c = ' ';
+            if (i < tapeFiles[f].validFileName.size())
+                c = tapeFiles[f].validFileName[i];
+            if (!fout.write((char*)&c, sizeof(c))) {
+                cout << "Failed to write filename '" << tapeFiles[f].validFileName << "'\n";
+                return false;
+            }
+        }
+        char d = '+'; // Just have all files in one directory '+'
+        if (!fout.write((char*)&d, sizeof(d))) {
+            cout << "Failed to write directory '" << d << "'\n";
+            return false;
+        }
+    }
+
+    // Clear remaining part of Sector 0
+    for (int f = tapeFiles.size() * block_size + block_size; f < sector_size; f++) {
+         if (!fout.write((char*)&z, sizeof(z))) {
+                cout << "Failed to clear sector 0\n";
+                return false;
+        }
+    }
+
+    cout << "Bytes written after sector 0 : " << fout.tellp() << "\n";
+
+    // Write last 4 chars of Volume title (in Sector 1)
+    for (int i = 0; i < 4; i++) {
+        char c = ' ';
+        if (i + 8 < title.length())
+            c = title[i+8];
+        if (!fout.write((char*)&c, sizeof(c))) {
+            cout << "Failed to write last 4 chars of volume title\n";
+            return false;
+        }
+    }
+
+    // Write cycle no
+    char cycle_no = 0x0;
+    if (!fout.write((char*)&cycle_no, sizeof(cycle_no))) {
+        cout << "Failed to write cycle no\n";
+        return false;
+    }
+
+    // Write no of files
+    char file_offset = (char) (tapeFiles.size() * 8);
+    if (!fout.write((char*)&file_offset, sizeof(file_offset))) {
+        cout << "Failed to write cycle no\n";
+        return false;
+    }
+
+    // Write boot option (00 <=> No action) and no of sectors
+    Word no_of_sectors = no_of_tracks * sectors_per_track; 
+    Byte boot_byte = (0x00 << 4) | ((no_of_sectors >> 8) & 0x3);
+    Byte sectors_byte = no_of_sectors & 0xff;
+    if (!fout.write((char*)&boot_byte, sizeof(boot_byte)) || !fout.write((char*)&sectors_byte, sizeof(sectors_byte))) {
+        cout << "Failed to write boot option or no of sectors\n";
+        return false;
+    }
+ 
+    // Write remaining file information (in Sector 1)
+    uint32_t next_available_sector = 2;
+    for (int f = 0; f < tapeFiles.size(); f++) {
+        FileBlock &first_block = tapeFiles[f].blocks[0];
+        Byte file_info[8];
+        uint32_t start_sector = next_available_sector;
+        next_available_sector += (int) ceil((double) tapeFiles[f].size() / sector_size);
+
+        cout << "File " << first_block.blockName() << " starts at Sector " << start_sector << " and occupies " <<
+            next_available_sector - start_sector << " sectors\n";
+
+        Byte load_adr_b9b10 = (first_block.loadAdr() >> (32 - 2)) & 0xc0;
+        Byte exec_adr_b9b10 = (first_block.execAdr() >> (32 - 6)) & 0xc0;
+        Byte start_sector_b8b9 = (start_sector >> 8) & 0x3;
+
+        file_info[0] = first_block.loadAdr() & 0xff;
+        file_info[1] = (first_block.loadAdr() >> 8) & 0xff;
+        file_info[2] = first_block.execAdr() & 0xff;
+        file_info[3] = (first_block.execAdr() >> 8) & 0xff;
+        file_info[4] = tapeFiles[f].size() & 0xff;
+        file_info[5] = (tapeFiles[f].size() >> 8) & 0xff;
+        file_info[6] = load_adr_b9b10 | exec_adr_b9b10 | start_sector_b8b9;
+        file_info[7] = start_sector & 0xff;
+
+        if (!fout.write((char*)&file_info[0], sizeof(file_info))) {
+                cout << "Failed to write info for file '" << first_block.blockName() << "'\n";
+                return false;
+            }
+
+    }
+
+    // Clear remainding part of sector 1
+    for (int f = tapeFiles.size() * block_size + block_size; f < sector_size; f++) {
+        if (!fout.write((char*)&z, sizeof(z))) {
+            cout << "Failed to clear sector 0\n";
+            return false;
+        }
+    }
+
+    cout << "Bytes written after file info : " << fout.tellp() << "\n";
+
+    // Write the file data
+    for (int f = 0; f < tapeFiles.size(); f++) {
+
+        vector<FileBlock> &blocks = tapeFiles[f].blocks;
+
+        cout << "File " << tapeFiles[f].validFileName << " with #" << blocks.size() << " blocks\n";
+
+        for (int b = 0; b < blocks.size(); b++) {
+
+            cout << "Block " << b << " with " << blocks[b].data.size() << " bytes\n";
+
+            for (int d = 0; d < sector_size; d++) {
+
+                Byte c;
+                if (d < blocks[b].data.size())
+                    c = blocks[b].data[d];
+                else
+                    c = 0x0;
+
+                if (!fout.write((char*)&c, sizeof(c))) {
+                    cout << "Failed to write data for block " << b << " of file '" << blocks[b].blockName() << "'\n";
+                    return false;
+                }
+            }
+        }
+    }
+
+    cout << "Used sectors: " << next_available_sector << ", written bytes so far: " << fout.tellp() << "\n";
+
+    // Clear remaining sectors
+    for (int sector = next_available_sector; sector < no_of_sectors; sector++) {
+        if (!fout.write((char*)&zero_sector[0], sizeof(zero_sector))) {
+            cout << "Failed to clear unused sectors!\n";
+            return false;
+        }
+    }
+
+    cout << "Done - " << fout.tellp() << " bytes written!\n";
+
+    // Close disc image file
+    fout.close();
+
+   
+
+    return true;
+}

@@ -25,9 +25,11 @@ public:
     static uint32_t bytes2uint(Byte* bytes, int n, bool littleEndian);
     static void uint2bytes(uint32_t u, Byte* bytes, int n, bool littleEndian);
 
+    static string crReadableString(string s, int n);
     static string crDefaultOutFileName(string filePath);
     static string crDefaultOutFileName(string filePath, string fileExt);
-    static string crEncodedFileNamefromDir(string dirPath, TapeFile tapeFile, string fileExt);
+    static string crEncodedFileNamefromDir(string dirPath, TapeFile &tapeFile, string fileExt);
+    static string crEncodedProgramFileNamefromDir(string dirPath, TargetMachine targetMachine, TapeFile &tapeFile);
 
     // Log continuous memory data starting from an assumed address
     static void logData(int address, BytesIter& data_iter, int data_sz);
