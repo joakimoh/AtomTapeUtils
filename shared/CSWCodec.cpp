@@ -82,7 +82,7 @@ bool CSWCodec::encode(TapeFile& tapeFile, string& filePath)
 
 
     if (mDebugInfo.verbose)
-        cout << "\nDone encoding program '" << tapeFile.validFileName << "' as a CSW file...\n\n";
+        cout << "\nDone encoding program '" << tapeFile.programName << "' as a CSW file...\n\n";
 
     return true;
 

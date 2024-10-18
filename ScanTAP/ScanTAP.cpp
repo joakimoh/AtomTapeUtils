@@ -92,13 +92,15 @@ int main(int argc, const char* argv[])
 
             TapeFile& tape_file = tape_files[i];
 
+            string host_file_name = TapeFile::crValidHostFileName(tape_file.programName);
+
             if (!genTapeFile && !arg_parser.cat) {
 
                 // Generate the different types of files (DATA, ABC/BBC, TAP, UEF, BIN) for the found file
 
                 if (arg_parser.logging.verbose)
                     cout << "Atom Tape File '" << tape_file.blocks.front().atomHdr.name <<
-                    "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
+                    "' read. Base file name used for generated files is: '" << host_file_name << "'.\n";
 
                 // Creata DATA file
                 DataCodec DATA_codec = DataCodec(arg_parser.logging);

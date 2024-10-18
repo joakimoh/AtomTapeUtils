@@ -12,10 +12,14 @@ class Utility {
 
 public:
    
+    static string Utility::getFileExt(string filePath);
+
     static bool move2FilePos(ifstream& fin, streampos pos);
     static bool readBytes(ifstream &fin, Byte* bytes, int n);
     static bool readBytes(ifstream &fin, streampos pos, Byte* bytes, int n);
-    static string paddedCharArray2String(Byte* a, int n);
+    static bool readBytes(BytesIter &bytesInIter, Bytes &bytesIn, Bytes &bytesOut, int n);
+    static bool readBytes(BytesIter& bytesInIter, Bytes &bytesIn, Byte* bytesOut, int n);
+    static string paddedByteArray2String(Byte* a, int n);
 
     static void copybytes(Byte* from, Byte* to, int n);
     static void copybytes(Byte* from, Bytes& to, int n);

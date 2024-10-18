@@ -71,11 +71,9 @@ private:
 	static string atomTapeBlockHdrFieldName(int offset);
 	static string bbmTapeBlockHdrFieldName(int offset);
 
-	static string bbmBlockNameFromFilename(TargetMachine targetMachine, string fn);
-	static string atomBlockNameFromFilename(TargetMachine targetMachine, string fn);
 
-	static string atomFilenameFromBlockName(TargetMachine targetMachine, string fileName);
-	static string bbmFilenameFromBlockName(TargetMachine targetMachine, string fileName);
+
+
 
 public:
 
@@ -114,11 +112,7 @@ public:
 
 	bool readTapeFileName(TargetMachine target_machine, BytesIter& data_iter, Bytes& data, Word& CRC);
 
-	string filenameFromBlockName(string fileName);
-	static string filenameFromBlockName(TargetMachine target, string fileName);
-
-	string blockNameFromFilename(string filename);
-	static string blockNameFromFilename(TargetMachine target, string filename);
+	
 
 };
 
@@ -138,13 +132,12 @@ public:
 	vector<FileBlock> blocks;
 
 	bool complete = true; // true if all blocks were successfully detected
-
 	bool corrupted = false; // true if at least one block could be corrupted (CRC was incorrect)
 
 	int firstBlock = 0; // first encountered block's no
 	int lastBlock = 0; // last encountered block's no
 
-	string validFileName; // file name used in file system
+	string programName; // Name used for each block of the file
 
 	bool isBasicProgram = false; // true if the file seems to contain BASIC code
 
@@ -167,6 +160,16 @@ public:
 
 	int size();
 
+	static string crValidHostFileName(string fileName);
+
+	string crValidDiscFilename(string programName);
+	static string crValidDiscFilename(TargetMachine targetMachine, string programName);
+
+	string crValidBlockName(string filename);
+	static string crValidBlockName(TargetMachine target, string filename);
+
+private:
+	static string crValidBlockName(string invalidChars, int nameLen, string fn);
 };
 
 #endif

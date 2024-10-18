@@ -54,7 +54,7 @@ bool TAPCodec::bytes2TAP(Bytes& data, FileMetaData fileMetaData, TapeFile& tapeF
 
     tapeFile.isBasicProgram = false;
     tapeFile.complete = true;
-    tapeFile.validFileName = FileBlock::filenameFromBlockName(fileMetaData.targetMachine, fileMetaData.name);
+    tapeFile.programName = fileMetaData.name;
     tapeFile.validTiming = false;
     
 
@@ -277,7 +277,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
         return false;
 
     // Read TAP header to get name and size etc
-    string atom_filename;
+    string block_name;
     unsigned atom_file_sz, exec_adr, load_adr;
     if (fin.tellg() < (streampos) (file_size - sizeof(ATMHdr))) {
         FileBlock block(ACORN_ATOM);
@@ -285,9 +285,9 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
         exec_adr = block.atomHdr.execAdrHigh * 256 + block.atomHdr.execAdrLow;
         load_adr = block.atomHdr.loadAdrHigh * 256 + block.atomHdr.loadAdrLow;
         atom_file_sz = block.atomHdr.lenHigh * 256 + block.atomHdr.lenLow;
-        atom_filename = block.atomHdr.name;
+        block_name = block.atomHdr.name;
         tapeFile.firstBlock = 0;
-        tapeFile.validFileName = block.filenameFromBlockName(atom_filename);
+        tapeFile.programName = block_name;
         tapeFile.blocks.clear();
         tapeFile.complete = true;
         tapeFile.isBasicProgram = true;
@@ -295,7 +295,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
         tapeFile.metaData.targetMachine = TargetMachine::ACORN_ATOM;
         tapeFile.metaData.execAdr = 0x2900;
         tapeFile.metaData.loadAdr = 0xc2b2;
-        tapeFile.metaData.name = atom_filename;
+        tapeFile.metaData.name = block_name;
     }
     else {
         cout << "Invalid TAP header detected!\n";
@@ -322,7 +322,7 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
             block.atomHdr.loadAdrLow = block_load_adr & 0xff;
             block.atomHdr.lenHigh = (expected_block_sz >> 8) & 0xff;
             block.atomHdr.lenLow = expected_block_sz & 0xff;
-            strncpy(block.atomHdr.name, atom_filename.c_str(), ATM_HDR_NAM_SZ);
+            strncpy(block.atomHdr.name, block_name.c_str(), ATM_HDR_NAM_SZ);
 
             if (mDebugInfo.verbose)
                 block.logHdr();

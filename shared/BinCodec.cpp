@@ -20,12 +20,12 @@ bool BinCodec::encode(TapeFile& tapeFile, FileMetaData &fileMetaData, Bytes& dat
     }
 
     if (mDebugInfo.verbose)
-        cout << "\nEncoding program '" << tapeFile.validFileName << "' as a BINARY data...\n\n";
+        cout << "\nEncoding program '" << tapeFile.programName << "' as a BINARY data...\n\n";
 
     // Extract meta data
     fileMetaData.execAdr = tapeFile.blocks[0].execAdr();
     fileMetaData.loadAdr = tapeFile.blocks[0].loadAdr();
-    fileMetaData.name = tapeFile.validFileName;
+    fileMetaData.name = tapeFile.programName;
     fileMetaData.targetMachine = tapeFile.metaData.targetMachine;
 
     // Extract data
@@ -51,6 +51,8 @@ bool BinCodec::encode(TapeFile& tapeFile, FileMetaData &fileMetaData, Bytes& dat
 //
 bool BinCodec::decode(FileMetaData fileMetaData, Bytes &data, TapeFile& tapeFile)
 {
+    if (data.size() == 0)
+        return false;
 
     FileBlock block(fileMetaData.targetMachine);
 
@@ -58,7 +60,7 @@ bool BinCodec::decode(FileMetaData fileMetaData, Bytes &data, TapeFile& tapeFile
 
     tapeFile.init();
     tapeFile.complete = true;
-    tapeFile.validFileName = fileMetaData.name;
+    tapeFile.programName = fileMetaData.name;
     tapeFile.isBasicProgram = false;
     tapeFile.metaData = fileMetaData;
 

@@ -101,21 +101,19 @@ public:
 class DiscCodec {
 
 private:
+
 	bool mVerbose = false;
 	ifstream *mFin_p = NULL;
 	DiscPos mDiscPos;
 	Disc *mDisc_p = NULL;
 
 protected:
-	bool move(int discSide, int trackNo, int sectorNo, int byteOffset);
-	bool move2File(int discSide, int sectorNo);
-	bool readBits(int highBitOffset, int nBits, uint64_t &bits);
-	bool readByte(Byte& byte);
-	bool readBytes(Byte* bytes, int n);
-	bool readBytes(Bytes &bytes, int n);
+	
 	bool openDiscFile(string discPath, Disc& disc);
 	bool closeDiscFile();
+
 public:
+
 	DiscCodec(Logging logging);
 	bool read(string discPath, Disc & disc);
 	bool write(string title, string discPath, vector<TapeFile> &tapeFiles);

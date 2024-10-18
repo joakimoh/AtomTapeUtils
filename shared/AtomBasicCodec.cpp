@@ -461,14 +461,14 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
     string file_name = fin_p.stem().string();
     string block_name;
 
-    block_name = FileBlock::blockNameFromFilename(mTargetMachine, file_name);
+    block_name = TapeFile::crValidBlockName(mTargetMachine, file_name);
 
     if (mDebugInfo.verbose)
         cout << "\nDecoding ABC/BBC Micro file '" << fullPathFileName << "'...\n\n";
 
     tapeFile.init(tapeFile.metaData.targetMachine);
     tapeFile.complete = true;
-    tapeFile.validFileName = file_name;
+    tapeFile.programName = block_name;
     tapeFile.isBasicProgram = true;
 
     string line;
@@ -542,7 +542,7 @@ bool AtomBasicCodec::decode(Bytes& data, string& fullPathFileName)
     filesystem::path fin_p = fullPathFileName;
     string file_name = fin_p.stem().string();
     string block_name;
-    block_name = FileBlock::blockNameFromFilename(ACORN_ATOM, file_name);
+    block_name = TapeFile::crValidBlockName(mTargetMachine, file_name);
 
     bool success;
     if (mTargetMachine <= BBC_MASTER) {

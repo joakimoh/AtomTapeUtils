@@ -30,7 +30,7 @@ public:
 
 	string dstFileName;
 
-	string find_file_name = "";
+	string searchedProgram = "";
 
 	TargetMachine targetMachine = ACORN_ATOM;
 

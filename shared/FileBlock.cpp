@@ -59,7 +59,7 @@ void TapeFile::init(TargetMachine targetMachine)
     corrupted = false;
     firstBlock = -1;
     lastBlock = -1;
-    validFileName = "FAILED";
+    programName = "FAILED";
     isBasicProgram = false;
     validTiming = false;
     baudRate = 300;
@@ -504,8 +504,11 @@ void TapeFile::logTAPFileHdr(ostream* fout)
         uint32_t file_sz = 0;
         for (uint32_t i = 0; i < n_blocks; i++)
             file_sz += blocks[i].atomHdr.lenHigh * 256 + blocks[i].atomHdr.lenLow;
-        *fout << setw(13) << block.atomHdr.name << " " << hex << setw(4) << load_adr << " " <<
-            load_adr + file_sz - 1 << " " << exec_adr << " " << n_blocks;
+        *fout << setw(13) << block.atomHdr.name << " " <<
+            hex << setfill('0') << setw(4) << load_adr << " " <<
+            hex << setfill('0') << setw(4) << load_adr + file_sz - 1 << " " <<
+            hex << setfill('0') << setw(4) << exec_adr << " " <<
+            dec << setfill(' ') << setw(5) << n_blocks;
     }
     else if (metaData.targetMachine <= BBC_MASTER) {
         uint32_t exec_adr = Utility::bytes2uint(&block.bbmHdr.execAdr[0], 4, true);
@@ -515,10 +518,12 @@ void TapeFile::logTAPFileHdr(ostream* fout)
         uint32_t n_blocks = (uint32_t)blocks.size();
         for (uint32_t i = 0; i < n_blocks; i++)
             file_sz += Utility::bytes2uint(&blocks[i].bbmHdr.blockLen[0], 2, true);
-        *fout << setw(10) << block.bbmHdr.name << " " << hex << setw(8) << load_adr << " " << load_adr + file_sz - 1 << " " <<
-            exec_adr << " " <<
-            setw(4) << dec << n_blocks << " " <<
-            setw(4) << setfill('0') << hex << file_sz;
+        *fout << setw(10) << block.bbmHdr.name << " " <<
+            hex << setfill('0') << setw(8) << load_adr << " " <<
+            hex << setfill('0') << setw(8) << load_adr + file_sz - 1 << " " <<
+            hex << setfill('0') << setw(8) << exec_adr << " " <<
+            dec << setfill(' ') << setw(5) << n_blocks << " " <<
+            hex << setfill('0') << setw(4) << file_sz;
     }
     else {
     }
@@ -609,21 +614,8 @@ bool FileBlock::readTapeFileName(TargetMachine target_machine, BytesIter& data_i
 }
 
 
-string FileBlock::filenameFromBlockName(string fileName)
-{
-    return FileBlock::filenameFromBlockName(targetMachine, fileName);
-}
-
-string FileBlock::filenameFromBlockName(TargetMachine targetMachine,  string fileName)
-{
-    if (targetMachine == ACORN_ATOM)
-        return atomFilenameFromBlockName(targetMachine, fileName);
-    else
-        return bbmFilenameFromBlockName(targetMachine, fileName);
-}
-
 /*
-* Create a valid DOS/Linux/MacOs filename from an Acorn Atom tape filename.
+* Create a valid DOS/Linux/MacOs filename from the disc or tape program name.
 *
 * Characters that are not allowed in a DOS/Linux/MacOs filename are:
 * /<>:"\|?* and ASCII 0-31
@@ -631,12 +623,13 @@ string FileBlock::filenameFromBlockName(TargetMachine targetMachine,  string fil
 * '_' is used as an escape sequence (_hh where hh is the ASCII in hex)
 * and will therefore not either be allowed in the filename chosen.
 *
-* Filenames cannot either end in SPACE or DOT.*/
-string FileBlock::atomFilenameFromBlockName(TargetMachine targetMachine, string fileName)
+* Filenames cannot either end in SPACE or DOT.
+*/
+string TapeFile::crValidHostFileName(string programName)
 {
     string invalid_chars = "\"/<>:|?*";
     string s = "";
-    for (auto& c : fileName) {
+    for (auto& c : programName) {
         if (c != '_' && invalid_chars.find(c) == string::npos && c >= ' ')
             s += c;
         else if (c == '_')
@@ -651,47 +644,59 @@ string FileBlock::atomFilenameFromBlockName(TargetMachine targetMachine, string 
     return s;
 }
 
-string FileBlock::bbmFilenameFromBlockName(TargetMachine targetMachine, string fileName)
+string TapeFile::crValidDiscFilename(string programName)
 {
-    string invalid_chars = "\"/<>:|?*";
+    return crValidDiscFilename(metaData.targetMachine, programName);
+}
+
+//
+// Create a valid Acorn DFS filename from a host or tape file name.
+//
+// The filename needs to be truncated to 7 characters.
+// Valid characters are the printable ASCII characters between &20 and &7E inclusive, except . : " # * and space
+//
+string TapeFile::crValidDiscFilename(TargetMachine targetMachine, string programName)
+{
+    string invalid_chars = ".:\"/#*";
     string s = "";
-    for (auto& c : fileName) {
-        if (c != '_' && invalid_chars.find(c) == string::npos && c >= ' ')
+    for (auto& c : programName) {
+        if (s.length() < 7 && c >= (char) 0x20 && c <= (char) 0x7e && invalid_chars.find(c) == string::npos)
             s += c;
-        else if (c == '_')
-            s += "__";
-        else {
-            s += "_";
-            s += Utility::digitToHex((int)c / 16);
-            s += Utility::digitToHex((int)c % 16);
-        }
     }
 
     return s;
 }
 
-
-
-string FileBlock::blockNameFromFilename(string filename)
+string TapeFile::crValidBlockName(string fileName)
 {
-    return FileBlock::blockNameFromFilename(targetMachine, filename);
+    return crValidBlockName(metaData.targetMachine, fileName);
 }
 
-string FileBlock::blockNameFromFilename(TargetMachine targetMachine, string fileName)
+string TapeFile::crValidBlockName(TargetMachine targetMachine, string fileName)
 {
     if (targetMachine == ACORN_ATOM)
-        return atomBlockNameFromFilename(targetMachine, fileName);
+        return crValidBlockName("", ATOM_TAPE_NAME_LEN, fileName);
     else
-        return bbmBlockNameFromFilename(targetMachine, fileName);
+        return crValidBlockName(" ", BBM_TAPE_NAME_LEN, fileName);
 }
 
-string FileBlock::atomBlockNameFromFilename(TargetMachine targetMachine, string fn)
+//
+// Create a valid Tape Block Name from an Acorn DFS or DOS/Linux/MacOs filename.
+//
+// Filenames can be be up to nameLen chars and can include any letter except
+// the ones in invalidChars.
+// 
+// Sequences of '__' & '_'<hh> in the filename will be replaced by '_' and (char) 0x<hh>
+//
+//
+string TapeFile::crValidBlockName(string invalidChars, int nameLen, string fn)
 {
+
     string s = "";
     int len = (int)fn.length();
     int p = 0;
     int tape_file_pos = 0;
-    while (p < len && tape_file_pos < ATOM_TAPE_NAME_LEN) {
+    while (p < len && tape_file_pos < nameLen) {
         char c = fn[p];
         // Look for escape sequences __ and _hh 
         if (fn[p] == '_') {
@@ -710,7 +715,8 @@ string FileBlock::atomBlockNameFromFilename(TargetMachine targetMachine, string 
                 return "";
             }
         }
-        s += c;
+        if (invalidChars.find(c) == string::npos)
+            s += c;
         tape_file_pos++;
         p++;
 
@@ -719,38 +725,7 @@ string FileBlock::atomBlockNameFromFilename(TargetMachine targetMachine, string 
     return s;
 }
 
-/*
-* Create a valid BBC Micro Tape Block Name from a DOS/Linux/MacOs filename.
-*
-* For BBC Micro a filename must start with a letter, and cannot contain spaces
-* or punctuation marks. It cannot be longer than 10 characters in total.
-* File names on cassettes can be up to ten characters long and can include any
-* character except space ( and punctuation marks for compatibilty with disc
-* file names).
-*
-*
-* A filename longer than 10 characters will be truncated to 10 characters.
-*
-*/
-string FileBlock::bbmBlockNameFromFilename(TargetMachine targetMachine, string fn)
-{
 
-    string s = "";
-    int len = (int)fn.length();
-    int p = 0;
-    int tape_file_pos = 0;
-    while (p < len && tape_file_pos < BBM_TAPE_NAME_LEN) {
-        char c = fn[p];
-        if (c == ' ' || c == '.')
-            c = '_';
-        s += c;
-        tape_file_pos++;
-        p++;
-
-    }
-
-    return s;
-}
 
 int TapeFile::size()
 {

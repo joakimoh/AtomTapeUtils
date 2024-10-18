@@ -63,6 +63,7 @@ int main(int argc, const char* argv[])
     UEFCodec UEF_encoder(false, arg_parser.logging, arg_parser.targetMachine);
     CSWCodec CSW_encoder(false, 44100, arg_parser.tapeTiming, arg_parser.logging, arg_parser.targetMachine);
     WavEncoder WAV_encoder(false, 44100, arg_parser.tapeTiming, arg_parser.logging, arg_parser.targetMachine);
+    TAPCodec TAP_encoder(arg_parser.logging);
 
     bool genTapeFile = false;
     ostream* tfout_p = NULL;
@@ -84,6 +85,12 @@ int main(int argc, const char* argv[])
         else if (arg_parser.genWAV) {
             if (!WAV_encoder.openTapeFile(arg_parser.dstFileName)) {
                 cout << "Failed to open WAV file '" << arg_parser.dstFileName << "' for writing!\n";
+                return (-1);
+            }
+        }
+        else if (arg_parser.genTAP) {
+            if (!TAP_encoder.openTapeFile(arg_parser.dstFileName)) {
+                cout << "Failed to open TAP file '" << arg_parser.dstFileName << "' for writing!\n";
                 return (-1);
             }
         }
@@ -109,39 +116,37 @@ int main(int argc, const char* argv[])
             DiscFile& file = disc.side[side].files[file_no];
             BinCodec BIN_Codec(arg_parser.logging);
             TapeFile tape_file(arg_parser.targetMachine);
-            FileMetaData file_meta_data(file.name, file.execAdr, file.loadAdr, arg_parser.targetMachine);
+            FileMetaData file_meta_data(file.name, file.loadAdr, file.execAdr, arg_parser.targetMachine);
             if (!BIN_Codec.decode(file_meta_data, file.data, tape_file)) {
                 cout << "Failed to decode disc file '" << file.name << "'\n";
                 return false;
             }
 
-            if (arg_parser.logging.verbose || tape_file.blocks[0].blockName() == arg_parser.find_file_name)
+            if (arg_parser.logging.verbose || tape_file.blocks[0].blockName() == arg_parser.searchedProgram)
                 tape_file.logTAPFileHdr();
 
-            if (arg_parser.find_file_name == "" || tape_file.blocks[0].blockName() == arg_parser.find_file_name) {
-                tape_file.logTAPFileHdr(fout_p);
-                *fout_p << "\n";
+            if (arg_parser.searchedProgram == "" || tape_file.blocks[0].blockName() == arg_parser.searchedProgram) {
                 selected_file_found = true;
                 if (tape_file.blocks.size() > 0 && tape_file.complete && !tape_file.corrupted)
                     // Only keep valid files (invalid files will only be logged above)
                     tape_files.push_back(tape_file);
+                else
+                    *fout_p << "*";
+                tape_file.logTAPFileHdr(fout_p);
             }
             
         }
     }
 
+
     // Iterate over the collected files
     for (int i = 0; i < tape_files.size(); i++) {
 
-        TapeFile& tape_file = tape_files[i];
+        TapeFile& tape_file = tape_files[i];   
 
         if (!genTapeFile && !arg_parser.cat) {
 
             // Generate the different types of files (DATA, ABC/BBC, TAP, UEF, BIN) for the found file
-
-            if (arg_parser.logging.verbose)
-                cout << "Atom Tape File '" << tape_file.blocks.front().atomHdr.name <<
-                "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
 
             // Creata DATA file
             DataCodec DATA_codec = DataCodec(arg_parser.logging);
@@ -185,12 +190,6 @@ int main(int argc, const char* argv[])
 
         }
 
-        else if (!genTapeFile && arg_parser.cat) {
-
-            // Log found file
-            tape_file.logTAPFileHdr();
-        }
-
         else if (genTapeFile) {
 
             // Add program to UEF/CSW/WAV tape file
@@ -212,6 +211,13 @@ int main(int argc, const char* argv[])
             else if (arg_parser.genWAV) {
                 if (!WAV_encoder.encode(tape_file)) {
                     cout << "Failed to update the WAV file!\n";
+                    WAV_encoder.closeTapeFile();
+                    return -1;
+                }
+            }
+            else if (arg_parser.genTAP) {
+                if (!TAP_encoder.encode(tape_file)) {
+                    cout << "Failed to update the TAP file!\n";
                     WAV_encoder.closeTapeFile();
                     return -1;
                 }
@@ -244,6 +250,12 @@ int main(int argc, const char* argv[])
             return (-1);
         }
     }
+    else if (arg_parser.genTAP) {
+        if (!TAP_encoder.closeTapeFile()) {
+            cout << "Failed to close TAP file '" << arg_parser.dstFileName << "'!\n";
+            return (-1);
+        }
+    }
 
     // Close and delete log file - if applicable
     if (fout_p != &cout) {
@@ -251,8 +263,8 @@ int main(int argc, const char* argv[])
         delete fout_p;
     }
 
-    if (arg_parser.find_file_name != "" && !selected_file_found)
-        cout << "Couldn't find tape file '" << arg_parser.find_file_name << "!'\n";
+    if (arg_parser.searchedProgram != "" && !selected_file_found)
+        cout << "Couldn't find tape file '" << arg_parser.searchedProgram << "!'\n";
 
     return 0;
 

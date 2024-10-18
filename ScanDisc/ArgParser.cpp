@@ -69,7 +69,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			cat = true;
 		}
 		else if (strcmp(argv[ac], "-n") == 0) {
-			find_file_name = argv[ac + 1];
+			searchedProgram = argv[ac + 1];
 			ac++;
 		}
 		else if (strcmp(argv[ac], "-tap") == 0) {

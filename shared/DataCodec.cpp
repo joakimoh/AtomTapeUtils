@@ -291,12 +291,12 @@ bool DataCodec::decode(string& dataFileName, TargetMachine targetMachine, TapeFi
     int file_load_adr;
     FileBlock block(targetMachine);
     
-    block_name = FileBlock::blockNameFromFilename(targetMachine, file_name);
+    block_name = TapeFile::crValidBlockName(targetMachine, file_name);
     file_load_adr = load_adr;
 
     tapeFile.init();
     tapeFile.complete = true;
-    tapeFile.validFileName = file_name;
+    tapeFile.programName = block_name;
     tapeFile.isBasicProgram = true; 
 
     int block_no = 0;

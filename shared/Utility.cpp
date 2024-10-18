@@ -10,14 +10,18 @@
 #include <cstdint>'
 #include <string>
 
-string Utility::paddedCharArray2String(Byte* a, int n)
+string Utility::paddedByteArray2String(Byte* a, int n)
 {
     string s;
-    for (int i = 0; i <n && a[i] != 0x0 && a[i] != (Byte) ' '; i++)
+    for (int i = 0; i <n && a[i] != 0x0; i++)
         s += (char) a[i];
+
+    // Trim end of string (remove spaces)
+    s.erase(s.find_last_not_of(" ") + 1);
 
     return s;
 }
+
 bool Utility::move2FilePos(ifstream& fin, streampos pos)
 {
     if (!fin.seekg(pos))
@@ -25,6 +29,40 @@ bool Utility::move2FilePos(ifstream& fin, streampos pos)
 
     return true;
 }
+
+bool Utility::readBytes(BytesIter& bytesInIter, Bytes& bytesIn, Bytes &bytesOut, int n)
+{
+
+    // Fails if the source vector doesn't contain n elements
+    if (bytesInIter >= bytesIn.end() - n)
+        return false;
+
+    // Copy bytes from source to destination
+    Bytes out(bytesInIter, bytesInIter + n);
+    bytesOut = out;
+
+    // Move source iterator past the copied bytes
+    bytesInIter += n;
+
+    return true;
+}
+
+bool Utility::readBytes(BytesIter& bytesInIter, Bytes &bytesIn, Byte *bytesOut, int n)
+{
+
+    // Fails if the source vector doesn't contain n elements
+    if (bytesInIter >= bytesIn.end() - n)
+        return false;
+
+    // Copy bytes from source to destination
+    copy(bytesInIter, bytesInIter + n, bytesOut);
+
+    // Move source iterator past the copied bytes
+    bytesInIter += n;
+
+    return true;
+}
+
 bool Utility::readBytes(ifstream &fin, Byte* bytes, int n)
 {
     if (!fin.read((char*)bytes, (streamsize)n))
@@ -107,6 +145,16 @@ void Utility::uint2bytes(uint32_t u, Byte* bytes, int n, bool littleEndian)
 
 }
 
+string Utility::getFileExt(string filePath)
+{
+    filesystem::path file_path = filePath;
+    filesystem::path dir_path = file_path.parent_path();
+    filesystem::path file_base = file_path.stem();
+    filesystem::path file_ext = file_path.extension();
+
+    return file_ext.string();
+}
+
 string Utility::crDefaultOutFileName(string filePath, string fileExt)
 {
     filesystem::path file_path = filePath;
@@ -163,7 +211,7 @@ string Utility::crEncodedProgramFileNamefromDir(string dirPath, TargetMachine ta
 string Utility::crEncodedFileNamefromDir(string dirPath, TapeFile &tapeFile, string fileExt)
 {
     filesystem::path dir_path = dirPath;
-    filesystem::path file_base = tapeFile.validFileName;
+    filesystem::path file_base = tapeFile.crValidHostFileName(tapeFile.programName);
 
     string suffix = "";
     string file_ext;

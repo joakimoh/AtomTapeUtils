@@ -193,7 +193,7 @@ int main(int argc, const char* argv[])
         }
         else if (arg_parser.genTAP) {
             if (!TAP_encoder.openTapeFile(arg_parser.dstFileName)) {
-                cout << "Failed to open WAV file '" << arg_parser.dstFileName << "' for writing!\n";
+                cout << "Failed to open TAP file '" << arg_parser.dstFileName << "' for writing!\n";
                 return (-1);
             }
         }
@@ -206,14 +206,14 @@ int main(int argc, const char* argv[])
     // Read complete tape files using the File Decoder
     bool selected_file_found = false;
     vector<TapeFile> tape_files;
-    while (fileDecoder.readFile(*fout_p, tape_file, arg_parser.find_file_name)) {
+    while (fileDecoder.readFile(*fout_p, tape_file, arg_parser.searchedProgram)) {
 
         // If the file was read without errors, add it to the list of tape files
         if (tape_file.blocks.size() > 0 && tape_file.complete && !tape_file.corrupted)
             tape_files.push_back(tape_file);
 
         // 
-        selected_file_found = (arg_parser.find_file_name == "" || tape_file.validFileName == arg_parser.find_file_name);
+        selected_file_found = (arg_parser.searchedProgram == "" || tape_file.programName == arg_parser.searchedProgram);
 
         // If the file was with errors, then log it (-c) or generate (-g) incomplete DATA and ABC/BBC files
         // to facilitate recovering of the file.
@@ -230,10 +230,6 @@ int main(int argc, const char* argv[])
             else {
 
                 // Try to generate DATA and ABC/BBC files for the incomplete tape file
-
-                if (arg_parser.logging.verbose)
-                    cout << (tape_file.metaData.targetMachine == ACORN_ATOM ? "Atom" : "BBC Micro") << " Tape File '" << tape_file.blocks.front().blockName() <<
-                    "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
 
                 DataCodec DATA_codec = DataCodec(arg_parser.logging);
                 string DATA_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "dat");
@@ -254,10 +250,10 @@ int main(int argc, const char* argv[])
 
     }
 
-    if (arg_parser.find_file_name != "" && !selected_file_found)
-        cout << "Couldn't find tape file '" << arg_parser.find_file_name << "!'\n";
+    if (arg_parser.searchedProgram != "" && !selected_file_found)
+        cout << "Couldn't find tape file '" << arg_parser.searchedProgram << "!'\n";
 
-    // Should files be extac
+    // Should files be extracted only not generating disc image
     if (selected_file_found && !arg_parser.genSSD) {
 
         // Generate the different types of files (DATA, ABC/BBC, TAP, UEF, BIN) for the each file
@@ -266,10 +262,6 @@ int main(int argc, const char* argv[])
             TapeFile& tape_file = tape_files[i];
 
             if (!genTapeFile && !arg_parser.cat) {
-
-                if (arg_parser.logging.verbose)
-                    cout << "Atom Tape File '" << tape_file.blocks.front().atomHdr.name <<
-                    "' read. Base file name used for generated files is: '" << tape_file.validFileName << "'.\n";
 
                 // Creata DATA file
                 DataCodec DATA_codec = DataCodec(arg_parser.logging);
@@ -340,6 +332,13 @@ int main(int argc, const char* argv[])
                 else if (arg_parser.genWAV) {
                     if (!WAV_encoder.encode(tape_file)) {
                         cout << "Failed to update the WAV file!\n";
+                        WAV_encoder.closeTapeFile();
+                        return -1;
+                    }
+                }
+                else if (arg_parser.genTAP) {
+                    if (!TAP_encoder.encode(tape_file)) {
+                        cout << "Failed to update the TAP file!\n";
                         WAV_encoder.closeTapeFile();
                         return -1;
                     }

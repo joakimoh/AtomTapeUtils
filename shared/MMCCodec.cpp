@@ -142,12 +142,12 @@ bool MMCCodec::decode(string& mmcFileName, TapeFile& tapeFile)
     fin.seekg(0);
 
     // Get Atom file name
-    string atom_filename = "";
+    string block_name = "";
     for(int i = 0; i < ATM_HDR_NAM_SZ; i++) {
         char c;
         fin.read((char*)&c, 1);
         if (c != 0x0)
-            atom_filename += c;
+            block_name += c;
     }
 
     // Get load address
@@ -167,7 +167,7 @@ bool MMCCodec::decode(string& mmcFileName, TapeFile& tapeFile)
     int atom_file_len = byte_H * 256 + byte_L;
 
     if (mDebugInfo.verbose)
-        printf("%s %.4x %4.x %.4x\n", atom_filename.c_str(), file_load_addr, file_exec_addr, atom_file_len);
+        printf("%s %.4x %4.x %.4x\n", block_name.c_str(), file_load_addr, file_exec_addr, atom_file_len);
 
     Bytes data;
     // Get data
@@ -183,7 +183,7 @@ bool MMCCodec::decode(string& mmcFileName, TapeFile& tapeFile)
     FileBlock block(ACORN_ATOM);
     tapeFile.init();
     tapeFile.complete = true;
-    tapeFile.validFileName = block.filenameFromBlockName(atom_filename);
+    tapeFile.programName = block_name;
     tapeFile.isBasicProgram = true;
 
     BytesIter data_iterator = data.begin();
@@ -212,8 +212,8 @@ bool MMCCodec::decode(string& mmcFileName, TapeFile& tapeFile)
             block.atomHdr.loadAdrHigh = load_address / 256;
             block.atomHdr.loadAdrLow = load_address % 256;
             for (int i = 0; i < sizeof(block.atomHdr.name); i++) {
-                if (i < atom_filename.size())
-                    block.atomHdr.name[i] = atom_filename[i];
+                if (i < block_name.size())
+                    block.atomHdr.name[i] = block_name[i];
                 else
                     block.atomHdr.name[i] = 0;
             }
