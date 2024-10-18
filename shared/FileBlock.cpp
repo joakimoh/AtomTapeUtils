@@ -60,7 +60,6 @@ void TapeFile::init(TargetMachine targetMachine)
     firstBlock = -1;
     lastBlock = -1;
     programName = "FAILED";
-    isBasicProgram = false;
     validTiming = false;
     baudRate = 300;
 }
@@ -247,15 +246,6 @@ uint32_t FileBlock::execAdr()
         return Utility::bytes2uint(&bbmHdr.execAdr[0], 4, true);
     else
         return atomHdr.execAdrHigh * 256 + atomHdr.execAdrLow;
-}
-
-bool FileBlock::isBasicProgram()
-{
-    uint32_t exec_adr = execAdr();
-    if (targetMachine <= BBC_MASTER)
-        return exec_adr == 0x0e00 || exec_adr == 0x1900;
-    else
-        return exec_adr == 0xc2b2;
 }
 
 bool FileBlock::lastBlock()
@@ -731,7 +721,7 @@ int TapeFile::size()
 {
     int sz = 0;
     for (int i = 0; i < this->blocks.size(); i++)
-        sz += this->blocks[i].data.size();
+        sz += (int) this->blocks[i].data.size();
 
     return sz;
 }

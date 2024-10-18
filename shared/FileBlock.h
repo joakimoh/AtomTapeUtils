@@ -91,7 +91,6 @@ public:
 	uint32_t loadAdr();
 	uint32_t execAdr();
 	int dataSz();
-	bool isBasicProgram();
 	bool lastBlock();
 	bool firstBlock();
 
@@ -139,9 +138,7 @@ public:
 
 	string programName; // Name used for each block of the file
 
-	bool isBasicProgram = false; // true if the file seems to contain BASIC code
-
-	bool validTiming = false; // true if the files timing information is valid
+	bool validTiming = false; // true if the file's timing information is valid
 
 	int baudRate = 300;
 

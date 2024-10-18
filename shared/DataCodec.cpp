@@ -290,6 +290,11 @@ bool DataCodec::decode(string& dataFileName, TargetMachine targetMachine, TapeFi
     int exec_adr;
     int file_load_adr;
     FileBlock block(targetMachine);
+
+    if (targetMachine <= BBC_MASTER)
+        exec_adr = 0xe00;
+    else // Acorn Atom
+        exec_adr = 0xc2b2;
     
     block_name = TapeFile::crValidBlockName(targetMachine, file_name);
     file_load_adr = load_adr;
@@ -297,7 +302,6 @@ bool DataCodec::decode(string& dataFileName, TargetMachine targetMachine, TapeFi
     tapeFile.init();
     tapeFile.complete = true;
     tapeFile.programName = block_name;
-    tapeFile.isBasicProgram = true; 
 
     int block_no = 0;
     bool new_block = true;

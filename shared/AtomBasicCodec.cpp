@@ -188,10 +188,6 @@ bool AtomBasicCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& 
     int read_bytes = 0;
 
     int tape_file_sz = tapeDataSz(tapeFile);
-
-    if (mDebugInfo.verbose && !(tapeFile.isBasicProgram)) {
-        printf("File '%s' likely doesn\'t contain an Acorn Atom Basic Program => ABC file generated could be unreadable...\n", file_block_iter->atomHdr.name);
-    }
     
     if (mDebugInfo.verbose)
         cout << "\nEncoding program '" << tapeFile.blocks.front().atomHdr.name << " ' as an ABC file...\n\n";
@@ -469,7 +465,6 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
     tapeFile.init(tapeFile.metaData.targetMachine);
     tapeFile.complete = true;
     tapeFile.programName = block_name;
-    tapeFile.isBasicProgram = true;
 
     string line;
     int line_no;
@@ -487,8 +482,6 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
             code = "";
         else
             getline(sin, code);
-
-        //cout << " LINE '" << line << "(" << code << ")" << "'\n";
 
         data.push_back(0xd);
         data.push_back(line_no / 256);

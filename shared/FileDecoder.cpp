@@ -83,7 +83,6 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
 
         FileBlock read_block(mTarget);
         int block_sz;
-        bool isBasicProgram;
         int exec_adr, load_adr, load_adr_UB, load_adr_LB;
         string bn;
 
@@ -119,7 +118,6 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
         exec_adr = read_block.execAdr();
         block_sz = read_block.dataSz();
         bn = read_block.blockName();
-        isBasicProgram = read_block.isBasicProgram();
 
         if (mTarget == ACORN_ATOM) {
             load_adr_LB = load_adr;
@@ -204,8 +202,6 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
             file_sz += block_sz;
 
             last_block = read_block.lastBlock();
-
-            tapFile.isBasicProgram = isBasicProgram;
 
             tapFile.blocks.push_back(read_block);
             n_blocks++;

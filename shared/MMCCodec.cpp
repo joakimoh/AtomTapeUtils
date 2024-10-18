@@ -184,7 +184,6 @@ bool MMCCodec::decode(string& mmcFileName, TapeFile& tapeFile)
     tapeFile.init();
     tapeFile.complete = true;
     tapeFile.programName = block_name;
-    tapeFile.isBasicProgram = true;
 
     BytesIter data_iterator = data.begin();
 

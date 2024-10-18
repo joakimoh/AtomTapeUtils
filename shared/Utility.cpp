@@ -7,7 +7,7 @@
 #include <filesystem>
 #include "WaveSampleTypes.h"
 #include <cmath>
-#include <cstdint>'
+#include <cstdint>
 #include <string>
 
 string Utility::paddedByteArray2String(Byte* a, int n)

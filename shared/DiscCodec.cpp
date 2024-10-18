@@ -323,7 +323,7 @@ bool DiscCodec::write(string title, string discPath, vector<TapeFile> &tapeFiles
 
         if (n_sides == 1) { // && side == 0
             first_file_no = 0;
-            n_files_side = tapeFiles.size();
+            n_files_side = (int) tapeFiles.size();
         }
         else if (side == 0) {
             first_file_no = 0;
@@ -331,7 +331,7 @@ bool DiscCodec::write(string title, string discPath, vector<TapeFile> &tapeFiles
         }
         else { // side == 1
             first_file_no = 31;
-            n_files_side = tapeFiles.size()-31;
+            n_files_side = (int) tapeFiles.size()-31;
         }
 
         // Write first 8 chars of Volume title (in Sector 0)
@@ -447,7 +447,7 @@ bool DiscCodec::write(string title, string discPath, vector<TapeFile> &tapeFiles
                 for (int d = 0; d < blocks[b].data.size(); d++)
                     side_image_bytes[side].push_back(blocks[b].data[d]);
 
-                data_sz += blocks[b].data.size();
+                data_sz += (int) blocks[b].data.size();
             }
             if (data_sz % sector_size != 0) {
                 // Fill empty part of last sector with zeroes

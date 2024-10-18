@@ -61,7 +61,6 @@ bool BinCodec::decode(FileMetaData fileMetaData, Bytes &data, TapeFile& tapeFile
     tapeFile.init();
     tapeFile.complete = true;
     tapeFile.programName = fileMetaData.name;
-    tapeFile.isBasicProgram = false;
     tapeFile.metaData = fileMetaData;
 
 

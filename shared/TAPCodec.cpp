@@ -52,7 +52,6 @@ bool TAPCodec::bytes2TAP(Bytes& data, FileMetaData fileMetaData, TapeFile& tapeF
     else
         tapeFile.baudRate = 300;
 
-    tapeFile.isBasicProgram = false;
     tapeFile.complete = true;
     tapeFile.programName = fileMetaData.name;
     tapeFile.validTiming = false;
@@ -290,7 +289,6 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
         tapeFile.programName = block_name;
         tapeFile.blocks.clear();
         tapeFile.complete = true;
-        tapeFile.isBasicProgram = true;
         tapeFile.baudRate = 300;
         tapeFile.metaData.targetMachine = TargetMachine::ACORN_ATOM;
         tapeFile.metaData.execAdr = 0x2900;
