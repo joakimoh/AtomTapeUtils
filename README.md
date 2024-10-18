@@ -19,7 +19,7 @@ Then extract programs from it
 
 `> ScanTape my_filtered_tape.wav -g my_files_dir`
 
-### You have written a program on your desktop (myprog.abc) and want to encode it as something that can be run on an emulator or loaded into an Acorn Atom
+### You have written a program on your desktop (myprog.abc) and want to encode it as something that can be run on an emulator or loaded into an Acorn Atom/BBC Micro
 
 Convert to UEF format (for loading into emulator)
 
@@ -40,6 +40,10 @@ Convert to WAV format (for loading into an Acorn Atom via audio cable connected 
 Optionally, you could do all this (except for the WAV & CSW files generation) with just one command:
 
 `> abc2all myprog.abc -g gen_dir`
+
+### You want to create a tape with programs from a SSD/DSD disc image from e.g., the BBC Micro Games Archive
+
+`> ScanDisc Disc181-FlappyBird.ssd -bbm -wav FlappyBird.wav`
 
 ### Other utilities
 
@@ -124,13 +128,13 @@ For each detected Acorn Atom/BBC Micro program file, the following files will be
 
 The program name will be used as the file name. Any detected non-alphanumeric characters will however be replaced with \_XX in the generated file's name where XX is the hex code for the character. If the decoded file is corrupted, then only the .abc and .dat files are generated and the file name base will be *program name*\_incomplete*\_*n1*\_*n2* where n1 and n2 tell which blocks of the program were detected (from block n1 to block n2). If a block is just partially detected, the missing data bytes will be replaced with zeroes in the generated files. Thus, it is possible to recover partially read files to some extent. If no data was missing but the CRC was not correct then the name base will be *program name*\_corrupted.
 
+Scantape can also generate a complete tape file (UEF, CSW, WAV or TAP format - selected using flags -uef, -csw, -wav and -tap) based on all successfully decoded programs.
+With the flag -c it is also possible to just output a catalogue of the programs on a scanned tape. Using the flag -n one can extract a single program from a tape instead of all programs.
+With the option -ssd both these programs can also generate an Acorn DFS disc image (single-density, 80 tracks, one or two sides).
+
 # ScanTAP
 
 The utility ScanTAP (Acorn Atom only) is similar to ScanTape but instead takes a TAP file as input and extracts the included Atom Tape Files in the same way as ScanTape does.
-
-Both ScanTAP and Scantape can also generate a complete tape file (UEF, CSW, WAV or TAP format - selected using flags -uef, -csw, -wav and -tap) based on all successfully decoded programs.
-With the flag -c it is also possible to just output a catalogue of the programs on a scanned tape. Using the flag -n one can extract a single program from a tape instead of all programs.
-With the option -ssd both these programs can also generate an Acorn DFS disc image (single-density, 80 tracks, one or two sides).
 
 # ScanDisc
 
