@@ -12,7 +12,7 @@ class Utility {
 
 public:
    
-    static string Utility::getFileExt(string filePath);
+    static string getFileExt(string filePath);
 
     static bool move2FilePos(ifstream& fin, streampos pos);
     static bool readBytes(ifstream &fin, Byte* bytes, int n);

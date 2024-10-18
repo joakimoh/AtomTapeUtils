@@ -517,6 +517,8 @@ bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
 
     cout << "\nDone decoding program file '" << file_name << "'...\n\n'";
 
+    return true;
+
 }
 
 bool AtomBasicCodec::decode(Bytes& data, string& fullPathFileName)
