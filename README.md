@@ -41,7 +41,7 @@ Optionally, you could do all this (except for the WAV & CSW files generation) wi
 
 `> abc2all myprog.abc -g gen_dir`
 
-### You want to create a tape with programs from a SSD/DSD disc image from e.g., the BBC Micro Games Archive
+### You want to create a tape with programs from an SSD/DSD disc image from e.g., the BBC Micro Games Archive
 
 `> ScanDisc Disc181-FlappyBird.ssd -bbm -wav FlappyBird.wav`
 
@@ -83,8 +83,8 @@ Here the samples are averaged. The number of samples to average is given by the 
 Here the extremums are detected based on the derivate of the audio signal and new sinusoidal waves are created based on these extremums (peaks). A derivate threshold (flag '-d level'; default is 10) specifies the the absolute minium derivate dmin (unit: amplitude step / sample) that should be considered. A low value means that the detection will be very sensitive to noise but also that very tiny signal changes will be possibly to detect. Saturation thresholds - tsat can also be specified to clip the signal when its absolute value is larger than a certain percentage of the maximum absolute value amplitude. The parameters '-sl low_level' and '-sh high_level' (default 0.8 <=> 80%) specify these thresholds. The minimum distance - tpeak - between peaks to considerer (parameter '-p dist') can be specified to avoid noise being detected as peaks (especially if the derivative threshold is set low resulting in high sensitivity to noise). Default is 0.0 (0%  of the duration of a 2400 Hz tone).
 
 # ScanTape
-This utility scans a WAW or CSW file for Atom programs. It has many parameters but the defalt values should work well for most tapes. However, if programs are not detected properly, the flag 'f tolerance' could be used to specify a higher tolerance for frequency variations. Default is 0.1 (10%) but values up to 0.4 (40%) could be tested when programs are not detected.
-A hysteresis (schmittt-trigger operation) is used when detecting the transitions Low->High->Low. The flag '-l level' specifies the percentage used here. Default is 0.1 (10%).
+This utility scans a WAW or CSW file for Atom programs. It has many parameters but the defalt values should work well for most tapes. However, if programs are not detected properly, the flag 'f tolerance' could be used to specify a higher tolerance for frequency variations. Default is 0.25 (25%) but values up to 0.4 (40%) could be tested when programs are not detected.
+A hysteresis (schmittt-trigger operation) is used when detecting the transitions Low->High->Low. The flag '-l level' specifies the percentage used here. Default is 0 (0%).
 If programs are only partially correctly detected, errors will be reported:
 
 ```
@@ -124,7 +124,8 @@ For each detected Acorn Atom/BBC Micro program file, the following files will be
 - *program name*.abc - text file with the BASIC program (looks as it would appear when listed on the Acorn Atom/BBC Micro)
 - *program name*.dat - hex dump of the same program file (useful if the program includes binary data)
 - *program name*.uef - UEF file that can be loaded into an emulator like Atomulator (for Acorn Atom) or BeenEm (for BBC Micro)
-- *program name* - TAP/MMC "ATM" ("Wouter Ras" format) file (Acorn Atom only) that can be stored on an SD memory card (or in the MMC directory of Atomulator) for use with an AtoMMC device connected to an Acorn Atom. Please note that the TAP and MMC is one and the same format. A TAP/MMC file can also be loaded into the Acorn Atom emulator from Wouter Ras
+- *program name*.tap - TAP/MMC "ATM" ("Wouter Ras" format) file (Acorn Atom only) that can be stored on an SD memory card (or in the MMC directory of Atomulator) for use with an AtoMMC device connected to an Acorn Atom. Please note that the TAP and MMC is one and the same format. A TAP/MMC file can also be loaded into the Acorn Atom emulator from Wouter Ras
+- *program name*.bin - The raw program data. Useful e.g., if the program is stored as machine code and you want to disassemble it.
 
 The program name will be used as the file name. Any detected non-alphanumeric characters will however be replaced with \_XX in the generated file's name where XX is the hex code for the character. If the decoded file is corrupted, then only the .abc and .dat files are generated and the file name base will be *program name*\_incomplete*\_*n1*\_*n2* where n1 and n2 tell which blocks of the program were detected (from block n1 to block n2). If a block is just partially detected, the missing data bytes will be replaced with zeroes in the generated files. Thus, it is possible to recover partially read files to some extent. If no data was missing but the CRC was not correct then the name base will be *program name*\_corrupted.
 
