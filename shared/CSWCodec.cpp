@@ -572,6 +572,9 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, Level& firstHalfCycleL
     // Get file size
     fin.seekg(0, ios::end);
     streamsize file_size = fin.tellg();
+
+    if (mDebugInfo.verbose)
+        cout << "CSW file is of size " << file_size << " bytes\n";
  
     // Repositon to start of file
     fin.seekg(0);
@@ -598,6 +601,8 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, Level& firstHalfCycleL
     bool compressed;
     int n_pulses;
     string encoding_app = "???";
+    bool header_extension = false;
+    int n_hdr_ext_bytes = 0;
     if (common_hdr.majorVersion == 0x02) {
         CSW2MainHdr csw2_hdr;
         if (!fin.read((char*)&csw2_hdr, sizeof(csw2_hdr))) {
@@ -613,8 +618,11 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, Level& firstHalfCycleL
         encoding_app = s;
 
         // Skip extension part
-        if (csw2_hdr.hdrExtLen > 0)
+        if (csw2_hdr.hdrExtLen > 0) {
             fin.ignore(csw2_hdr.hdrExtLen);
+            header_extension = true;
+            n_hdr_ext_bytes = csw2_hdr.hdrExtLen;
+        }
 
      }
     else {
@@ -634,6 +642,9 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, Level& firstHalfCycleL
     // Assign intial level to pulse (High or Low)
     mPulseLevel = firstHalfCycleLevel;
 
+    if (mDebugInfo.verbose)
+        cout << "First pulse is " << _LEVEL(firstHalfCycleLevel) << "\n";
+
 
     // Get size of pulse data
     streamsize data_sz = file_size - fin.tellg();
@@ -645,6 +656,8 @@ bool CSWCodec::decode(string &CSWFileName, Bytes& pulses, Level& firstHalfCycleL
         cout << "no of pulses: " << (int)n_pulses << "\n";
         cout << "initial polarity: " << _LEVEL(firstHalfCycleLevel) << "\n";
         cout << "encoding app: " << encoding_app << "\n";
+        if (header_extension)
+            cout << "header extension: " << n_hdr_ext_bytes << " bytes\n";
     }
  
 

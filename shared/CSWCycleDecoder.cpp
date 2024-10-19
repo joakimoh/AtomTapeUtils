@@ -11,7 +11,7 @@ using namespace std;
 // Constructor
 CSWCycleDecoder::CSWCycleDecoder(
 	int sampleFreq, Level firstHalfCycleLevel, Bytes& pulses, double freqThreshold, Logging logging
-): CycleDecoder(sampleFreq, freqThreshold, logging), mPulses(pulses)
+): CycleDecoder(sampleFreq, freqThreshold, logging), mPulses(pulses), mLogging(logging)
 {
 
 	// Initialise pulse data
@@ -73,6 +73,9 @@ bool CSWCycleDecoder::getPulseLength(int &nextPulseIndex, int &nextPulseLength)
 			long_pulse += mPulses[mPulseInfo.pulseIndex + 4] << 24;
 			nextPulseLength = long_pulse;
 			nextPulseIndex = mPulseInfo.pulseIndex + 5;
+
+			if (mLogging.verbose)
+				cout << "Long pulse of length " << long_pulse << " samples at " << Utility::encodeTime(getTime()) << "\n";
 		}
 		else {
 			// Error - unexpected termination of pulses

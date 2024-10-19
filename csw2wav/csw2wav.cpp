@@ -20,30 +20,6 @@
 using namespace std;
 using namespace std::filesystem;
 
-#define HIGH_CSW_LEVEL 16384
-#define LOW_CSW_LEVEL -16384
-
-bool writePulse(Samples& samples, int& pos, Level& pulseLevel, int pulseLen)
-{
-    uint16_t level = (pulseLevel == Level::HighLevel ? HIGH_CSW_LEVEL : LOW_CSW_LEVEL);
-
-    // Write pulse samples
-    if (samples.size() < pos + pulseLen) {
-        //cout << "RESIZE WHEN #SAMPLES ARE " << pos << ", SAMPLES SIZE " << samples.size() << " AND PULSE LENGTH IS " << pulseLen << "\n";
-        samples.resize(pos + pulseLen);
-    }
-    for (int s = 0; s < pulseLen; s++) {
-        samples[pos + s] = level;
-    }
-
-    // Next half_cycle
-    pulseLevel = (pulseLevel == Level::HighLevel ? Level::LowLevel : Level::HighLevel);
-
-    return true;
-
-}
-
-
 /*
  *
  * Create WAV file from CSW file
@@ -58,8 +34,13 @@ int main(int argc, const char* argv[])
     if (arg_parser.failed())
         return -1;
 
-    if (arg_parser.logging.verbose)
+    if (arg_parser.logging.verbose) {
+        if (arg_parser.outputPulses)
+            cout << "Pulses will be generated...\n";
+        else
+            cout << "1/2 cycles will be generated...\n";
         cout << "Output file is: '" << arg_parser.dstFileName << "'\n";
+    }
 
    
     // Decode CSW file into pulse vector
@@ -71,30 +52,52 @@ int main(int argc, const char* argv[])
     CSW_decoder.decode(arg_parser.srcFileName, pulses, half_cycle_level);
 
     // Convert pulses into samples
-    Samples samples(pulses.size() * 20); // Initially reserve 20 samples per 
+    Samples samples;// (pulses.size() * 20); // Initially reserve 20 samples per pulse
     int pos = 0;
     int i = 0;
+    int pulse_count = 0;
     while (i < pulses.size()) {
+        double t = (double) pos / sample_freq;
+        int n_samples;
+        Level l = half_cycle_level;
         if (pulses[i] != 0) {
-            writePulse(samples, pos, half_cycle_level, pulses[i]);
+            n_samples = pulses[i];        
             pos += pulses[i];
             i++;
         }
         else if (i + 4 < pulses.size() && pulses[i] == 0) {
-                int long_pulse = pulses[i + 1];
-                long_pulse += pulses[i + 2] << 8;
-                long_pulse += pulses[i + 3] << 16;
-                long_pulse += pulses[i + 4] << 24;
-                writePulse(samples, pos, half_cycle_level, long_pulse);
-                pos += long_pulse;
+                n_samples = pulses[i + 1];
+                n_samples += pulses[i + 2] << 8;
+                n_samples += pulses[i + 3] << 16;
+                n_samples += pulses[i + 4] << 24;
+                pos += n_samples;
                 i += 5;
+                if (arg_parser.logging.verbose)
+                    cout << "Long " << _LEVEL(l) << " Pulse #" << pulse_count << ": " << n_samples << " at byte " << i-5 << " (" << Utility::encodeTime(t) << ")\n";
             }
         else {
             cout << "Unexpected end of pulses!\n";
             return - 1;
         }
+        if (arg_parser.outputPulses) {
+            if (!WavEncoder::writePulse(samples, half_cycle_level, n_samples)) {
+                cout << "Failed to write " << n_samples << " " << _LEVEL(half_cycle_level) << " samples for a pulse\n";
+                return -1;
+            }
+        }
+        else {
+            if (!WavEncoder::writeHalfCycle(samples, half_cycle_level, n_samples)) {
+                cout << "Failed to write " << n_samples << " " << _LEVEL(half_cycle_level) << " samples for a 1/2 cycle\n";
+                return -1;
+            }
+        }
+        pulse_count++;
     }
     samples.resize(pos); // trim the samples to only include actual pulse samples
+
+    if (arg_parser.logging.verbose) {
+        cout << "A total of " << pulse_count << " pulses read\n";
+    }
 
     // Write samples to WAV file
     Samples samples_v[] = { samples };

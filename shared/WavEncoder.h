@@ -55,6 +55,8 @@ public:
 	bool writeStartBit();
 	bool writeStopBit(DataEncoding encoding);
 	bool writeCycle(bool high, unsigned n);
+	static bool writeHalfCycle(Samples& samples, Level &halfCycleLevel, int nSamples);
+	static bool writePulse(Samples& samples, Level &halfCycleLevel, int nSamples);
 	bool writeTone(double duration);
 	bool writeGap(double duration);
 

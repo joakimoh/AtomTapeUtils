@@ -23,7 +23,7 @@ class CSWCycleDecoder : public CycleDecoder
 
 private:
 
-
+	Logging mLogging;
 
 	Bytes &mPulses;
 	PulseCheckPoints mPulsesCheckpoints;

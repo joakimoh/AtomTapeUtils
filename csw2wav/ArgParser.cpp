@@ -14,13 +14,14 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Usage:\t" << name << " <CSW file> [-o <output file] [-v]\n";
+	cout << "Usage:\t" << name << " <CSW file> [-o <output file] [-v] [-p]\n";
 	cout << "\n";
 	cout << "<CSW file>:\n\tCSW file to decode\n";
 	cout << "\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.wav'.\n";
 	cout << "\n";
+	cout << "-p:\n\tGenerate pulses (default is to generate sinus waves\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
 	cout << "\n";
 }
@@ -46,6 +47,9 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		}
 		else if (strcmp(argv[ac], "-v") == 0) {
 			logging.verbose = true;
+		}
+		else if (strcmp(argv[ac], "-p") == 0) {
+			outputPulses = true;
 		}
 		else {
 			cout << "Unknown option " << argv[ac] << "\n";

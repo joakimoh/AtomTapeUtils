@@ -641,6 +641,40 @@ bool WavEncoder::writeGap(double duration)
     return true;
 }
 
+bool WavEncoder::writePulse(Samples& samples, Level &halfCycleLevel, int nSamples)
+{
+    const int maxAmplitude = 16384;
+    uint16_t level = (halfCycleLevel == Level::HighLevel ? maxAmplitude : -maxAmplitude);
+
+    for (int s = 0; s < nSamples; s++)
+        samples.push_back(level);
+
+    // Next half_cycle
+    halfCycleLevel = (halfCycleLevel == Level::HighLevel ? Level::LowLevel : Level::HighLevel);
+
+    return true;
+}
+bool WavEncoder::writeHalfCycle(Samples& samples, Level &halfCycleLevel, int nSamples)
+{
+    if (nSamples == 0)
+        return false;
+
+    const double PI = 3.14159265358979323846;
+    double rad_step = PI / nSamples;
+    double phase = (halfCycleLevel == Level::HighLevel ? 0.0 : PI);
+    const int maxAmplitude = 16384;
+
+    for (int s = 0; s < nSamples; s++) {
+        Sample y = (Sample)round(sin(s * rad_step + phase) * maxAmplitude);
+        samples.push_back(y);
+    }
+
+    // Next half_cycle
+    halfCycleLevel = (halfCycleLevel == Level::HighLevel ? Level::LowLevel : Level::HighLevel);
+
+    return true;
+}
+
 bool WavEncoder::writeCycle(bool highFreq, unsigned n)
 {
     if (n == 0)
@@ -650,24 +684,17 @@ bool WavEncoder::writeCycle(bool highFreq, unsigned n)
     int n_samples;
     if (highFreq) {
         n_samples = (int) round(mBitTiming.F2Samples * n);
-        /*
-        if (mDebugInfo.verbose)
-            printf("%d cycles of F2\n", n);
-         */
+
     } 
     else {
-        /*
-        if (mDebugInfo.verbose)
-            printf("%d cycles of F1\n", n);
-        */
         n_samples = (int) round(mBitTiming.F1Samples * n);
     }
 
     double half_cycle = ((mPhase + 180) % 360) * PI / 180;
 
-    double f = 2 * n * PI / n_samples;
+    double rad_step = 2 * n * PI / n_samples;
     for (int s = 0; s < n_samples; s++) {
-        Sample y = (Sample) round(sin(s * f + half_cycle) * mMaxSampleAmplitude);
+        Sample y = (Sample) round(sin(s * rad_step + half_cycle) * mMaxSampleAmplitude);
         mSamples.push_back(y);
     }
     return true;

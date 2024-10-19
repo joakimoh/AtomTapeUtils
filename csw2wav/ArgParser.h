@@ -21,6 +21,7 @@ public:
 	string srcFileName;
 	TapeProperties tapeTiming;
 	Logging logging;
+	bool outputPulses = false;
 
 
 
