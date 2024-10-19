@@ -105,6 +105,12 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
         bool success = mBlockDecoder.readBlock(blockTiming, first_block, read_block, lead_tone_detected, block_error);
         block_no = read_block.blockNo;
 
+        double block_end_time = mBlockDecoder.getTime();
+        last_valid_block_end_time = block_end_time;
+
+        read_block.tapeStartTime = block_start_time;
+        read_block.tapeEndTime = block_end_time;
+
 
 
         // If no lead tone was detected it must be the end of the tape
@@ -197,13 +203,13 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
             last_valid_block_sz = block_sz;
             last_valid_block_type = read_block.getBlockType();
             last_valid_block_start_time = block_start_time;
-
+/*
             double block_end_time = mBlockDecoder.getTime();
             last_valid_block_end_time = block_end_time;
 
             read_block.tapeStartTime = block_start_time;
             read_block.tapeEndTime = block_end_time;
-
+            */
             file_sz += block_sz;
 
             last_block = read_block.lastBlock();
