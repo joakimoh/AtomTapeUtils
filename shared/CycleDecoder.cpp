@@ -85,6 +85,12 @@ CycleDecoder::CycleDecoder(int sampleFreq, double freqThreshold, Logging logging
 	mDebugInfo(logging)
 {
 	mCT.set(sampleFreq, F2_FREQ, freqThreshold);
+
+	if (mDebugInfo.verbose) {
+		cout << "\n\nCycle Sample Timing:\n\n";
+		mCT.log();
+		cout << "\n\n";
+	}
 	
 }
 

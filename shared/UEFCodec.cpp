@@ -93,9 +93,7 @@ UEFCodec::UEFCodec(Logging logging, TargetMachine mTargetMachine) :
         mTapeTiming = atomTiming;
     else // Have some default timing initially even if a machine hasn't been selected
         mTapeTiming = defaultTiming;
-  
-    if (mDebugInfo.verbose)
-        mTapeTiming.log();
+ 
 
     if (mTargetMachine != UNKNOWN_TARGET) {
         // Only change the UEF file default values if a target is specified
@@ -117,9 +115,6 @@ UEFCodec::UEFCodec(bool useOriginalTiming, Logging logging, TargetMachine mTarge
         mTapeTiming = atomTiming;
     else// Have some default timing initially even if a machine hasn't been selected
         mTapeTiming = defaultTiming;
-
-    if (mDebugInfo.verbose)
-        mTapeTiming.log();
 
     if (mTargetMachine != UNKNOWN_TARGET) {
         // Only change the UEF file defaults values if a target is specified

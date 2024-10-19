@@ -36,6 +36,7 @@ void TapeProperties::log()
     cout << "Preserve timing: " << dec << preserve << "\n";
     cout << "\n";
     minBlockTiming.log("Min ");
+    cout << "\n";
     nomBlockTiming.log("Nominal ");
     cout << "\n";
    

@@ -22,6 +22,11 @@ FileDecoder::FileDecoder(
     Logging logging, TargetMachine targetMachine, TapeProperties tapeTiming, bool catOnly
 ) : mDebugInfo(logging), mBlockDecoder(blockDecoder), mCat(catOnly), mTarget(targetMachine), mTapeTiming(tapeTiming)
 {
+    if (mDebugInfo.verbose) {
+        cout << "\n\nTape Timing for decoding files:\n\n";
+        mTapeTiming.log();
+        cout << "\n\n";
+    }
 }
 
 

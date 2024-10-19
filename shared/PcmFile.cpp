@@ -45,8 +45,8 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, Lo
     fin.read((char*)&h_head, sizeof(h_head));
 
     // CheckType of format - should be 1 for PCM
-    if (h_head.audioFormat != 1 /* PCM */) {
-        cout << "Input file has no data or is not a valid one channel 16 - bit PCM Wave file!\n";
+    if (h_head.audioFormat != 1 /* PCM */ || h_head.bitsPerSample != 16) {
+        cout << "Input file has no data or is not a valid 16 - bit PCM Wave file!\n";
         fin.close();
         return false;
     }
@@ -70,33 +70,58 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, Lo
             cout << "Recalculating the size of the data samples to " << h_head.ChunkSize << " bytes...\n";
     }
 
-    // Check that the there is only one channel with 16-bit samples and a sample frequency of 44.1 kHz
-    if (!(
-        h_head.numChannels == 1 &&
-        h_head.bitsPerSample == 16 /* 16b-bit */
+    // Warn if there is more than one channel with 16-bit samples and a sample frequency of 44.1 kHz
+    if (!(h_head.numChannels == 1)) {
 
-        )
-        ) {
+        cout << "*** WARNING***\n";
+        cout << "The input file is a multi-channel 16-bit PCM Wave file.\n";
+        cout << "The last channel is assumed to contain the samples of interest. If this is not the case\n";
+        cout << "then please modify the file to have only one channel and try again!\n\n";
 
-        if (logging.verbose) {
-            cout << "Input file is not an one channel 16 - bit PCM Wave file:\n";
-            cout << "format: " << h_head.audioFormat << " (1 <=> PCM)\n";
-            cout << "#channels: " << h_head.numChannels << " (1)\n";
-            cout << "sample rate: " << h_head.sampleRate << " (44 100) \n";
-            cout << "sample size: " << h_head.bitsPerSample << " (16)\n";
-        }
-        fin.close();
+    }
 
-        return false;
+    if (logging.verbose) {
+        cout << "Input file is a valid one channel 16 - bit PCM Wave file:\n";
+        cout << "format: " << h_head.audioFormat << " (1 <=> PCM)\n";
+        cout << "#channels: " << h_head.numChannels << " (1)\n";
+        cout << "sample rate: " << h_head.sampleRate << " (44 100) \n";
+        cout << "sample size: " << h_head.bitsPerSample << " (16)\n";
+        cout << "#bytes: " << h_tail.subchunk2Size << "\n";
+        cout << "#samples/channel: " << h_tail.subchunk2Size / (h_head.numChannels  * 2) << "\n";
     }
 
     sampleFreq = h_head.sampleRate;
 
     // Collect all samples into a vector 'samples'
-    samples = Samples(h_tail.subchunk2Size / 2);
-    Sample* samples_p = &samples.front();
-    fin.read((char*)samples_p, (streamsize) h_tail.subchunk2Size);
+    int n_samples = 0;
+    if (h_head.numChannels == 1) {
+        samples = Samples(h_tail.subchunk2Size / 2);
+        Sample* samples_p = &samples.front();
+        fin.read((char*)samples_p, (streamsize)h_tail.subchunk2Size);
+        n_samples = h_tail.subchunk2Size;
+    }
+    else { // several channels - assume the last one shall be used and skip all the other channels
+        int samples_per_channel = h_tail.subchunk2Size / (2 * h_head.numChannels);
+        samples = Samples(samples_per_channel);
+        Samples channel_samples(h_tail.subchunk2Size / 2);
+        Sample* channel_sample_p = &channel_samples.front();
+        fin.read((char*)channel_sample_p, (streamsize)h_tail.subchunk2Size);
+        SampleIter channel_sample_iter = channel_samples.begin();
+        while (channel_sample_iter < channel_samples.end()) {
+            // Skip samples for first channels
+            if (channel_sample_iter < channel_samples.end() - (h_head.numChannels - 1))
+                channel_sample_iter += h_head.numChannels - 1;
+            else
+                break;
+            // Get sample for last channel
+            samples[n_samples++] = *channel_sample_iter++;                   
+         }
+    }
+
     fin.close();
+
+    if (logging.verbose)
+        cout << "Read " << n_samples << "...\n";
 
     return true;
 }

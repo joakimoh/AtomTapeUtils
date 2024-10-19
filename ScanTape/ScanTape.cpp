@@ -102,6 +102,7 @@ int main(int argc, const char* argv[])
             sample_freq, *level_decoder_p, arg_parser.freqThreshold, arg_parser.logging
         );
     }
+
     if (arg_parser.logging.verbose) {
         cout << "Start time = " << arg_parser.startTime << "\n";
         cout << "Input file = '" << arg_parser.wavFile << "'\n";
