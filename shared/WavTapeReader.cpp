@@ -96,15 +96,16 @@ bool WavTapeReader::waitForCarrier(
 }
 
 
-
 bool WavTapeReader::waitForCarrierWithDummyByte(
 	int minCycles, double& waitingTime, int& preludeCycles, int& postludecycles, Byte& foundDummyByte, 
 	AfterCarrierType afterCarrierType, bool detectDummyByte
 )
 {
+	// Set the acceptance of a premature gap/header/data to half that of the minCycle
+	const int carrier_duration_threshold_half_cycles = minCycles / 2;
+
 	int carrier_half_cycle_count = 0; // filtered number of detected carrier cycles
 	int encountered_carrier_half_cycles = 0; // true number of detected carrier cycles
-	double t_start = -1;
 	int min_half_carrier_cycles = minCycles  * 2;
 	double t_dummy_byte_start = -1;
 	double t_dummy_byte = -1;
@@ -116,181 +117,120 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 
 	if (mDebugInfo.verbose) {
 		s = (detectDummyByte ? " with dummy byte" : "");
-		s += (afterCarrierType == STARTBIT_FOLLOWS ? " followed by STARTBIT" : " followed by GAP");
+		s = s + " followed by " + _CARRIER_TYPE(afterCarrierType);
 		cout << "Wait for carrier" << s << " of length " << dec << minCycles << " cycles(" <<
 			(double)minCycles / carrierFreq() << "s) at " << Utility::encodeTime(getTime()) << "\n";
 	}
 	
+	// Detect a complete carrier (or exit if end of tape reached)
+	bool end_of_carrier_detected = false;
+	double t_stable_carrier = -1;
+	int lost_carrier_cycles = 0;
+	while (!end_of_carrier_detected) {
 
-	// Detect the min duration of the carrier
-	bool unpexpected_start_of_data = false;
-	int n_continuous_f2_half_cycles = 0;
-	while (!unpexpected_start_of_data && carrier_half_cycle_count < min_half_carrier_cycles) {
-
-		// Record time when carrier cycles starts to come
-		if (t_start < 0 && carrier_half_cycle_count > 0) {
-			t_start = getTime();
-			waitingTime = getTime() - t_wait_start;
-		} 
-		else if (carrier_half_cycle_count == 0) {
-			t_start = -1;
+		// Reset dummy byte detection if carrier is lost
+		if (carrier_half_cycle_count == 0) {
 			t_dummy_byte_start = -1;
 			detected_dummy_byte = false;
 			t_dummy_byte = -1;
+		}
+
+		// Record time when the carrier cycles starts to come
+		if (t_stable_carrier < 0 && carrier_half_cycle_count > carrier_duration_threshold_half_cycles && lost_carrier_cycles == 0) {
+			t_stable_carrier = getTime() - (double) carrier_half_cycle_count / (2 * carrierFreq());
+			waitingTime = t_stable_carrier - t_wait_start;
+		} 
+		else if (carrier_half_cycle_count < carrier_duration_threshold_half_cycles || lost_carrier_cycles > 0) {
+			t_stable_carrier = -1;
+			waitingTime = -1;
 			preludeCycles = -1;
 		}
 
 		// Get next 1/2 cycle
 		double t12_start = getTime();
 		checkpoint();
-		if (!mCycleDecoder.advanceHalfCycle())
+		if (!mCycleDecoder.advanceHalfCycle()) {
+			regretCheckpoint();
 			return false; // End of tape reached if not 1/2 cycle could be detected => STOP
+		}
 
 		double half_cycle_duration = getTime() - t12_start;
 
 		bool check_for_dummy_byte = false;
-		bool check_for_header = false;
 
 		// Increase carrier count for F2 cycle and decrease it for F1/undefined type of 1/2 cycles
 		if (mCycleDecoder.lastHalfCycleFrequency() == Frequency::F2) {
 			carrier_half_cycle_count++;
 			half_cycle_duration_acc += half_cycle_duration;
 			encountered_carrier_half_cycles++;
-			n_continuous_f2_half_cycles++;
+			lost_carrier_cycles = 0;
 		} 
 		else {
-			if (n_continuous_f2_half_cycles >= 8)
-				check_for_dummy_byte = true;
-			if (n_continuous_f2_half_cycles >= 8 && carrier_half_cycle_count > 2400)
-				check_for_header = true;
-			n_continuous_f2_half_cycles = 0;
+			lost_carrier_cycles += (int)round(half_cycle_duration * carrierFreq() * 2);
 			carrier_half_cycle_count -= (int)round(half_cycle_duration * carrierFreq() * 2); // decrease = time passed in F2 units
 		}
 
+		if (carrier_half_cycle_count >= min_half_carrier_cycles && afterCarrierType == GAP_FOLLOWS && mCycleDecoder.lastHalfCycleFrequency() == Frequency::UndefinedFrequency)
+			end_of_carrier_detected = true;
 
-		// Check for a dummy byte if at least 8 consecutive carrier 1/2 cycles have been detected before
-		// the F1 1/2 cycle was detected. An F1 1/2 cycle means it could be the start bit of a dummy byte.
-		if (!detected_dummy_byte && detectDummyByte && mCycleDecoder.lastHalfCycleFrequency() == Frequency::F1 && check_for_dummy_byte) {
-
-			// Check for a dummy byte (0xaa)
-			t_dummy_byte_start = getTime();
+		// Check for a dummy byte/premable byte/data block byte (the latter for Acorn Atom after micro tone)
+		if (mCycleDecoder.lastHalfCycleFrequency() == Frequency::F1 && (afterCarrierType & START_BIT_FOLLOWS)) {
+			double t_byte_start = getTime();
+			Byte byte;
 			double max_byte_duration = 1.5 * mBitTiming.F2CyclesPerByte / carrierFreq();
-			if (readByte(foundDummyByte, false) && getTime() - t_dummy_byte_start < max_byte_duration) {
-				// Dummy byte is normally 2/3 carrier frequency => leave carrier_half_cycle_count unchanged
-				preludeCycles = (int)round((t_dummy_byte_start - t_start) * mCycleDecoder.carrierFreq());
-				t_dummy_byte = getTime() - t_dummy_byte_start; // stop bits not included as not read for a byte
-				int dummy_byte_half_cycles = (int)round(t_dummy_byte * carrierFreq() * 2);
-				detected_dummy_byte = true;
-
-			}
-			else {
-				double t_elapsed = getTime() - t_dummy_byte_start; // stop bits not included as not read for a byte
-				int elapsed_half_cycles = (int)round(t_elapsed * carrierFreq() * 2);
-				carrier_half_cycle_count -= elapsed_half_cycles;
-			}
-		}
-
-		// If a block header (and not a gap) is expected after the carrier, then check for a block header.
-		// Shouldn't really see the start of the header before the min carrier time has passed
-		// but in case it still comes we need to stop...
-		// At least 0.5s of carrier (2400 1/2 cycles) and a preceeding 8 carrier 1/2 cycles is required to avoid noise
-		// being mistaken for the start of a block header (i.e. the preamble).
-		if (afterCarrierType == STARTBIT_FOLLOWS && detected_dummy_byte && mCycleDecoder.lastHalfCycleFrequency() == Frequency::F1 
-			&& check_for_header) {
-			Byte preamble = -1;
 			checkpoint();
-			if (readByte(preamble, false) && preamble == 0x2a) { // try to read a preamble from a header
-				// Preamble was read => stop
-				rollback(); // rollback to before preamble
-				rollback(); // rollback to before first F1 1/2 cycle
-				unpexpected_start_of_data = true;
-				if (mDebugInfo.verbose) {
-					cout << "Unexpected start of block header (before min carrier time has elapsed) at " << Utility::encodeTime(getTime()) << "\n";
+			if (readByte(byte, false) && getTime() - t_byte_start < max_byte_duration) {
+				if (
+					(afterCarrierType == DATA_FOLLOWS || byte == 0x2a) &&
+					carrier_half_cycle_count >= carrier_duration_threshold_half_cycles
+				) {
+					// Preamble <=> start of header => stop
+					rollback(); // rollback to before preamble
+					rollback(); // rollback to before first F1 1/2 cycle
+					end_of_carrier_detected = true;
+					if (mDebugInfo.verbose && carrier_half_cycle_count < min_half_carrier_cycles) {
+						cout << "Unexpected start of block header (before min carrier time has elapsed) at " << Utility::encodeTime(getTime()) << "\n";
+					} if (mDebugInfo.verbose)
+						cout << "Start of block header at " << Utility::encodeTime(getTime()) << "\n";
+
+				}
+				else if (!detected_dummy_byte && detectDummyByte &&  byte == 0xaa) {
+					// Assume dummy byte (although it should normally be 0xaa)
+					preludeCycles = (int)round((t_byte_start - t_stable_carrier) * mCycleDecoder.carrierFreq());
+					t_dummy_byte = getTime() - t_byte_start; // stop bits not included as not read for a byte
+					int dummy_byte_half_cycles = (int)round(t_dummy_byte * carrierFreq() * 2);
+					detected_dummy_byte = true;
+					t_dummy_byte_start = t_byte_start;
+					foundDummyByte = byte;
+					if (mDebugInfo.verbose) {
+						cout << "Detected dummy byte 0xaa at " << Utility::encodeTime(getTime()) << "\n";
+					}
+					regretCheckpoint(); // remove checkpoint made before reading the dummy byte
+					regretCheckpoint(); // remove checkpoint made before reading the initial F1 1/2 cycle
+				}
+				else {
+					// Treat this as noise and continue search for header
+					rollback(); // rollback to before attempt to read byte
+					regretCheckpoint(); // remove checkpoint made before reading the initial F1 1/2 cycle
 				}
 			}
 			else {
-				// No preamble was read => treat this as noise in the carrier and continue
-				rollback(); // rollback to before attempt ot read preamble
-				regretCheckpoint(); // remove last checkpoint (to keep the detected F1 1/2 cycle)
+				// Treat this as noise and continue search for header
+				rollback(); // rollback to before attempt to read byte
+				regretCheckpoint(); // remove checkpoint made before reading the initial F1 1/2 cycle
 			}
-
 		}
 		else {
 			regretCheckpoint();
 		}
-
+	
 		// If a gap (or an extremely long 1/2 cycle) was detected, the carrier 1/2 count might have to be reset
-		if (carrier_half_cycle_count < 0)
+		if (carrier_half_cycle_count < 0 || lost_carrier_cycles > 2)
 			carrier_half_cycle_count = 0;
 	}
 
-	if (mDebugInfo.verbose) {
-		if (detected_dummy_byte)
-			cout << "Found dummy byte 0x" << hex << (int)foundDummyByte << " at " << Utility::encodeTime(t_dummy_byte_start) << "\n";
-
-		cout << "Min carrier" << s << " of length " << (double)carrier_half_cycle_count / 2 << " cycles (" <<
-			(double)carrier_half_cycle_count / 2 / carrierFreq() << "s) detected at " << Utility::encodeTime(getTime()) << "\n";
-	}
-
-	// If no unexpected block header as detected, advance until a start bit (one F1 1/2 cycle) is encountered
-	// (afterCarrierType = STARTBIT_FOLLOWS) or a gap (afterCarrierType = GAP_FOLLOWS)
-	Frequency stopType = Frequency::UndefinedFrequency;
-	if (afterCarrierType == STARTBIT_FOLLOWS)
-		stopType = Frequency::F1;
-	double t12_start = getTime();
-	checkpoint();
-	while (
-		mCycleDecoder.advanceHalfCycle() && mCycleDecoder.lastHalfCycleFrequency() != stopType
-		) {
-
-		// Create a checkpoint prior to the nexy advanceHalfCycle() call to be able to remove the non-F2 cycle (i.e., an F1 cycle or a gap)
-		// from the read tape stream before returning.
-		regretCheckpoint();
-		checkpoint();
-		double half_cycle_duration = getTime() - t12_start;
-
-		// Increase carrier count for F2 cycle
-		if (mCycleDecoder.lastHalfCycleFrequency() == Frequency::F2) {
-			carrier_half_cycle_count++;
-			half_cycle_duration_acc += half_cycle_duration;
-			encountered_carrier_half_cycles++;
-		}
-		else
-			// Decrease carrier for non-F2 cycle
-			// Either Frequency::UndefinedFrequency <> Gap or very long 1/2 cycle (afterCarrierType == STARTBIT_FOLLOWS) or
-			// Frequency::F1 (afterCarrierType == GAP_FOLLOWS)
-			carrier_half_cycle_count -= (int)round(half_cycle_duration * carrierFreq()); // decrease = time passed in F2 units
-
-		// If the carrier 1/2 cycle count goes below the min duration, then we've lost the carrier => ERROR
-		if (carrier_half_cycle_count < min_half_carrier_cycles) {
-			regretCheckpoint();
-			return false;
-		}
-
-		// Remember time prior to the detection of the next 1/2 cycle
-		t12_start = getTime();
-	}
-	Frequency stop_type = mCycleDecoder.lastHalfCycleFrequency();
-
-	// Remove the last read start bit F2 cycle / gap
-	rollback();
-	if (mDebugInfo.verbose) {
-		cout << "Detected carrier" << s << " of length " << (double)carrier_half_cycle_count / 2 << " cycles (" <<
-			(double)carrier_half_cycle_count / 2 / carrierFreq() << "s) at " << Utility::encodeTime(getTime()) << "\n";
-
-		cout << "Next 1/2 cycle is " << _FREQUENCY(mCycleDecoder.lastHalfCycleFrequency()) << "\n";
-	}
-
-	// If no stopType frequency was detected, then the carrier was not followed by a stopType => ERROR
-	if (stop_type != stopType) {
-		if (mDebugInfo.verbose)
-			cout << "Carrier didn't end with " << (afterCarrierType== STARTBIT_FOLLOWS?"START BIT":"GAP") <<
-			" as expected at " << Utility::encodeTime(getTime()) << "\n";
-
-		return false;
-	}
-
-	double duration = getTime() - t_start;
+	// Calculate carrier timing
+	double duration = getTime() - t_stable_carrier;
 	double prelude_duration = (double) preludeCycles / carrierFreq();
 	if (preludeCycles > 0)
 		postludecycles = (int) round((duration - prelude_duration - t_dummy_byte) * carrierFreq());
@@ -301,8 +241,13 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 	double base_freq_av = carrier_cycle_freq_av / 2;
 
 	// Update bit timing based on new measured carrier frequency
-	if (mDebugInfo.verbose)
+	if (mDebugInfo.verbose) {
+		if (detected_dummy_byte)
+			cout << "Found dummy byte 0x" << hex << (int)foundDummyByte << " at " << Utility::encodeTime(t_dummy_byte_start) << "\n";
+		cout << "Carrier of duration " << duration << "s detected at " << Utility::encodeTime(getTime()) << "\n";
 		cout << "Detected a carrier frequency of " << carrier_cycle_freq_av << " - updating bit timing and cycle decoder with this!\n";
+		cout << "Next 1/2 cycle is " << _FREQUENCY(mCycleDecoder.lastHalfCycleFrequency()) << "\n";
+	}
 	mCycleDecoder.setCarrierFreq(carrier_cycle_freq_av);
 	BitTiming updated_bit_timing(mCycleDecoder.getSampleFreq(), base_freq_av, mTapeTiming.baudRate, mTargetMachine);
 	mBitTiming = updated_bit_timing;

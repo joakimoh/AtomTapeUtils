@@ -17,7 +17,8 @@
 
 
 enum BlockError {
-	BLOCK_OK = 0, BLOCK_DATA_CRC_ERR = 0x2, BLOCK_HDR_CRC_ERR = 0x4, BLOCK_CRC_ERR = 0x6
+	BLOCK_OK = 0, BLOCK_DATA_CRC_ERR = 0x2, BLOCK_HDR_CRC_ERR = 0x4, BLOCK_CRC_ERR = 0x6,
+	BLOCK_HDR_INCOMPLETE = 0x8, BLOCK_DATA_INCOMPLETE = 0x10, BLOCK_INCOMPLETE = 0x18
 };
 
 inline BlockError operator|(BlockError left, BlockError right) {

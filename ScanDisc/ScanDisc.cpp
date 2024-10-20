@@ -119,20 +119,12 @@ int main(int argc, const char* argv[])
             FileMetaData file_meta_data(file.name, file.loadAdr, file.execAdr, arg_parser.targetMachine);
             if (!BIN_Codec.decode(file_meta_data, file.data, tape_file)) {
                 cout << "Failed to decode disc file '" << file.name << "'\n";
-                return false;
+                //return false;
             }
-
-            if (arg_parser.logging.verbose || tape_file.blocks[0].blockName() == arg_parser.searchedProgram)
-                tape_file.logTAPFileHdr();
-
-            if (arg_parser.searchedProgram == "" || tape_file.blocks[0].blockName() == arg_parser.searchedProgram) {
-                selected_file_found = true;
-                if (tape_file.blocks.size() > 0 && tape_file.complete && !tape_file.corrupted)
-                    // Only keep valid files (invalid files will only be logged above)
+            else {
+                // If the file was read with some content (even if there were some errors), then add it to the list of tape files
+                if (tape_file.blocks.size() > 0)
                     tape_files.push_back(tape_file);
-                else
-                    *fout_p << "*";
-                tape_file.logTAPFileHdr(fout_p);
             }
             
         }
@@ -188,6 +180,16 @@ int main(int argc, const char* argv[])
                 //return -1;
             }
 
+        }
+        
+        else if (!genTapeFile && arg_parser.cat) {
+
+            if (!tape_file.complete || tape_file.corrupted)
+                cout << "***";
+            else
+                cout << "   ";
+            // Log found file
+            tape_file.logTAPFileHdr();
         }
 
         else if (genTapeFile) {

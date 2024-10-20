@@ -30,6 +30,7 @@ bool CSWCycleDecoder::checkpoint()
 {
 	mHalfCycleCheckpoints.push_back(mHalfCycle);
 	mPulsesCheckpoints.push_back(mPulseInfo);
+
 	return true;
 }
 
@@ -40,7 +41,6 @@ bool CSWCycleDecoder::rollback()
 	mHalfCycleCheckpoints.pop_back();
 
 	mPulseInfo = mPulsesCheckpoints.back();
-
 	mPulsesCheckpoints.pop_back();
 
 	return true;
@@ -73,9 +73,6 @@ bool CSWCycleDecoder::getPulseLength(int &nextPulseIndex, int &nextPulseLength)
 			long_pulse += mPulses[mPulseInfo.pulseIndex + 4] << 24;
 			nextPulseLength = long_pulse;
 			nextPulseIndex = mPulseInfo.pulseIndex + 5;
-
-			if (mLogging.verbose)
-				cout << "Long pulse of length " << long_pulse << " samples at " << Utility::encodeTime(getTime()) << "\n";
 		}
 		else {
 			// Error - unexpected termination of pulses
@@ -95,10 +92,6 @@ bool CSWCycleDecoder::getNextPulse()
 		return false;
 	}
 
-	if (mDebugInfo.verbose && mPulseInfo.pulseLength > 100) {
-		cout << (mPulseInfo.pulseLevel == Level::HighLevel ? "HIGH" : "LOW") << " pulse of duration " << mPulseInfo.pulseLength;
-		cout << " samples (" << (double) mPulseInfo.pulseLength * mCT.tS << " s)\n";
-	}
 	// Update pulse level (invert it)
 	mPulseInfo.pulseLevel = (mPulseInfo.pulseLevel == Level::HighLevel? Level::LowLevel: Level::HighLevel);
 

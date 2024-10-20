@@ -87,7 +87,13 @@ bool BlockDecoder::readBlock(
 	BlockTiming blockTiming, bool firstBlock, FileBlock& readBlock, bool& leadToneDetected, BlockError& readStatus
 )
 {
-	readStatus = BLOCK_OK;
+	// Invalidate block in case readBlock returns prematurely
+	readBlock.init();
+
+	// Set error status for the block initially (will be changed if header & data are successfully read)
+	readStatus = BLOCK_DATA_INCOMPLETE | BLOCK_HDR_INCOMPLETE;
+	readBlock.completeHdr = false;
+	readBlock.completeData = false;
 
 	nReadBytes = 0;
 	leadToneDetected = false;
@@ -95,8 +101,7 @@ bool BlockDecoder::readBlock(
 	if (!(mTargetMachine <= BBC_MASTER || mTargetMachine == ACORN_ATOM))
 		return false;
 
-	// Invalidate block in case readBlock returns prematurely
-	readBlock.init();
+
 
 	// Mark the block's target machine
 	readBlock.targetMachine = mTargetMachine;
@@ -105,20 +110,24 @@ bool BlockDecoder::readBlock(
 	Byte dummy_byte = 0x0;
 	int min_carrier_cycles;
 	double waiting_time;
+	double start_time = getTime();
 
 
 	min_carrier_cycles = getMinLeadCarrierCycles(firstBlock, blockTiming, mTargetMachine, mReader.carrierFreq());
 	if (firstBlock && mTargetMachine <= BBC_MASTER) {
 		if (!mReader.waitForCarrierWithDummyByte(
-			min_carrier_cycles, waiting_time, readBlock.preludeToneCycles, readBlock.leadToneCycles, dummy_byte, STARTBIT_FOLLOWS
+			min_carrier_cycles, waiting_time, readBlock.preludeToneCycles, readBlock.leadToneCycles, dummy_byte, HEADER_FOLLOWS
 		)) {
 			return false;
 		}
 	}
 	else {
-		if (!mReader.waitForCarrier(min_carrier_cycles, waiting_time, readBlock.leadToneCycles, STARTBIT_FOLLOWS))
+		if (!mReader.waitForCarrier(min_carrier_cycles, waiting_time, readBlock.leadToneCycles, HEADER_FOLLOWS))
 			return false;
 	}
+
+	readBlock.tapeStartTime = start_time + waiting_time;
+	readBlock.tapeEndTime = -1;
 
 	leadToneDetected = true;
 
@@ -164,6 +173,8 @@ bool BlockDecoder::readBlock(
 		nReadBytes += n_read_bytes;
 		return false;
 	}
+	readStatus = BlockError(readStatus ^ BLOCK_HDR_INCOMPLETE);
+	readBlock.completeHdr = true;
 	nReadBytes += n_read_bytes;
 	updateCRC(readBlock, crc, hdr_bytes);
 
@@ -210,7 +221,7 @@ bool BlockDecoder::readBlock(
 	// For Atom, detect micro tone before reading data bytes
 	if (readBlock.targetMachine == ACORN_ATOM) {
 		double waiting_time;
-		if (!mReader.waitForCarrier(100, waiting_time, readBlock.microToneCycles, STARTBIT_FOLLOWS)) {
+		if (!mReader.waitForCarrier(100, waiting_time, readBlock.microToneCycles, DATA_FOLLOWS)) {
 			if (mDebugInfo.tracing)
 				DEBUG_PRINT(getTime(), ERR, "Failed to detect micro tone for file '%s'!\n", readBlock.blockName().c_str());
 			return false;
@@ -240,6 +251,8 @@ bool BlockDecoder::readBlock(
 		if (DEBUG_LEVEL == DBG && mDebugInfo.tracing && readBlock.data.size() > 0)
 			Utility::logData(readBlock.loadAdr(), &readBlock.data[0], block_len);
 	}
+	readStatus = BlockError(readStatus ^ BLOCK_DATA_INCOMPLETE);
+	readBlock.completeData = true;
 
 	// BBC Micro Machines only have a data CRC if there is data. Acorn Atom's CRC includes the header and
 	// therefore always have a CRC at the end.
@@ -301,7 +314,7 @@ bool BlockDecoder::readBlock(
 		}
 	}
 
-	// For all Atom blocks and for last BBC machine block, record gap after block
+	// For all Atom blocks and for the last BBC machine block, record gap after block
 	if (readBlock.targetMachine == ACORN_ATOM || (readBlock.targetMachine <= BBC_MASTER && readBlock.lastBlock())) {
 
 		// Detect gap to next file by waiting for next files's first block's lead tone
@@ -313,14 +326,14 @@ bool BlockDecoder::readBlock(
 		double waiting_time;
 		min_carrier_cycles = getMinLeadCarrierCycles(true, blockTiming, mTargetMachine, mReader.carrierFreq());
 		if (readBlock.targetMachine == ACORN_ATOM) {
-			if (!mReader.waitForCarrier(min_carrier_cycles, waiting_time, carrier_cycles, STARTBIT_FOLLOWS))
+			if (!mReader.waitForCarrier(min_carrier_cycles, waiting_time, carrier_cycles, HEADER_FOLLOWS))
 				// If no gap detected (probably because the tape has ended), use a default gap of 2s
 				waiting_time = 2.0;
 		}
 		else { // BBC Machine & last block
 			int next_block_prelude_cycles, next_block_postlude_cycles;
 			if (!mReader.waitForCarrierWithDummyByte(
-				min_carrier_cycles, waiting_time, next_block_prelude_cycles, next_block_postlude_cycles, dummy_byte, STARTBIT_FOLLOWS
+				min_carrier_cycles, waiting_time, next_block_prelude_cycles, next_block_postlude_cycles, dummy_byte, HEADER_FOLLOWS
 			)) {
 				// If no gap detected (probably because the tape has ended), use a default gap of 2s
 				waiting_time = 2.0;
@@ -336,6 +349,8 @@ bool BlockDecoder::readBlock(
 
 	if (mDebugInfo.verbose)
 		cout << readBlock.blockGap << " s gap after block, starting at " << Utility::encodeTime(getTime()) << "\n";
+
+	readBlock.tapeEndTime = getTime();
 
 	return true;
 }

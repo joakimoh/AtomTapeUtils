@@ -6,7 +6,13 @@
 #include "Logging.h"
 
 
-enum AfterCarrierType { GAP_FOLLOWS, STARTBIT_FOLLOWS };
+enum AfterCarrierType { GAP_FOLLOWS = 0x1, HEADER_FOLLOWS = 0x2, DATA_FOLLOWS = 0x4, START_BIT_FOLLOWS = 0x6 };
+#define _CARRIER_TYPE(x) (\
+	x==AfterCarrierType::GAP_FOLLOWS?"Gap":\
+		(x==AfterCarrierType::HEADER_FOLLOWS?"Header":\
+			(x==AfterCarrierType::DATA_FOLLOWS?"Data":"Header/Data")\
+		)\
+)
 
 class TapeReader {
 

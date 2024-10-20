@@ -207,47 +207,19 @@ int main(int argc, const char* argv[])
     // Read complete tape files using the File Decoder
     bool selected_file_found = false;
     vector<TapeFile> tape_files;
-    while (fileDecoder.readFile(*fout_p, tape_file, arg_parser.searchedProgram)) {
+    vector<TapeFile> tape_files_complete;
+    FileReadStatus read_status;
+    while (fileDecoder.readFile(*fout_p, tape_file, arg_parser.searchedProgram, read_status)) {
 
-        // If the file was read without errors, add it to the list of tape files
-        if (tape_file.blocks.size() > 0 && tape_file.complete && !tape_file.corrupted)
-            tape_files.push_back(tape_file);
+        // If the file was read with some content then add it to the list of tape files
+        if (tape_file.blocks.size() > 0) {
+            if (tape_file.complete) // save complete files
+                tape_files_complete.push_back(tape_file);
+            tape_files.push_back(tape_file); // also save incomplete files (to support recovery of damaged files)
+        }
 
         // 
         selected_file_found = (arg_parser.searchedProgram == "" || tape_file.programName == arg_parser.searchedProgram);
-
-        // If the file was with errors, then log it (-c) or generate (-g) incomplete DATA and ABC/BBC files
-        // to facilitate recovering of the file.
-        if (
-            selected_file_found &&
-            !(tape_file.blocks.size() > 0 && tape_file.complete && !tape_file.corrupted)
-        ) {
-
-            if (arg_parser.cat) {
-
-                // Log the header for the corrupted file
-                tape_file.logTAPFileHdr();
-            }
-            else {
-
-                // Try to generate DATA and ABC/BBC files for the incomplete tape file
-
-                DataCodec DATA_codec = DataCodec(arg_parser.logging);
-                string DATA_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "dat");
-                if (!DATA_codec.encode(tape_file, DATA_file_name)) {
-                    cout << "Failed to write the DATA file!\n";
-                    //return -1;
-                }
-
-                AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
-                string ABC_file_name = Utility::crEncodedProgramFileNamefromDir(arg_parser.genDir, arg_parser.targetMachine, tape_file);
-                if (!ABC_codec.encode(tape_file, ABC_file_name)) {
-                    cout << "Failed to write the program file!\n";
-                    //return -1;
-                }
-            }
-
-        } 
 
     }
 
@@ -308,11 +280,15 @@ int main(int argc, const char* argv[])
 
             else if (!genTapeFile && arg_parser.cat) {
 
+                if (!tape_file.complete || tape_file.corrupted)
+                    cout << "***";
+                else
+                    cout << "   ";
                 // Log found file
                 tape_file.logTAPFileHdr();
             }
 
-            else if (genTapeFile) {
+            else if (genTapeFile && tape_file.complete) {
 
                 // Add program to UEF/CSW/WAV tape file
 
@@ -356,7 +332,7 @@ int main(int argc, const char* argv[])
         DiscCodec DISC_codec = DiscCodec(arg_parser.logging);
         filesystem::path file_path = arg_parser.wavFile;
         string title = Utility::crReadableString(file_path.stem().string(), 12);
-        if (!DISC_codec.write(title, arg_parser.dstFileName, tape_files)) {
+        if (!DISC_codec.write(title, arg_parser.dstFileName, tape_files_complete)) {
             cout << "Failed to create disc image!\n";
             return -1;
         }

@@ -41,6 +41,8 @@ public:
 		BTMHdr bbmHdr;
 	};
 
+	bool completeHdr = true;
+	bool completeData = true;
 	
 	int blockNo = -1; // ATM header lacks block no so add it here
 

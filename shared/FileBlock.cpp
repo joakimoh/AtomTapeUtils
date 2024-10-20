@@ -369,7 +369,7 @@ bool FileBlock::encodeTapeHdr(Bytes &hdr)
 
         int data_len = atomHdr.lenHigh * 256 + atomHdr.lenLow;  // get data length
 
-        Byte b7 = (blockType != BlockType::Last? 0x80 : 0x00); // Bit 7  set if not the last block 
+        Byte b7 = (blockType != BlockType::Last && blockType != BlockType::Single ? 0x80 : 0x00); // Bit 7  set if not the last block 
         Byte b6 = (data_len > 0 ? 0x40 : 0x00); // Bit 6  set if  block contains data.
         Byte b5 = (blockType != BlockType::First && blockType != BlockType::Single? 0x20 : 0x00); // Bit 5 set if not the first block
 
@@ -428,7 +428,7 @@ bool FileBlock::logHdr(ostream* fout)
             hex << setfill('0') << setw(4) << load_adr << " " <<
             hex << setfill('0') << setw(4) << load_adr + block_sz - 1 << " " <<
             hex << setfill('0') << setw(4) << exec_adr << " " <<
-            dec << setfill(' ') << setw(4) << dec << blockNo << " " <<
+            hex << setfill('0') << setw(4) << blockNo << " " <<
             hex << setfill('0') << setw(4) << block_sz << " " << setfill(' ') << " " <<
             setw(8) << _BLOCK_ORDER(this->blockType);
         if (leadToneCycles != -1 || microToneCycles != -1 || blockGap != -1) {
@@ -448,7 +448,7 @@ bool FileBlock::logHdr(ostream* fout)
             hex << setfill('0') << setw(8) << file_load_adr + 256 * block_no << " " <<
             hex << setfill('0') << setw(8) << file_load_adr + 256 * block_no + block_sz - 1 << " " <<
             hex << setfill('0') << setw(8) << exec_adr << " " <<
-            dec << setfill(' ') << setw(4) << dec << block_no << " " <<
+            hex << setfill('0') << setw(4) << block_no << " " <<
             hex << setfill('0') << setw(4) << block_sz << " " <<
             hex << setfill('0') << setw(2) << hex << (int)flag << setfill(' ') << " " <<
             setw(8) << _BLOCK_ORDER(this->blockType);
@@ -556,6 +556,7 @@ bool FileBlock::encodeTAPHdr(
         atomHdr.execAdrLow = execAdr % 256;
         atomHdr.lenHigh = BlockSz / 256;
         atomHdr.lenLow = BlockSz % 256;
+
     }
     if (blockNo == 0)
         this->blockType = BlockType::First;

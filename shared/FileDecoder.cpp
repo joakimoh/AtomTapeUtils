@@ -39,8 +39,11 @@ string FileDecoder::timeToStr(double t) {
     return string(t_str);
 }
 
-bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchName)
+bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchName, FileReadStatus &readStatus)
 {
+
+    readStatus = FileReadStatus::OK;
+
     tapFile.init();
     FileMetaData meta_data("", 0x0, 0x0, mTarget);
     tapFile.metaData = meta_data;
@@ -81,6 +84,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
     // Read all blocks belonging to the same file
     unsigned n_blocks = 0;
     uint32_t adr_offset = 0;
+    double block_end_time = -1;
     while (!last_block) {
 
         bool corrupted_block = false;
@@ -92,7 +96,8 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
         string bn;
 
         // Save tape time when block starts
-        double block_start_time = mBlockDecoder.getTime();
+        double default_block_start_time = mBlockDecoder.getTime();
+        double block_start_time;
 
         // Save tape position in case the block coming up would turn out not be part
         // of the tape file currently being read. In that case, a rollback to this
@@ -102,34 +107,35 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
         // Read one block
         bool lead_tone_detected;  
         BlockError block_error;
-        bool success = mBlockDecoder.readBlock(blockTiming, first_block, read_block, lead_tone_detected, block_error);
-        block_no = read_block.blockNo;
-
-        double block_end_time = mBlockDecoder.getTime();
         last_valid_block_end_time = block_end_time;
+        bool success = mBlockDecoder.readBlock(blockTiming, first_block, read_block, lead_tone_detected, block_error);
+        block_no = read_block.blockNo; 
+
+        if (read_block.tapeStartTime == -1)
+            block_start_time = default_block_start_time;
+        else
+            block_start_time = read_block.tapeStartTime;
+
+        if (read_block.tapeEndTime == -1)
+            block_end_time = mBlockDecoder.getTime();
+        else
+            block_end_time = read_block.tapeEndTime;
+        
 
         read_block.tapeStartTime = block_start_time;
         read_block.tapeEndTime = block_end_time;
 
-
-
         // If no lead tone was detected it must be the end of the tape
         if (!lead_tone_detected) {
+            readStatus = FileReadStatus::END_OF_TAPE;
             break;
         }
 
         // Extract ATM/BTM header parameters
-        int expected_bytes_to_read;
-        if (mTarget <= BBC_MASTER)
-            expected_bytes_to_read = (int) read_block.blockName().length() + 1 + read_block.tapeHdrSz() + 2 + read_block.dataSz() + 2;
-        else
-            expected_bytes_to_read = (int) read_block.blockName().length() + 1 + read_block.tapeHdrSz() + read_block.dataSz() + 1;
-        bool complete_header = (mBlockDecoder.nReadBytes == expected_bytes_to_read);
         load_adr = read_block.loadAdr();
         exec_adr = read_block.execAdr();
         block_sz = read_block.dataSz();
         bn = read_block.blockName();
-
         if (mTarget == ACORN_ATOM) {
             load_adr_LB = load_adr;
             load_adr_UB = load_adr + block_sz - 1;
@@ -139,10 +145,23 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
             load_adr_UB = load_adr + adr_offset + block_sz - 1;
         }
 
-        if (!complete_header) {
+        // Check for errors
+        int expected_bytes_to_read;
+        if (mTarget <= BBC_MASTER)
+            expected_bytes_to_read = (int) read_block.blockName().length() + 1 + read_block.tapeHdrSz() + 2 + read_block.dataSz() + 2;
+        else
+            expected_bytes_to_read = (int) read_block.blockName().length() + 1 + read_block.tapeHdrSz() + read_block.dataSz() + 1;
+        bool complete_block = (mBlockDecoder.nReadBytes == expected_bytes_to_read);
+
+        if (block_error & BlockError::BLOCK_CRC_ERR)
+            readStatus = FileReadStatus((int) readStatus | FileReadStatus::CORRUPTED_BLOCKS);
+        if (!complete_block || mBlockDecoder.nReadBytes < block_sz)
+            readStatus = FileReadStatus((int)readStatus | FileReadStatus::INCOMPLETE_BLOCKS);
+
+        if (!complete_block) {
             if (mDebugInfo.verbose)
                 printf(
-                    "*** ERROR *** Incomplete Tape Header Block '%s' - only read %d out of %d bytes!\n", bn.c_str(),
+                    "*** ERROR *** Incomplete Tape Block '%s' - only read %d out of %d bytes!\n", bn.c_str(),
                     mBlockDecoder.nReadBytes, expected_bytes_to_read);
         }
 
@@ -155,7 +174,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
             break;
         }
 
-        if (!complete_header || mBlockDecoder.nReadBytes < block_sz) {
+        if (!complete_block || mBlockDecoder.nReadBytes < block_sz) {
             incomplete_block = true;
             incomplete_blocks = true;
         }
@@ -172,7 +191,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
         // the missing bytes with zeroes.
         // (This means than if only a valid header was read but no data at all,
         //  then an all-zero data part will still be created!)
-        if (complete_header) {
+        if (complete_block) {
 
             file_selected = file_selected || (searchName == "" || bn == searchName);
  
@@ -203,13 +222,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
             last_valid_block_sz = block_sz;
             last_valid_block_type = read_block.getBlockType();
             last_valid_block_start_time = block_start_time;
-/*
-            double block_end_time = mBlockDecoder.getTime();
-            last_valid_block_end_time = block_end_time;
 
-            read_block.tapeStartTime = block_start_time;
-            read_block.tapeEndTime = block_end_time;
-            */
             file_sz += block_sz;
 
             last_block = read_block.lastBlock();
@@ -264,7 +277,8 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
             last_block_no = block_no;
 
             if (incomplete_block || corrupted_block) {
-                logFile << "*";
+                if (!mCat)
+                    logFile << "*";
                 if (mDebugInfo.verbose)
                     cout << "*";
             }
@@ -284,7 +298,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
         // when the header was not complete and at least one
         // valid block for the file has previously been detected.
         //
-        if (!complete_header && n_blocks > 0) {
+        if (!complete_block && n_blocks > 0) {
             expected_block_no = expected_block_no + 1;
             next_load_adr += 256;
 
@@ -298,21 +312,21 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
     if (block_name != "???") {
 
         if (!first_block_found || !last_block_found || missing_block || incomplete_blocks || corrupted_blocks) {
-            if (!first_block_found || !last_block_found || missing_block || incomplete_blocks)
-                tapFile.complete = false;
-            else
-                tapFile.complete = true;
+
+            if (!first_block_found || !last_block_found || missing_block)
+                readStatus = FileReadStatus((int)readStatus | FileReadStatus::MISSING_BLOCKS);
+
+            tapFile.complete = (readStatus & INCOMPLETE) == 0;
+
             if (corrupted_blocks)
                 tapFile.corrupted = true;
             if (file_selected && !mCat) {
-                printf(
-                    "At least one block missing or corrupted for file '%s' [%s,%s]\n",
-                    tapFile.programName.c_str(),
-                    Utility::encodeTime(tapFile.blocks[0].tapeStartTime).c_str(),
-                    Utility::encodeTime(tapFile.blocks[n_blocks - 1].tapeEndTime).c_str()
-                );
-                logFile << "*** ERR *** At least one block missing or corrupted for file '" << tapFile.programName << "' [";
-                logFile << Utility::encodeTime(tapFile.blocks[0].tapeStartTime) << "," << Utility::encodeTime(tapFile.blocks[n_blocks - 1].tapeEndTime) << "]\n";
+                stringstream s;
+                s << FileDecoder::readFileStatus(readStatus) << " for file " << tapFile.programName << "[" <<
+                    Utility::encodeTime(tapFile.blocks[0].tapeStartTime) << "," <<
+                    Utility::encodeTime(tapFile.blocks[n_blocks - 1].tapeEndTime) << "]";
+                cout << s.str() << "\n";
+                logFile << "*** ERR *** " << s.str() << "\n";
             }
         }
         else

@@ -212,8 +212,8 @@ string Utility::crEncodedFileNamefromDir(string dirPath, TapeFile &tapeFile, str
 {
     filesystem::path dir_path = dirPath;
     filesystem::path file_base = tapeFile.crValidHostFileName(tapeFile.programName);
+    stringstream suffix;
 
-    string suffix = "";
     string file_ext;
     if (fileExt.size() == 0)
         file_ext = "";
@@ -221,15 +221,17 @@ string Utility::crEncodedFileNamefromDir(string dirPath, TapeFile &tapeFile, str
         file_ext = "." + fileExt;
 
     if (tapeFile.corrupted)
-        suffix = "_corrupted";
+        suffix << "_corrupted";
 
     if (tapeFile.complete)
-        suffix += file_ext;
+        suffix << file_ext;
     else
-        suffix += "_incomplete_" + to_string(tapeFile.firstBlock) + "_" + to_string(tapeFile.lastBlock) + file_ext;
+        suffix << "_incomplete_" <<
+        hex << setfill('0') << setw(4) << tapeFile.firstBlock << "_" <<
+        hex << setfill('0') << setw(4) << tapeFile.lastBlock << file_ext;
 
     filesystem::path output_file_name = dir_path / file_base;
-    output_file_name += suffix;
+    output_file_name += suffix.str();
 
     return output_file_name.string();;
 }
