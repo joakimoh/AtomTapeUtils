@@ -14,17 +14,22 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Usage:\t" << name << " <TAP file> [-v]\n";
-	cout << " \t -g <generate dir path | -uef <file> | -wav <file> | -csw <file>\n";
-	cout << "<TAP file>:\n\tTAP file to decode\n\n";
-	cout << "If no output file is specified, each output file name will default to the\n";
-	cout << "input file name (excluding extension) with the type-specific suffix (e.g.,  '.dat').\n\n";
-	cout << "-g dir:\n\tProvide path to directory where generated files shall be put\n\t- default is work directory\n\n";
+	cout << "Scans an Acorn Atom TAP file for program files and generates either a set of\n";
+	cout << "files of different formats per detected program or a new tape or disc file\n";
+	cout << "with the content being the detected (and selected) programs.\n\n"; cout << "Usage:\t" << name << " <TAP file> [-v] [-n <program>]\n";
+	cout << " \t -g <dir> | -uef <file> | -wav <file> | -csw <file> | -ssd <file> | -c\n\n";
+	cout << "<TAP file>:\n\tTAP file to decode.\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
-	cout << "-euf <file>:\nGenerate one UEF tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
-	cout << "-csw <file>:\nGenerate one CSW tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
-	cout << "-wav <file>:\nGenerate one WAV tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
-	cout << "\n";
+	cout << "-n <program>:\n\tOnly search for (and extract) <program>.\n\n";
+	cout << "-g <dir>:\n\tDirectory to put generated files in\n\t- default is work directory.\n\n";
+	cout << "-uef <file>:\n\tGenerate one UEF tape file with all successfully decoded programs.\n\n";
+	cout << "-csw <file>:\n\tGenerate one CSW tape file with all successfully decoded programs.\n\n";
+	cout << "-wav <file>:\n\tGenerate one WAV tape file with all successfully decoded programs.\n\n";
+	cout << "-ssd <file>:\n\tGenerate one disc image (SSD) file with all successfully decoded programs.\n";
+	cout << "\tThe required format for the files (.ssd or .dsd) will be selected by the utility itself.\n";
+	cout << "\tbased on the no of files (<= 31 => .ssd; >31 && <=62 => .dsd). The original extension (if any)\n";
+	cout << "\tof the file will be ignored for that reason.\n\n";
+	cout << "-c:\n\tOnly output a catalogue of the files found on the tape.\n\n";
 }
 
 ArgParser::ArgParser(int argc, const char* argv[])

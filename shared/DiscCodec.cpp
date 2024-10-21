@@ -276,13 +276,21 @@ bool DiscCodec::write(string title, string discPath, vector<TapeFile> &tapeFiles
         }
     }
 
+    filesystem::path file_path = discPath;
+    string file_path_no_ext = file_path.stem().string();
+    string disc_path;
+    if (tapeFiles.size() <= 31)
+        disc_path = file_path_no_ext + ".ssd";
+    else
+        disc_path = file_path_no_ext + ".dsd";
+
     if (mVerbose)
         cout << dec;
 
     // Create disc image file for writing
-    ofstream fout(discPath, ios::out | ios::binary | ios::ate);
+    ofstream fout(disc_path, ios::out | ios::binary | ios::ate);
     if (!fout) {
-        cout << "can't write to disc image file " << discPath << "\n";
+        cout << "can't write to disc image file " << disc_path << "\n";
         return false;
     }
 

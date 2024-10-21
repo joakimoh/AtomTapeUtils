@@ -192,10 +192,12 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 						cout << "Unexpected start of block header (before min carrier time has elapsed) at " << Utility::encodeTime(getTime()) << "\n";
 					} if (mDebugInfo.verbose)
 						cout << "Start of block header at " << Utility::encodeTime(getTime()) << "\n";
-
+					// Make sure any preceeding F1 1/2 cycle is ignored for start bit detection later on
+					// if the prepamble detection happended to 'lock' on the second F1 1/2 cycle...
+					mCycleDecoder.setLastHalfCycleFrequency(Frequency::F2);  
 				}
 				else if (!detected_dummy_byte && detectDummyByte &&  byte == 0xaa) {
-					// Assume dummy byte (although it should normally be 0xaa)
+					// Dummy byte <> 0xaa => save the detected timing
 					preludeCycles = (int)round((t_byte_start - t_stable_carrier) * mCycleDecoder.carrierFreq());
 					t_dummy_byte = getTime() - t_byte_start; // stop bits not included as not read for a byte
 					int dummy_byte_half_cycles = (int)round(t_dummy_byte * carrierFreq() * 2);
@@ -203,24 +205,25 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 					t_dummy_byte_start = t_byte_start;
 					foundDummyByte = byte;
 					if (mDebugInfo.verbose) {
-						cout << "Detected dummy byte 0xaa at " << Utility::encodeTime(getTime()) << "\n";
+						//cout << "Detected dummy byte 0xaa at " << Utility::encodeTime(getTime()) << "\n";
 					}
 					regretCheckpoint(); // remove checkpoint made before reading the dummy byte
 					regretCheckpoint(); // remove checkpoint made before reading the initial F1 1/2 cycle
 				}
 				else {
-					// Treat this as noise and continue search for header
+					// Neither preamble nor dummy byte => Treat this as noise and continue search
 					rollback(); // rollback to before attempt to read byte
 					regretCheckpoint(); // remove checkpoint made before reading the initial F1 1/2 cycle
 				}
 			}
 			else {
-				// Treat this as noise and continue search for header
+				// No byte successfyll read => Treat this as noise and continue search
 				rollback(); // rollback to before attempt to read byte
 				regretCheckpoint(); // remove checkpoint made before reading the initial F1 1/2 cycle
 			}
 		}
 		else {
+			// No F1 1/2 cycle => remove checkpoint an continue search
 			regretCheckpoint();
 		}
 	

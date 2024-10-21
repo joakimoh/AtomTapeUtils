@@ -123,7 +123,10 @@ int main(int argc, const char* argv[])
             }
             else {
                 // If the file was read with some content (even if there were some errors), then add it to the list of tape files
-                if (tape_file.blocks.size() > 0)
+                if (
+                    tape_file.blocks.size() > 0 &&
+                    (arg_parser.searchedProgram == "" || tape_file.programName == arg_parser.searchedProgram)
+                )
                     tape_files.push_back(tape_file);
             }
             

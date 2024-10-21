@@ -14,6 +14,7 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
+	cout << "Generates program source code from an Acorn Atom TAP file.\n\n";
 	cout << "Usage:\t" << name << " <TAP file> [-o <output file>] [-v]\n";
 	cout << "<TAP file>:\n\tTAP file to decode\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";

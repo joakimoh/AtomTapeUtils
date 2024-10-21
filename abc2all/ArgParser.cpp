@@ -14,10 +14,13 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char *name)
 {
-	cout << "Usage:\t" << name << " <ABC file> [-g <output directory>] [-v]\n";
+	cout << "Generate UEF, DAT, BIN (and TAP - Acorn Atom only) files based on a program file.\n\n"; 
+	cout << "Usage:\t" << name << " <ABC file> [-g <output directory>] [-v] [-bbm]\n";
+	cout << " \t -g <dir>\n\n";
 	cout << "<ABC file>:\n\tAcorn Atom BASIC program file to decode\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
-	cout << "-bbm:\nTarget machine is BBC Micro (default is Acorn Atom)\n\n";
+	cout << "-g <dir>:\n\tDirectory to put generated files in\n\t- default is work directory.\n\n";
+	cout << "-bbm:\n\tTarget machine is BBC Micro (default is Acorn Atom)\n\n";
 	cout << "If no output file is specified, the output directory will default to the\n";
 	cout << "working directory.\n\n";
 	cout << "\n";

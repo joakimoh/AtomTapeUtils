@@ -14,24 +14,25 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Usage:\t" << name << " <ABC file> [-o <output file] [-b <b>] [-lt <d>] [-slt <d>] [-bbm]\n";
-	cout <<	"\t[-ml <d>] [-fg <d>] [-sg <d>] [-lg <d>] [-ps <phase_shift>] [-v]\n";
-	cout << "\n";
+	cout << "Generate a 16-bit PCM WAV audio file based on a program file.\n\n";
+	cout << "Usage:\t" << name << " <ABC file> [-o <output file>] [-v] [-bbm] [-b <baud rate>]\n";
+	cout << "\t<advanced options>]\n\n";
 	cout << "<ABC file>:\n\tAcorn Atom BASIC program file to decode\n";
 	cout << "\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
-	cout << "input file name (excluding extension) suffixed with '.wav'.\n";
+	cout << "input file name (excluding extension) suffixed with '.uef'.\n";
 	cout << "\n";
 	cout << "-v:\n\tVerbose output\n\n";
+	cout << "-bbm:\n\tTarget machine is BBC Micro (default is Acorn Atom)\n\n";
+	cout << "-b <baud rate>\n\tBaud rate (default iss 300 without option -bbm selected and 1200 with option -bbm selected).\n\n";
+	cout << "\nADVANCED OPTIONS:\n\n";
 	cout << "-lt <d>:\n\tThe duration of the first block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockLeadToneDuration << " s\n\n";
 	cout << "-slt <d>:\n\tThe duration of the subsequent block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.otherBlockLeadToneDuration << " s\n\n";
 	cout << "-ml <d>:\n\tThe duration of a micro lead tone preceeding a data block\n\t- default is " << tapeTiming.nomBlockTiming.microLeadToneDuration << " s\n\n";
 	cout << "-fg <d>:\n\tThe duration of the gap before the first block\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockGap << " s\n\n";
 	cout << "-sg <d>:\n\tThe duration of the gap before the other blocks\n\t- default is " << tapeTiming.nomBlockTiming.blockGap << " s\n\n";
 	cout << "-lg <d>:\n\tThe duration of the gap after the last block\n\t- default is " << tapeTiming.nomBlockTiming.lastBlockGap << " s\n\n";
-	cout << "-b baudrate:\n\tBaudrate (300 or 1200)\n\t- default is " << tapeTiming.baudRate << "\n\n";
 	cout << "-ps <phase_shift>:\n\tPhase shift when transitioning from high to low tone [0,180] degrees\n\t- default is " << tapeTiming.phaseShift << " degrees\n\n";
-	cout << "-bbm:\nTarget machine is BBC Micro (default is Acorn Atom)\n\n"; 
 	cout << "\n";
 }
 

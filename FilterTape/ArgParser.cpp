@@ -14,33 +14,41 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char *name)
 {
+	
+	cout << "Filters a tape audio file (of poor quality) so that the result is a tape file with normalised levels as\n";
+	cout << "well as normalised amplitudes.\n\n";
+	cout << "The sensitivity is by default high so any change in amplitude would be detected as a transition\n";
+	cout << "(from low to high or high to low).\n";
+	cout << "Tape segments that are silent (but slightly noisy) could potentially therefore be interpreted as sinusoidal curves.\n";
+	cout << "For some tape decoders this could be a problem (normally not for the Scantape utility though) but if it is a problem\n";
+	cout << "the sensitivity can be lowered using the option -d. There are many other settings but the -d option is the one that\n";
+	cout << "usually could need a bit of variation to get it 'right'\n\n";
 	cout << "Usage:\t" << name << " <WAV file> [-o <output file] [-b <baud rate>]\n";
 	cout << "\t [-a <#samples>] [-d <threshold>] [-p <distance>] [-m]\n"; 
 	cout << "\t [-sl <saturation level>] [-sh <saturation high>] [-v]\n";
 	cout << "\n";
-	cout << "-b <baud rate>:\tBaudrate (300 or 1200)\n";
-	cout << "\n";
-	cout << "-v:\n\tVerbose output\n\n";
-	cout << "-a <n>        :\tIf non-zero this specifies \n";
-	cout << "\t\tthe number of samples 2n + 1 around a sample point that are \n"; 
-	cout << "\t\taveraged together.\n";
-	cout << "\t\tDefault: 1\n";
-	cout << "\n";
-	cout << "-d <threshold>:\tThe upper boundary [0, 1000] for considering a derivative to be zero.\n"; 
-	cout << "\t\tDefault: 10\n";
-	cout << "\n";
-	cout << "-p <distance>:\tThe min distance between peaks [0.0, 0.5] as percentage of 2400 tone length.\n";
-	cout << "\t\tDefault: 0.0\n";
-	cout << "\n";
-	cout << "-sl <saturation level>:\tThe low saturation level [0.25, 1] (relatively zero). Under this threshold the signal will be cut.\n";
-	cout << "\t\tDefault: 0.8\n";
-	cout << "\n";
-	cout << "-sh <saturation level>:\tThe high saturation level [0.25, 1] (relatively zero). Over this threshold the signal will be cut.\n";
-	cout << "\t\tDefault: 0.8\n";
-	cout << "\n";
-	cout << "-m            :\tWill create a WAW file that includes both the original samples and the filtered ones.\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '_out.wav'.\n\n";
+	cout << "-b <baud rate>:\n\tBaudrate (300 or 1200)\n";
+	cout << "\n";
+	cout << "-v:\n\tVerbose output\n\n";
+	cout << "-a <n>:\n\tIf non-zero this specifies the number of samples 2n + 1 around a sample point that are \n"; 
+	cout << "\taveraged together.\n";
+	cout << "\tDefault: 1\n";
+	cout << "\n";
+	cout << "-d <threshold>:\n\tThe upper boundary [0, 1000] for considering a derivative to be zero.\n"; 
+	cout << "\tDefault: 10\n";
+	cout << "\n";
+	cout << "-p <distance>:\n\tThe min distance between peaks [0.0, 0.5] as percentage of 2400 tone length.\n";
+	cout << "\tDefault: 0.0\n";
+	cout << "\n";
+	cout << "-sl <saturation level>:\n\tThe low saturation level [0.25, 1] (relatively zero). Under this threshold the signal will be cut.\n";
+	cout << "\tDefault: 0.8\n";
+	cout << "\n";
+	cout << "-sh <saturation level>:\n\tThe high saturation level [0.25, 1] (relatively zero). Over this threshold the signal will be cut.\n";
+	cout << "\tDefault: 0.8\n";
+	cout << "\n";
+	cout << "-m:\n\tWill create a WAW file that includes both the original samples and the filtered ones.\n\n";
 	cout << "\n";
 }
 

@@ -14,6 +14,7 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
+	cout << "Generates a 16-bit PCM WAV audio file from a CSW file.\n\n";
 	cout << "Usage:\t" << name << " <CSW file> [-o <output file] [-v] [-p]\n";
 	cout << "\n";
 	cout << "<CSW file>:\n\tCSW file to decode\n";

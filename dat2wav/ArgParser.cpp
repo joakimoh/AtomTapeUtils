@@ -14,6 +14,7 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
+	cout << "Generate a 16-bit PCM WAV audio file from a data (DAT) file.\n\n"; 
 	cout << "Usage:\t" << name << " <DAT file> [-o <output file] [-b <b>] [-lt <d>] [-slt <d>]\n";
 	cout << "\t[-ml <d>][-fg <d>][-sg <d>][-lg <d>][-ps <phase_shift>] [-v] [-bbm]\n";
 	cout << "\n";
@@ -23,7 +24,7 @@ void ArgParser::printUsage(const char* name)
 	cout << "input file name (excluding extension) suffixed with '.wav'.\n";
 	cout << "\n";
 	cout << "-v:\n\tVerbose output\n\n";
-	cout << "-b baudrate:\n\tBaudrate (300 or 1200)\n\t- default is " << tapeTiming.baudRate << "\n\n";
+	cout << "-b <baudrate>:\n\tBaudrate (300 or 1200)\n\t- default is " << tapeTiming.baudRate << "\n\n";
 	cout << "-lt <d>:\n\tThe duration of the first block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockLeadToneDuration << " s\n\n";
 	cout << "-slt <d>:\n\tThe duration of the subsequent block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.otherBlockLeadToneDuration << " s\n\n";
 	cout << "-ml <d>:\n\tThe duration of a micro lead tone preceeding a data block\n\t- default is " << tapeTiming.nomBlockTiming.microLeadToneDuration << " s\n\n";
@@ -31,7 +32,7 @@ void ArgParser::printUsage(const char* name)
 	cout << "-sg <d>:\n\tThe duration of the gap before the other blocks\n\t- default is " << tapeTiming.nomBlockTiming.blockGap << " s\n\n";
 	cout << "-lg <d>:\n\tThe duration of the gap after the last block\n\t- default is " << tapeTiming.nomBlockTiming.lastBlockGap << " s\n\n";
 	cout << "-ps <phase_shift>:\n\tPhase shift when transitioning from high to low tone [0,180] degrees\n\t- default is " << tapeTiming.phaseShift << " degrees\n\n";
-	cout << "-bbm:\nTarget machine is BBC Micro (default is Acorn Atom)\n\n"; 
+	cout << "-bbm:\n\tTarget machine is BBC Micro (default is Acorn Atom)\n\n"; 
 	cout << "\n";
 }
 

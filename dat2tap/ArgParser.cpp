@@ -14,6 +14,7 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
+	cout << "Generate an Acorn Atom TAP file from a data (DAT) file.\n\n"; 
 	cout << "Usage:\t" << name << " <DATA file> [-o <output file>] [-v]\n";
 	cout << "<ABC file>:\n\tDATA file to decode\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";

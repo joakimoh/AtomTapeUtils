@@ -14,11 +14,12 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
+	cout << "Generate TAP file based on a program file. For Acorn Atom only\n\n";
 	cout << "Usage:\t" << name << " <ABC file> [-o <output file>] [-v]\n";
 	cout << "<ABC file>:\n\tAcorn Atom BASIC program file to decode\n\n";
-	cout << "-v:\n\tVerbose output\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name excluding extension.\n\n";
+	cout << "-v:\n\tVerbose output\n\n";
 	cout << "\n";
 }
 

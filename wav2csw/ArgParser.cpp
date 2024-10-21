@@ -14,6 +14,10 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
+	cout << "Generate a CSW file from a WAV audio file.\n\n";
+	cout << "Made in a machine-independent way and without any filtering applied.\n";
+	cout << "If the audio file is of poor quality you should run FilterTape on it first\n";
+	cout << "before attempting converting it to CSW format...\n\n";
 	cout << "Usage:\t" << name << " <WAV file> [-o <output file] [-v]\n";
 	cout << "<WAV file>:\nWAV file to decode\n";
 	cout << "\n";

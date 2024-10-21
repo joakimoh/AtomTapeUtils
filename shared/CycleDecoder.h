@@ -81,6 +81,8 @@ public:
 
 	HalfCycleInfo getHalfCycle() { return mHalfCycle; }
 
+	void setLastHalfCycleFrequency(Frequency f) { mHalfCycle.freq = Frequency::F2;  }
+
 	CycleDecoder(int sampleFreq, double freqThreshold, Logging logging);
 
 	Frequency lastHalfCycleFrequency() { return mHalfCycle.freq;  }

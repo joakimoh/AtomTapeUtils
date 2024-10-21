@@ -14,12 +14,13 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
+	cout << "Generate DAT file based on a program file.\n\n";
 	cout << "Usage:\t" << name << " <ABC file> [-o <output file>] [-v] [-bbm]\n";
 	cout << "<ABC file>:\n\tAcorn Atom BASIC program file to decode\n\n";
-	cout << "-v:\n\tVerbose output\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.dat'.\n\n";
-	cout << "-bbm:\nTarget machine is BBC Micro (default is Acorn Atom)\n\n";
+	cout << "-v:\n\tVerbose output\n\n";
+	cout << "-bbm:\n\tTarget machine is BBC Micro (default is Acorn Atom)\n\n";
 	cout << "\n";
 }
 

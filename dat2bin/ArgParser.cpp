@@ -14,12 +14,13 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
+	cout << "Generate a binary (BIN) file from a data (DAT) file.\n\n"; 
 	cout << "Usage:\t" << name << " <DATA file> [-o <output file>] [-v] [-bbm]\n";
 	cout << "<DAT file>:\n\tDATA file to convert to binary file\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.bin'.\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
-	cout << "-bbm:\nTarget machine is BBC Micro (default is Acorn Atom)\n\n";
+	cout << "-bbm:\n\tTarget machine is BBC Micro (default is Acorn Atom)\n\n";
 	cout << "\n";
 }
 

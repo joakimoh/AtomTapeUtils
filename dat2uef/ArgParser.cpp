@@ -14,6 +14,7 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
+	cout << "Generate a UEF file from a data (DAT) file.\n\n"; 
 	cout << "Usage:\t" << name << " <DATA file> [-o <output file>] [-b <b>] [-lt <d>] [-slt <d>]\n";
 	cout << "[-ml <d>] [-fg <d>] [-sg <d>] [-lg <d>] [-ps <phase_shift>] [-v] [-bbm]\n";
 	cout << "\n";
@@ -29,9 +30,9 @@ void ArgParser::printUsage(const char* name)
 	cout << "-fg <d>:\n\tThe duration of the gap before the first block\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockGap << " s\n\n";
 	cout << "-sg <d>:\n\tThe duration of the gap before the other blocks\n\t- default is " << tapeTiming.nomBlockTiming.blockGap << " s\n\n";
 	cout << "-lg <d>:\n\tThe duration of the gap after the last block\n\t- default is " << tapeTiming.nomBlockTiming.lastBlockGap << " \n\n";
-	cout << "-b baudrate:\n\tBaudrate (300 or 1200) - default is " << tapeTiming.baudRate << "\n\n";
+	cout << "-b <baudrate>:\n\tBaudrate (300 or 1200) - default is " << tapeTiming.baudRate << "\n\n";
 	cout << "-ps <phase_shift>:\n\tPhase shift when transitioning from high to low tone [0,180] degrees\n\t- default is " << tapeTiming.phaseShift << " degrees\n\n";
-	cout << "-bbm:\nTarget machine is BBC Micro (default is Acorn Atom)\n\n"; 
+	cout << "-bbm:\n\tTarget machine is BBC Micro (default is Acorn Atom)\n\n"; 
 	cout << "\n";
 }
 

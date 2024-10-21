@@ -14,36 +14,43 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char *name)
 {
-	cout << "Usage:\t" << name << " <WAV/CSW/UEF file> [-d <debug start time> <debug stop time>] [-b <b>]\n";
-	cout << "\t[-f <freq tolerance>] [-l <level tolerance>] [-s <start time> ] [-e] [-t] [-pot]\n";
-	cout << "\t[-lt <duration>] [-slt <duration>] [-ml <duration>] [-v] [-bbm] [-n <tape file name>] [-c]\n";
-	cout << "\t-g <generate dir path | -uef <file> | -wav <file> | -csw <file> | -tap <file> | -ssd <file>\n";
-	cout << "\n";
-	cout << "<WAV/CSW/UEF file>:\n\t16-bit PCM WAV/CSW/UEF file to analyse\n\n";
-	cout << "\n";
-	cout << "If no output directory is specifed, then all generated files will be created in the current work directory\n";
-	cout << "\n";
-	cout << "-g generate dir path :\n\tProvide path to directory where generated files shall be put\n\t- default is work directory\n\n";
-	cout << "-d <debug start time> <debug stop time>:\n\tWAV file time range (format hh:mm:ss) for which debugging shall be turned on\n\t- default is off for all times\n\n";
-	cout << "-f <freq tolerance>:\n\tTolerance of the 1200/2400 frequencies [0,1[\n\t- default is 0.25\n\n";
-	cout << "-l <level tolerance>:\n\tSchmitt-trigger level tolerance [0,1[\n\t- default is 0\n\n";
-	cout << "-s <start time>:\n\tThe time to start detecting files from\n\t- default is 0\n\n";
-	cout << "-lt <d>:\n\tThe duration of the first block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockLeadToneDuration << " s\n\n";
-	cout << "-slt <d>:\n\tThe duration of the subsequent block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.otherBlockLeadToneDuration << " s\n\n";
-	cout << "-ml <d>:\n\tThe duration of a micro lead tone preceeding a data block\n\t- default is " << tapeTiming.nomBlockTiming.microLeadToneDuration << " s\n\n";
-	cout << "-b baudrate:\n\tBaudrate (300 or 1200)\n\t- default is " << tapeTiming.baudRate << "\n\n";
+	cout << "Scans a tape file for program files and generates either a set of\n";
+	cout << "files of different formats per detected program or a new tape or disc file\n";
+	cout << "with the content being the detected (and selected) programs.\n\n";
+	cout << "If the audio file is of WAV type and is of poor quality, you should run \n";
+	cout << "FilterTape on it first before attempting to scan it for programs...\n\n";
+	cout << "Usage:\t" << name << " <WAV/CSW/UEF file> [-v] [-bbm] [-n <program>] [-b <baud rate>]  [-pot]\n";
+	cout << "\t-g <dir> | -uef <file> | -wav <file> | -csw <file> | -tap <file> | -ssd <file> | -c\n";
+	cout << "\t<advanced options>\n\n";
+	cout << "<WAV/CSW/UEF file>:\n\t16-bit PCM WAV/CSW/UEF file to decode.\n\n";
+	cout << "-v:\n\tVerbose output.\n\n";
+	cout << "-bbm:\n\tScan for BBC Micro (default is Acorn Atom).\n\n";
+	cout << "-n <program>:\n\tOnly search for (and extract) <program>.\n\n";
+	cout << "-b <baud rate>\n\tBaud rate (default iss 300 without option -bbm selected and 1200 with option -bbm selected).\n\n";
+	cout << "-pot:\n\tPreserve original tape timing when generating UEF & CSW files - default is " << (tapeTiming.preserve?"enabled":"disabled") << ".\n\n";
+	cout << "-g <dir>:\n\tDirectory to put generated files in\n\t- default is work directory.\n\n";
+	cout << "-uef <file>:\n\tGenerate one UEF tape file with all successfully decoded programs.\n\n";
+	cout << "-csw <file>:\n\tGenerate one CSW tape file with all successfully decoded programs.\n\n";
+	cout << "-wav <file>:\n\tGenerate one WAV tape file with all successfully decoded programs.\n\n";
+	cout << "-tap <file>:\n\tGenerate one TAP tape file (Acorn Atom only) with all successfully decoded programs.\n\n";
+	cout << "-ssd <file>:\n\tGenerate one disc image (SSD) file with all successfully decoded programs.\n";
+	cout << "\tThe required format for the files (.ssd or .dsd) will be selected by the utility itself.\n";
+	cout << "\tbased on the no of files (<= 31 => .ssd; >31 && <=62 => .dsd). The original extension (if any).\n";
+	cout << "\tof the file will be ignored for that reason.\n\n";
+	cout << "-c:\n\tOnly output a catalogue of the files found on the tape.\n\n";
+
+	cout << "\nADVANCED OPTIONS:\n\n";	
+	cout << "-s <start time>:\n\tThe time to start detecting files from\n\t- default is 0.\n\n";
+	cout << "-f <freq tolerance>:\n\tTolerance of the 1200/2400 frequencies [0,1[\n\t- default is 0.25.\n\n";
+	cout << "-l <level tolerance>:\n\tSchmitt-trigger level tolerance [0,1[\n\t- default is 0.\n\n";
+	cout << "-lt <d>:\n\tThe duration of the first block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.firstBlockLeadToneDuration << " s.\n\n";
+	cout << "-slt <d>:\n\tThe duration of the subsequent block's lead tone\n\t- default is " << tapeTiming.nomBlockTiming.otherBlockLeadToneDuration << " s.\n\n";
+	cout << "-ml <d>:\n\tThe duration of a micro lead tone preceeding a data block\n\t- default is " << tapeTiming.nomBlockTiming.microLeadToneDuration << " s.\n\n";
 	cout << "-t:\n\tTurn on tracing showing detected faults.\n\n";
-	cout << "-pot:\n\tPreserve original tape timing when generating UEF & CSW files - default is " << tapeTiming.preserve << "\n\n";
-	cout << "-v:\n\tVerbose mode\n\n";
-	cout << "-bbm:\nScan for BBC Micro (default is Acorn Atom)\n\n";
-	cout << "-n name:\nLimit scan to a single tape file\n\n";
-	cout << "-c:\nOnly output a catalogue of the files found on the tape\n\n";
-	cout << "-euf <file>:\nGenerate one UEF tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
-	cout << "-csw <file>:\nGenerate one CSW tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
-	cout << "-wav <file>:\nGenerate one WAV tape file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
-	cout << "-tap <file>:\nGenerate one TAP tape (Acorn Atom only) file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n";
-	cout << "-ssd <file>:\nGenerate one disc image (SSD) file with all successfully decoded programs - mutually exclusive w.r.t option '-g'\n\n";
-	cout << "\tand only valid for Acorn Atom (i.e. cannot be combibed with option -bbm).\n\n";
+	cout << "-d <debug start time> <debug stop time>:\n\tTape file time range (format hh:mm:ss) for which debugging shall be turned on\n\t- default is off for all times.\n\n";
+
+	
+
 	cout << "\n";
 }
 
