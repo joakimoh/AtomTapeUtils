@@ -45,8 +45,8 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, Lo
     fin.read((char*)&h_head, sizeof(h_head));
 
     // CheckType of format - should be 1 for PCM
-    if (h_head.audioFormat != 1 /* PCM */ || h_head.bitsPerSample != 16) {
-        cout << "Input file has no data or is not a valid 16 - bit PCM Wave file!\n";
+    if (h_head.audioFormat != 1 /* PCM */ || !(h_head.bitsPerSample == 16 || h_head.bitsPerSample == 8)) {
+        cout << "Input file has no data or is not a valid 8 or 16-bit PCM Wave file!\n";
         fin.close();
         return false;
     }
@@ -57,6 +57,7 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, Lo
 
 
     // Check sub chunk size
+    // ChunkSize = sizeof(CommonHeader) + subChunk2Size = 36 + subChunk2Size = filesize - 8
     if (h_tail.subchunk2Size != h_head.ChunkSize - 36) {
         if (logging.verbose)
             cout << "Size of data samples (subchunk2Size = " << h_tail.subchunk2Size <<
@@ -74,20 +75,25 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, Lo
     if (!(h_head.numChannels == 1)) {
 
         cout << "*** WARNING***\n";
-        cout << "The input file is a multi-channel 16-bit PCM Wave file.\n";
+        cout << "The input file is a multi-channel " << h_head.bitsPerSample << "-bit PCM Wave file.\n";
         cout << "The last channel is assumed to contain the samples of interest. If this is not the case\n";
         cout << "then please modify the file to have only one channel and try again!\n\n";
 
     }
 
+    // samples/channel: NumSamples * NumChannels * BitsPerSample / 8
+    int samples_per_channel = h_tail.subchunk2Size / (h_head.numChannels * h_head.bitsPerSample / 8);
+    int sample_byte_size = h_head.bitsPerSample / 8;
+    int total_n_samples = h_tail.subchunk2Size / sample_byte_size;
+    int n_sample_bytes = h_tail.subchunk2Size;
     if (logging.verbose) {
-        cout << "Input file is a valid one channel 16 - bit PCM Wave file:\n";
+        cout << "Input file is a valid one channel " << h_head.bitsPerSample << "-bit PCM Wave file : \n";
         cout << "format: " << h_head.audioFormat << " (1 <=> PCM)\n";
         cout << "#channels: " << h_head.numChannels << " (1)\n";
         cout << "sample rate: " << h_head.sampleRate << " (44 100) \n";
         cout << "sample size: " << h_head.bitsPerSample << " (16)\n";
-        cout << "#bytes: " << h_tail.subchunk2Size << "\n";
-        cout << "#samples/channel: " << h_tail.subchunk2Size / (h_head.numChannels  * 2) << "\n";
+        cout << "#bytes: " << n_sample_bytes << "\n";
+        cout << "#samples/channel: " << samples_per_channel << "\n";
     }
 
     sampleFreq = h_head.sampleRate;
@@ -95,27 +101,54 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, Lo
     // Collect all samples into a vector 'samples'
     int n_samples = 0;
     if (h_head.numChannels == 1) {
-        samples = Samples(h_tail.subchunk2Size / 2);
-        Sample* samples_p = &samples.front();
-        fin.read((char*)samples_p, (streamsize)h_tail.subchunk2Size);
-        n_samples = h_tail.subchunk2Size;
+        samples = Samples(samples_per_channel);
+        n_samples = samples_per_channel;
+        if (sample_byte_size == 2) {
+            // Read 16-bit samples
+            Sample* samples_p = &samples.front();
+            fin.read((char*)samples_p, (streamsize) n_sample_bytes);           
+        }
+        else { // sample_byte_size == 1
+            // Read 8-bit samples
+            ByteSamples byte_samples(samples_per_channel);
+            fin.read((char*)&byte_samples.front(), (streamsize)n_sample_bytes);
+            // Copy 8-bit samples into 16-bit sample vector
+            for (int i = 0; i < samples_per_channel; i++)
+                samples[i] = (Sample) byte_samples[i];
+        }
     }
     else { // several channels - assume the last one shall be used and skip all the other channels
-        int samples_per_channel = h_tail.subchunk2Size / (2 * h_head.numChannels);
         samples = Samples(samples_per_channel);
-        Samples channel_samples(h_tail.subchunk2Size / 2);
-        Sample* channel_sample_p = &channel_samples.front();
-        fin.read((char*)channel_sample_p, (streamsize)h_tail.subchunk2Size);
-        SampleIter channel_sample_iter = channel_samples.begin();
-        while (channel_sample_iter < channel_samples.end()) {
-            // Skip samples for first channels
-            if (channel_sample_iter < channel_samples.end() - (h_head.numChannels - 1))
-                channel_sample_iter += h_head.numChannels - 1;
-            else
-                break;
-            // Get sample for last channel
-            samples[n_samples++] = *channel_sample_iter++;                   
-         }
+        if (sample_byte_size == 2) {
+            Samples channel_samples(total_n_samples);
+            Sample* channel_sample_p = &channel_samples.front();
+            fin.read((char*)channel_sample_p, (streamsize)n_sample_bytes);
+            SampleIter channel_sample_iter = channel_samples.begin();
+            while (channel_sample_iter < channel_samples.end()) {
+                // Skip samples for first channels
+                if (channel_sample_iter < channel_samples.end() - (h_head.numChannels - 1))
+                    channel_sample_iter += h_head.numChannels - 1;
+                else
+                    break;
+                // Get sample for last channel
+                samples[n_samples++] = *channel_sample_iter++;
+            }
+        }
+        else { // sample_byte_size == 1
+            ByteSamples channel_samples(total_n_samples);
+            ByteSample* channel_sample_p = &channel_samples.front();
+            fin.read((char*)channel_sample_p, (streamsize) n_sample_bytes);
+            ByteSampleIter channel_sample_iter = channel_samples.begin();
+            while (channel_sample_iter < channel_samples.end()) {
+                // Skip samples for first channels
+                if (channel_sample_iter < channel_samples.end() - (h_head.numChannels - 1))
+                    channel_sample_iter += h_head.numChannels - 1;
+                else
+                    break;
+                // Get sample for last channel
+                samples[n_samples++] = (Sample) *channel_sample_iter++;
+            }
+        }
     }
 
     fin.close();

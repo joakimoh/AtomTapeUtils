@@ -216,7 +216,7 @@ int main(int argc, const char* argv[])
 
     if (arg_parser.searchedProgram != "" && !selected_file_found)
         cout << "Couldn't find tape file '" << arg_parser.searchedProgram << "'!\n";
-    else if (!arg_parser.cat)
+    else if (!arg_parser.cat && arg_parser.searchedProgram != "")
         cout << "Found tape file '" << arg_parser.searchedProgram << "'; output file(s) generated!\n";
 
     // Close output tape file (if applicable)

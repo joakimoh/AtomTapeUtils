@@ -14,7 +14,7 @@ using namespace std;
 
 typedef struct CommonHeader_struct {
     char chunkId[4]; // "RIFF"
-    uint32_t ChunkSize; // sizeof(CommonHeader) + subChunk2Size = 36 + subChunk2Size = filesize - 8
+    uint32_t ChunkSize; // size of the rest of the chunk = sizeof(CommonHeader) + subChunk2Size = 36 + subChunk2Size = filesize - 8
     char format[4]; // "WAVE"
     char subchunk1ID[4];// "fmt\0"
     uint32_t subchunk1Size = 16; // For PCM

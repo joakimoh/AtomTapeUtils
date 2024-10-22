@@ -8,6 +8,9 @@
 
 using namespace std;
 
+typedef int8_t ByteSample;
+typedef vector<ByteSample> ByteSamples;
+typedef vector<ByteSample>::iterator ByteSampleIter;
 typedef int16_t Sample;
 typedef vector<Sample> Samples;
 typedef vector<Sample>::iterator SampleIter;

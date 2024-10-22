@@ -282,6 +282,12 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
                 if (mDebugInfo.verbose)
                     cout << "*";
             }
+            else {
+                if (!mCat)
+                    logFile << " ";
+                if (mDebugInfo.verbose)
+                    cout << " ";
+            }
             if (file_selected && !mCat)
                 read_block.logHdr(&logFile);
 

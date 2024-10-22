@@ -102,7 +102,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 )
 {
 	// Set the acceptance of a premature gap/header/data to half that of the minCycle
-	const int carrier_duration_threshold_half_cycles = minCycles / 2;
+	const int carrier_duration_threshold_half_cycles = minCycles / 4;
 
 	int carrier_half_cycle_count = 0; // filtered number of detected carrier cycles
 	int encountered_carrier_half_cycles = 0; // true number of detected carrier cycles
@@ -193,7 +193,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 					} if (mDebugInfo.verbose)
 						cout << "Start of block header at " << Utility::encodeTime(getTime()) << "\n";
 					// Make sure any preceeding F1 1/2 cycle is ignored for start bit detection later on
-					// if the prepamble detection happended to 'lock' on the second F1 1/2 cycle...
+					// if the preamble detection happened to 'lock' on the second F1 1/2 cycle...
 					mCycleDecoder.setLastHalfCycleFrequency(Frequency::F2);  
 				}
 				else if (!detected_dummy_byte && detectDummyByte &&  byte == 0xaa) {
