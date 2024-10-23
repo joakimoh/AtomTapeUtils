@@ -61,6 +61,7 @@ bool Filter::normaliseFilter(Samples& samples, ExtremumSamples& outSamples, int&
             return true;
         }
         else {
+            
             // Extremum found
              extremum = new_extremum;
             ExtremumSample extremum_sample = { new_extremum, new_extremum_pos};
@@ -144,7 +145,7 @@ bool Filter::find_extreme(int &pos, Samples& samples, Extremum prevExtremum, Ext
             return false;
 
         if (slope(d) < 0)
-            newExtremum = START_NEG_SLOPE;
+            newExtremum = START_NEG_SLOPE; 
         else
             newExtremum = START_POS_SLOPE;
         nexExtremumPos = p;

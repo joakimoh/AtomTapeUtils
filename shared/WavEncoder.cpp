@@ -512,7 +512,7 @@ bool WavEncoder::writeSamples(string& filePath)
         return false;
 
     // Write samples to WAV file
-    Samples samples_v[] = { mSamples };
+    Samples *samples_v[] = { &mSamples };
     if (!PcmFile::writeSamples(filePath, samples_v, 1, mBitTiming.fS, mDebugInfo)) {
         printf("Failed to write samples!%s\n", "");
         return false;

@@ -24,6 +24,8 @@ typedef struct CommonHeader_struct {
     uint32_t byteRate; // SampleRate * NumChannels * BitsPerSample/8
     uint16_t blockAlign; //  NumChannels * BitsPerSample/8
     uint16_t bitsPerSample = 16;
+    // 8-bit samples are stored as unsigned bytes, ranging from 0 to 255.
+    // 16-bit samples are stored as 2's-complement signed integers, ranging from -32768 to 32767
 } CommonHeader;
 
 typedef struct HeaderTail_struct {
@@ -41,11 +43,11 @@ private:
 public:
 
     // Read samples from a one channel 16-bit 44.1 kHz PCM WAW file
-    static bool readSamples(string fileName, Samples& samples, int& sampleFreq, Logging logging);
+    static bool readSamples(string fileName, Samples* &samples, int& sampleFreq, Logging logging);
 
 
     // Write sample vector into a multiple channel 16-bit 44.1 kHz PCM WAW file
-    static bool writeSamples(string fileName, Samples samples[], int nChannels, int sampleFreq, Logging logging);
+    static bool writeSamples(string fileName, Samples *samples[], int nChannels, int sampleFreq, Logging logging);
 
 
 };

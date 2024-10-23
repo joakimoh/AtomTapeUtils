@@ -22,7 +22,7 @@ string PcmFile::str4(char c[4])
     return ss.str();
 }
 
-bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, Logging logging)
+bool PcmFile::readSamples(string fileName, Samples* &samplesP, int& sampleFreq, Logging logging)
 {
 
     ifstream fin(fileName, ios::in | ios::binary | ios::ate);
@@ -100,25 +100,25 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, Lo
 
     // Collect all samples into a vector 'samples'
     int n_samples = 0;
+    samplesP = new Samples(samples_per_channel);
     if (h_head.numChannels == 1) {
-        samples = Samples(samples_per_channel);
         n_samples = samples_per_channel;
         if (sample_byte_size == 2) {
             // Read 16-bit samples
-            Sample* samples_p = &samples.front();
+            Sample* samples_p = &(samplesP->front());
             fin.read((char*)samples_p, (streamsize) n_sample_bytes);           
         }
         else { // sample_byte_size == 1
             // Read 8-bit samples
             ByteSamples byte_samples(samples_per_channel);
-            fin.read((char*)&byte_samples.front(), (streamsize)n_sample_bytes);
+            ByteSample* byte_samples_p = &byte_samples.front();
+            fin.read((char*)byte_samples_p, (streamsize)n_sample_bytes);
             // Copy 8-bit samples into 16-bit sample vector
             for (int i = 0; i < samples_per_channel; i++)
-                samples[i] = (Sample) byte_samples[i];
+                (*samplesP)[i] = (Sample) ((int)byte_samples[i] - 128); // scale from 8-bit unsigned to 16-bit signed sample}
         }
     }
-    else { // several channels - assume the last one shall be used and skip all the other channels
-        samples = Samples(samples_per_channel);
+    else { // several channels - assume the last one shall be used and skip all the other channels       
         if (sample_byte_size == 2) {
             Samples channel_samples(total_n_samples);
             Sample* channel_sample_p = &channel_samples.front();
@@ -131,7 +131,7 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, Lo
                 else
                     break;
                 // Get sample for last channel
-                samples[n_samples++] = *channel_sample_iter++;
+                (*samplesP)[n_samples++] = *channel_sample_iter++;
             }
         }
         else { // sample_byte_size == 1
@@ -146,7 +146,7 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, Lo
                 else
                     break;
                 // Get sample for last channel
-                samples[n_samples++] = (Sample) *channel_sample_iter++;
+                (*samplesP)[n_samples++] = (Sample)((int) *channel_sample_iter++ - 128); // scale to 16-bit sample value
             }
         }
     }
@@ -159,14 +159,14 @@ bool PcmFile::readSamples(string fileName, Samples &samples, int& sampleFreq, Lo
     return true;
 }
 
-bool PcmFile::writeSamples(string fileName, Samples samples[], const int nChannels, int sampleFreq, Logging logging)
+bool PcmFile::writeSamples(string fileName, Samples *samples[], const int nChannels, int sampleFreq, Logging logging)
 {
     // Check that each channel contains the same no of samples
-    int n_samples = (int) samples[0].size();
+    int n_samples = (int) samples[0]->size();
 
     for (int i = 1; i < nChannels; i++) {
-        if (samples[i].size() != n_samples) {
-            cout << "Channel #" << i << " have different no of samples (" << samples[i].size() << ") than channel #0 (" << n_samples << ")!\n";
+        if (samples[i]->size() != n_samples) {
+            cout << "Channel #" << i << " have different no of samples (" << samples[i]->size() << ") than channel #0 (" << n_samples << ")!\n";
             return false;
         }
     }
@@ -198,25 +198,18 @@ bool PcmFile::writeSamples(string fileName, Samples samples[], const int nChanne
     fout.write((char*)&h_head, sizeof(h_head));
     fout.write((char*)&h_tail, sizeof(h_tail));
 
-    // Create one sample iterator per channel
-    vector<SampleIter> sample_iter;
-    for (int c = 0; c < nChannels; c++) {
-        sample_iter.push_back(samples[c].begin());
-    }
-
     // Iterate over all samples, picking one sample per channel at a time,
     // and write it to PCM output file.
     if (nChannels == 1) {
         // Optimise for speed when there is only one channel to write
-        Sample* samples_p = &samples[0].front();
+        Sample* samples_p = &samples[0]->front();
         fout.write((char*) samples_p, (streamsize)h_tail.subchunk2Size);
     }
     else {
         int sample_sz = sizeof(Sample);
         for (int s = 0; s < n_samples; s++) {
             for (int c = 0; c < nChannels; c++) {
-                //Sample sample = *sample_iter[c]++;
-                fout.write((char*)&samples[c][s], sample_sz);
+                fout.write((char*)&(*samples[c])[s], sample_sz);
             }
         }
     }

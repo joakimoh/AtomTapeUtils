@@ -100,7 +100,7 @@ int main(int argc, const char* argv[])
     }
 
     // Write samples to WAV file
-    Samples samples_v[] = { samples };
+    Samples *samples_v[] = { &samples };
     if (!PcmFile::writeSamples(arg_parser.dstFileName, samples_v, 1, sample_freq, arg_parser.logging)) {
         cout << "Failed to write samples to WAV file!\n";
         return -1;

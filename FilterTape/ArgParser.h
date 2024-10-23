@@ -17,7 +17,6 @@ public:
 	double saturationLevelLow = 0.8;
 	double saturationLevelHigh = 0.8;
 	double minPeakDistance = 0.0;
-	int baudRate = 300;
 	string outputFileName = "";
 	string wavFile;
 	int nAveragingSamples = 1;

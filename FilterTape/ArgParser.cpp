@@ -23,14 +23,12 @@ void ArgParser::printUsage(const char *name)
 	cout << "For some tape decoders this could be a problem (normally not for the Scantape utility though) but if it is a problem\n";
 	cout << "the sensitivity can be lowered using the option -d. There are many other settings but the -d option is the one that\n";
 	cout << "usually could need a bit of variation to get it 'right'\n\n";
-	cout << "Usage:\t" << name << " <WAV file> [-o <output file] [-b <baud rate>]\n";
+	cout << "Usage:\t" << name << " <WAV file> [-o <output file]\n";
 	cout << "\t [-a <#samples>] [-d <threshold>] [-p <distance>] [-m]\n"; 
 	cout << "\t [-sl <saturation level>] [-sh <saturation high>] [-v]\n";
 	cout << "\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '_out.wav'.\n\n";
-	cout << "-b <baud rate>:\n\tBaudrate (300 or 1200)\n";
-	cout << "\n";
 	cout << "-v:\n\tVerbose output\n\n";
 	cout << "-a <n>:\n\tIf non-zero this specifies the number of samples 2n + 1 around a sample point that are \n"; 
 	cout << "\taveraged together.\n";
@@ -110,16 +108,6 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		}
 		else if (strcmp(argv[ac], "-m") == 0) {
 			outputMultipleChannels = true;
-		}
-		else if (strcmp(argv[ac], "-b") == 0) {
-			baudRate = stoi(argv[ac + 1]);
-			if (baudRate != 300 && baudRate != 1200) {
-				cout << "-b without a valid baud rate\n";
-				printUsage(argv[0]);
-				return;
-			}
-			else
-				ac++;
 		}
 		else if (strcmp(argv[ac], "-a") == 0) {
 			nAveragingSamples = stoi(argv[ac + 1]);

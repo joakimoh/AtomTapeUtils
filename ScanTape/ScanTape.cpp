@@ -49,7 +49,7 @@ int main(int argc, const char* argv[])
 
     CycleDecoder* cycle_decoder_p = NULL;
     LevelDecoder* level_decoder_p = NULL;
-    Samples samples;
+    Samples *samples_p = NULL;
     Bytes pulses;
     int sample_freq = 44100; // from CSW/WAV file but usually 44100 Hz;
 
@@ -87,14 +87,14 @@ int main(int argc, const char* argv[])
     {
         if (arg_parser.logging.verbose)
             cout << "WAV file assumed - scanning it...\n";
-        if (!PcmFile::readSamples(arg_parser.wavFile, samples, sample_freq, arg_parser.logging)) {
+        if (!PcmFile::readSamples(arg_parser.wavFile, samples_p, sample_freq, arg_parser.logging)) {
             cout << "Couldn't open PCM Wave file '" << arg_parser.wavFile << "'\n";
             return -1;
         }
 
         // Create Level Decoder used to filter wave form into a well-defined level stream
         level_decoder_p = new LevelDecoder(
-            sample_freq, samples, arg_parser.startTime, arg_parser.freqThreshold, arg_parser.levelThreshold, arg_parser.logging
+            sample_freq, *samples_p, arg_parser.startTime, arg_parser.freqThreshold, arg_parser.levelThreshold, arg_parser.logging
         );
  
         // Create Cycle Decoder used to produce a cycle stream from the level stream
@@ -297,6 +297,7 @@ int main(int argc, const char* argv[])
                         if (!UEF_encoder.encode(tape_file)) {
                             cout << "Failed to update the UEF file!\n";
                             UEF_encoder.closeTapeFile();
+                            if (samples_p != NULL) delete samples_p;
                             return -1;
                         }
                     }
@@ -304,6 +305,7 @@ int main(int argc, const char* argv[])
                         if (!CSW_encoder.encode(tape_file)) {
                             cout << "Failed to update the CSW file!\n";
                             CSW_encoder.closeTapeFile();
+                            if (samples_p != NULL) delete samples_p;
                             return -1;
                         }
                     }
@@ -311,6 +313,7 @@ int main(int argc, const char* argv[])
                         if (!WAV_encoder.encode(tape_file)) {
                             cout << "Failed to update the WAV file!\n";
                             WAV_encoder.closeTapeFile();
+                            if (samples_p != NULL) delete samples_p;
                             return -1;
                         }
                     }
@@ -318,10 +321,12 @@ int main(int argc, const char* argv[])
                         if (!TAP_encoder.encode(tape_file)) {
                             cout << "Failed to update the TAP file!\n";
                             WAV_encoder.closeTapeFile();
+                            if (samples_p != NULL) delete samples_p;
                             return -1;
                         }
                     }
                     else {
+                        if (samples_p != NULL) delete samples_p;
                         return (-1);
                     }
                 }
@@ -335,6 +340,9 @@ int main(int argc, const char* argv[])
         string title = Utility::crReadableString(file_path.stem().string(), 12);
         if (!DISC_codec.write(title, arg_parser.dstFileName, tape_files_complete)) {
             cout << "Failed to create disc image!\n";
+            if (samples_p != NULL) {
+                delete samples_p;
+            }
             return -1;
         }
     }
@@ -358,6 +366,10 @@ int main(int argc, const char* argv[])
     if (tfout_p != NULL) {
         ((ofstream*)tfout_p)->close();
         delete tfout_p;
+    }
+
+    if (samples_p != NULL) {
+        delete samples_p;
     }
 
     // Close output tape file (if applicable)
