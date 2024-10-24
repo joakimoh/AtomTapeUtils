@@ -4,6 +4,7 @@
 
 #include "../shared/WaveSampleTypes.h"
 #include "ArgParser.h"
+#include <functional>
 
 enum Extremum { LOCAL_MAX, LOCAL_MIN, PLATEAU, START_POS_SLOPE, START_NEG_SLOPE };
 
@@ -27,9 +28,8 @@ public:
 
 	bool normaliseFilter(Samples& inSamples, ExtremumSamples& outSamples, int& nOutSamples);
 
-	bool plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Samples& newShapes, int nSamples);
-
-
+	bool plotFromExtremums(FilterType filterType, int nExtremums, ExtremumSamples& extremums, Samples& inSamples, Samples& newShapes, int nSamples);
+	
 private:
 
 	int mFS; // sample frequency (normally 44 100 Hz for WAV files)
@@ -49,13 +49,20 @@ private:
 
 	int slope(double i);
 
-	bool plotSinus(double a1, double a2, int nSamples, Samples& samples, int &sampleIndex);
+	bool crCurveSegment(double phase1, double phase2, int nSamples, Samples& inSamples, Samples& outSamples, int &sampleIndex);
+
+	bool scaleSegment(double phase1, double phase2, int nSamples, Samples& inSamples, Samples& outSamples, int &sampleIndex);
 
 	bool derivative(int pos, Samples& samples, int nSamples, double& d);
 
 	void plotDebug(int debugLevel, ExtremumSample& prevSample, ExtremumSample& sample, int extremumIndex, ExtremumSamples& samples);
 	void plotDebug(int debugLevel, string text, ExtremumSample& prevSample, ExtremumSample& sample, int extremumIndex, ExtremumSamples& samples);
 	void plotDebug(int debugLevel, string text, ExtremumSample& sample, int extremumIndex, ExtremumSamples& samples);
+
+	bool plotFromExtremums(
+		function<bool (double, double, int, Samples&, Samples&, int&)> plotFunction,
+		int nExtremums, ExtremumSamples& extremums, Samples& inSamples, Samples& outSamples, int nSamples
+	);
 
 };
 

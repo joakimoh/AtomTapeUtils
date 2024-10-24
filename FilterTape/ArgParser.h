@@ -9,6 +9,8 @@
 
 using namespace std;
 
+enum FilterType { SINUSOIDAL, SCALE};
+
 class ArgParser
 {
 public:
@@ -22,6 +24,7 @@ public:
 	int nAveragingSamples = 1;
 	double derivativeThreshold = 10;
 	bool outputMultipleChannels = false;
+	FilterType filterType = SCALE;
 
 	Logging logging;
 

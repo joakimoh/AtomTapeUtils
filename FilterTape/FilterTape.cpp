@@ -110,12 +110,13 @@ int main(int argc, const char* argv[])
     // Use found extremums to reconstruct the original samples
     t_start = chrono::system_clock::now();
     Samples shaped_samples(original_samples_p->size());
-    if (!filter.plotFromExtremums(n_extremums, extremums, shaped_samples, (int)original_samples_p->size())) {
+    if (!filter.plotFromExtremums(arg_parser.filterType, n_extremums, extremums, *samples_to_shape_p, shaped_samples, (int)original_samples_p->size())) {
         cout << "Failed to plot from extremums!\n";
         if (original_samples_p != NULL)
             delete original_samples_p;
         return -1;
     }
+  
     if (arg_parser.logging.verbose)
         cout << "Samples reshaped based on identified extremums...\n";
     t_end = chrono::system_clock::now();

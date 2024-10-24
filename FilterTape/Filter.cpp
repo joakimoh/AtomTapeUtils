@@ -6,6 +6,7 @@
 #include "../shared/Logging.h"
 #include "../shared/Utility.h"
 #include "../shared/WaveSampleTypes.h"
+#include <functional>
 
 #include "ArgParser.h"
 
@@ -270,10 +271,28 @@ void Filter::plotDebug(int debugLevel, string text, ExtremumSample &sample, Extr
     );
 }
 
-bool Filter::plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Samples& newShapes, int nSamples)
+bool Filter::plotFromExtremums(FilterType filterType, int nExtremums, ExtremumSamples& extremums, Samples& inSamples, Samples& outSamples, int nSamples)
+{
+    if (filterType == SCALE)
+        return plotFromExtremums(
+            [this](double phase1, double phase2, int nSamples, Samples& inSamples, Samples& outSamples, int& sampleIndex)
+            { return scaleSegment(phase1, phase2, nSamples, inSamples, outSamples, sampleIndex); },
+            nExtremums, extremums, inSamples, outSamples, nSamples
+        );
+    else
+        return plotFromExtremums(
+            [this](double phase1, double phase2, int nSamples, Samples& inSamples, Samples& outSamples, int& sampleIndex)
+            { return crCurveSegment(phase1, phase2, nSamples, inSamples, outSamples, sampleIndex); },
+            nExtremums, extremums, inSamples, outSamples, nSamples
+        );
+}
+
+bool Filter::plotFromExtremums(
+        function<bool (double, double, int, Samples&, Samples&, int& )> plotFunction,
+    int nExtremums, ExtremumSamples& extremums, Samples &inSamples, Samples& outSamples, int nSamples)
 {
     int extremum_index = 0;
-    int shape_index = 0;
+    int sample_index = 0;
     ExtremumSample prev_extremum_sample = { PLATEAU, 0 };
 
     int prev_extremum_index = extremum_index;
@@ -289,12 +308,12 @@ bool Filter::plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Sampl
         case LOCAL_MIN:
             if (prev_extremum_sample.extremum == START_NEG_SLOPE) {
                 //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
-                if (!plotSinus(180, 270, n_samples_between_extremums, newShapes, shape_index))
+                if (!plotFunction(180, 270, n_samples_between_extremums, inSamples, outSamples, sample_index))
                     return false;
             } else if (prev_extremum_sample.extremum == LOCAL_MAX) {
                 if (extremum_sample.pos - prev_extremum_sample.pos > minPeakDistanceSamples) {
                     //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
-                    if (!plotSinus(90, 270, n_samples_between_extremums, newShapes, shape_index))
+                    if (!plotFunction(90, 270, n_samples_between_extremums, inSamples, outSamples, sample_index))
                         return false;
                 }
                 else {
@@ -327,7 +346,7 @@ bool Filter::plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Sampl
                         if (extremum_sample.extremum == Extremum::PLATEAU) {
                             //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
                             n_samples_between_extremums = extremum_sample.pos - prev_extremum_sample.pos;
-                            if (!plotSinus(-90, 0, n_samples_between_extremums, newShapes, shape_index))
+                            if (!plotFunction(-90, 0, n_samples_between_extremums, inSamples, outSamples, sample_index))
                                 return false;
                         }
                         else {
@@ -351,13 +370,13 @@ bool Filter::plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Sampl
         case LOCAL_MAX:
             if (prev_extremum_sample.extremum == START_POS_SLOPE) {
                 //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
-                if (!plotSinus(0, 90, n_samples_between_extremums, newShapes, shape_index))
+                if (!plotFunction(0, 90, n_samples_between_extremums, inSamples, outSamples, sample_index))
                     return false;
             }
             else if (prev_extremum_sample.extremum == LOCAL_MIN) {
                 if (extremum_sample.pos - prev_extremum_sample.pos > minPeakDistanceSamples) {
                     //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
-                    if (!plotSinus(-90, 90, n_samples_between_extremums, newShapes, shape_index))
+                    if (!plotFunction(-90, 90, n_samples_between_extremums, inSamples, outSamples, sample_index))
                         return false;
                 }
                 else {
@@ -391,7 +410,7 @@ bool Filter::plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Sampl
                         if (extremum_sample.extremum == Extremum::PLATEAU) {
                             //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
                             n_samples_between_extremums = extremum_sample.pos - prev_extremum_sample.pos;
-                            if (!plotSinus(90, 180, n_samples_between_extremums, newShapes, shape_index))
+                            if (!plotFunction(90, 180, n_samples_between_extremums, inSamples, outSamples, sample_index))
                                 return false;
                         }
                         else {
@@ -414,12 +433,12 @@ bool Filter::plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Sampl
         case PLATEAU:
             if (prev_extremum_sample.extremum == LOCAL_MIN) {
                 //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
-                if (!plotSinus(-90, 0, n_samples_between_extremums, newShapes, shape_index))
+                if (!plotFunction(-90, 0, n_samples_between_extremums, inSamples, outSamples, sample_index))
                     return false;
             }
             else if (prev_extremum_sample.extremum == LOCAL_MAX) {
                 //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
-                if (!plotSinus(90, 180, n_samples_between_extremums, newShapes, shape_index))
+                if (!plotFunction(90, 180, n_samples_between_extremums, inSamples, outSamples, sample_index))
                     return false;
             }
             else if (prev_extremum_sample.extremum == START_NEG_SLOPE || prev_extremum_sample.extremum == START_POS_SLOPE) {
@@ -427,7 +446,7 @@ bool Filter::plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Sampl
                 // PLATEAU => START_NEG/POS_SLOPE => PLATEAU
                 // This is a slope that never resulted in any local extremum
                 for (int s = 0; s < n_samples_between_extremums; s++)
-                    newShapes[shape_index++] = 0;
+                    outSamples[sample_index++] = 0;
             }
             else {
                 // Error as this should never happen...
@@ -442,7 +461,7 @@ bool Filter::plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Sampl
             if (prev_extremum_sample.extremum == PLATEAU) {
                 //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
                 for (int s = 0; s < n_samples_between_extremums; s++)
-                    newShapes[shape_index++] = 0;
+                    outSamples[sample_index++] = 0;
 
             }
             else {
@@ -479,20 +498,69 @@ bool Filter::plotFromExtremums(int nExtremums, ExtremumSamples& extremums, Sampl
 
 
     while (pos < nSamples)
-        newShapes[pos++] = 0;
+        outSamples[pos++] = 0;
 
 
     return true;
 }
 
-bool Filter::plotSinus(double a1, double a2, int nSamples, Samples &samples, int& sampleIndex)
+bool Filter::crCurveSegment(double phase1, double phase2, int nSamples, Samples& inSamples, Samples& outShapes, int& sampleIndex)
 {    
     const double PI = 3.14159265358979323846;
-    double f = PI * (a2 - a1) / (180 * nSamples);
-    double o = a1 * PI / 180;
+    double f = PI * (phase2 - phase1) / (180 * nSamples);
+    double o = phase1 * PI / 180;
     for (int s = 0; s < nSamples; s++) {
         Sample y = (Sample) round(sin(o + s*f) * mMaxSampleAmplitude);
-        samples[sampleIndex++] = y;
+        outShapes[sampleIndex++] = y;
+    }
+
+    return true;
+}
+
+bool Filter::scaleSegment(
+    double phase1, double phase2, int nSamples, Samples& inSamples, Samples& outShapes, int& sampleIndex
+)
+{
+    if (sampleIndex + nSamples >= inSamples.size())
+        return false;
+
+    const double max_amplitude = (double) mMaxSampleAmplitude;
+    double amplitude_change;
+    double initial_amplitude;
+    if (phase1 == 0 && phase2 == 90) {
+        amplitude_change = max_amplitude;
+        initial_amplitude = 0;
+    } 
+    else if (phase1 == 90 && phase2 == 180) {
+        amplitude_change = -max_amplitude;
+        initial_amplitude = max_amplitude;
+    }
+    else if (phase1 == 180 && phase2 == 270) {
+        amplitude_change = -max_amplitude;
+        initial_amplitude = 0;
+    }
+    else if (phase1 == -90 && phase2 == 0) {
+        amplitude_change = max_amplitude;
+        initial_amplitude = -max_amplitude;
+    }
+    else if (phase1 == 90 && phase2 == 270) {
+        amplitude_change = -2 * max_amplitude;
+        initial_amplitude = max_amplitude;
+    }
+    else if (phase1 == -90 && phase2 == 90) {
+        amplitude_change = 2 * max_amplitude;
+        initial_amplitude = -max_amplitude;
+    }
+    else
+        return false;
+
+    double e1 = (double) inSamples[sampleIndex]; // first extreme (either amplitude_change Min or amplitude_change Max)
+    double e2 = (double) inSamples[sampleIndex + nSamples - 1]; // second extreme (either amplitude_change Max or amplitude_change Min)
+    double ed = e2 - e1; // distance between extremes (peak-to-peak)
+    for (int s = 0; s < nSamples; s++) {
+        double v = (double) inSamples[sampleIndex];
+        Sample y = (Sample) round((v - e1) / ed * amplitude_change + initial_amplitude);
+        outShapes[sampleIndex++] = y;
     }
 
     return true;

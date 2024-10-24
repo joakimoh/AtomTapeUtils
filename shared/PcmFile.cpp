@@ -115,7 +115,7 @@ bool PcmFile::readSamples(string fileName, Samples* &samplesP, int& sampleFreq, 
             fin.read((char*)byte_samples_p, (streamsize)n_sample_bytes);
             // Copy 8-bit samples into 16-bit sample vector
             for (int i = 0; i < samples_per_channel; i++)
-                (*samplesP)[i] = (Sample) ((int)byte_samples[i] - 128); // scale from 8-bit unsigned to 16-bit signed sample}
+                (*samplesP)[i] = (Sample) (((int)byte_samples[i] - 128) * 256); // scale from 8-bit unsigned to 16-bit signed sample}
         }
     }
     else { // several channels - assume the last one shall be used and skip all the other channels       
@@ -146,7 +146,7 @@ bool PcmFile::readSamples(string fileName, Samples* &samplesP, int& sampleFreq, 
                 else
                     break;
                 // Get sample for last channel
-                (*samplesP)[n_samples++] = (Sample)((int) *channel_sample_iter++ - 128); // scale to 16-bit sample value
+                (*samplesP)[n_samples++] = (Sample) (((int) *channel_sample_iter++ - 128)*256); // scale to 16-bit sample value
             }
         }
     }
