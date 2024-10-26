@@ -34,8 +34,6 @@ typedef BitSamples::iterator BitSamplesIter;
 
 enum Level { LowLevel, HighLevel, NoCarrierLevel };
 
-//enum HalfCycle { LowHalfCycle, HighHalfCycle, UndefinedHalfCycle };
-
 enum Frequency { F1, F2, F12, NoCarrierFrequency, UndefinedFrequency };
 
 

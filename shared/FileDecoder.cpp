@@ -328,7 +328,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
                 tapFile.corrupted = true;
             if (file_selected && !mCat) {
                 stringstream s;
-                s << FileDecoder::readFileStatus(readStatus) << " for file " << tapFile.programName << "[" <<
+                s << FileDecoder::readFileStatus(readStatus) << " for file '" << tapFile.programName << "' [" <<
                     Utility::encodeTime(tapFile.blocks[0].tapeStartTime) << "," <<
                     Utility::encodeTime(tapFile.blocks[n_blocks - 1].tapeEndTime) << "]";
                 cout << s.str() << "\n";

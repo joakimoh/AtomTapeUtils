@@ -104,6 +104,9 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 	// Set the acceptance of a premature gap/header/data to half that of the minCycle
 	const int carrier_duration_threshold_half_cycles = minCycles / 4;
 
+	// Set threshold for carrier loss
+	const int max_lost_carrier_cycles = 2;
+
 	double f_S = (double)mCycleDecoder.getSampleFreq();
 
 	int carrier_half_cycle_count = 0; // filtered number of detected carrier cycles
@@ -128,26 +131,24 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 	bool end_of_carrier_detected = false;
 	double t_stable_carrier = -1;
 	int lost_carrier_cycles = 0;
-	while (!end_of_carrier_detected) {
 
-		// Reset dummy byte detection if carrier is lost
-		if (carrier_half_cycle_count == 0) {
-			t_dummy_byte_start = -1;
-			detected_dummy_byte = false;
-			t_dummy_byte = -1;
-			half_cycle_duration_acc = 0;
-			encountered_carrier_half_cycles = 0;
-		}
+	while (!end_of_carrier_detected) {
 
 		// Record time when the carrier cycles starts to come
 		if (t_stable_carrier < 0 && carrier_half_cycle_count > carrier_duration_threshold_half_cycles && lost_carrier_cycles == 0) {
 			t_stable_carrier = getTime() - (double) carrier_half_cycle_count / (2 * carrierFreq());
 			waitingTime = t_stable_carrier - t_wait_start;
-		} 
-		else if (carrier_half_cycle_count < carrier_duration_threshold_half_cycles || lost_carrier_cycles > 0) {
+		}
+		// Reset timing if carrier is lost
+		else if (carrier_half_cycle_count <= carrier_duration_threshold_half_cycles || lost_carrier_cycles > max_lost_carrier_cycles) {
 			t_stable_carrier = -1;
 			waitingTime = -1;
 			preludeCycles = -1;
+			t_dummy_byte_start = -1;
+			detected_dummy_byte = false;
+			t_dummy_byte = -1;
+			half_cycle_duration_acc = 0;
+			encountered_carrier_half_cycles = 0;
 		}
 
 		// Get next 1/2 cycle
@@ -196,9 +197,9 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 					rollback(); // rollback to before first F1 1/2 cycle
 					end_of_carrier_detected = true;
 					if (mDebugInfo.verbose && carrier_half_cycle_count < min_half_carrier_cycles) {
-						cout << "Unexpected start of block header (before min carrier time has elapsed) at " << Utility::encodeTime(getTime()) << "\n";
-					} if (mDebugInfo.verbose)
-						cout << "Start of block header at " << Utility::encodeTime(getTime()) << "\n";
+						cout << "Unexpected start of block header with byte 0x" << hex << (int)byte << " (before min carrier time has elapsed) at " << Utility::encodeTime(getTime()) << "\n";
+					} else if (mDebugInfo.verbose)
+						cout << "Start of block header with byte 0x" << hex << (int) byte << " at " << Utility::encodeTime(getTime()) << "\n";
 					// Make sure any preceeding F1 1/2 cycle is ignored for start bit detection later on
 					// if the preamble detection happened to 'lock' on the second F1 1/2 cycle...
 					mCycleDecoder.setLastHalfCycleFrequency(Frequency::F2);  
@@ -235,7 +236,7 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 		}
 	
 		// If a gap (or an extremely long 1/2 cycle) was detected, the carrier 1/2 count might have to be reset
-		if (carrier_half_cycle_count < 0 || lost_carrier_cycles > 2)
+		if (carrier_half_cycle_count < 0 || lost_carrier_cycles > max_lost_carrier_cycles)
 			carrier_half_cycle_count = 0;
 	}
 
@@ -255,7 +256,8 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 	if (mDebugInfo.verbose) {
 		if (detected_dummy_byte)
 			cout << "Found dummy byte 0x" << hex << (int)foundDummyByte << " at " << Utility::encodeTime(t_dummy_byte_start) << "\n";
-		cout << "Carrier of duration " << duration << "s detected at " << Utility::encodeTime(getTime()) << "\n";
+		cout << "Carrier of duration " << duration << "s detected at " << Utility::encodeTime(getTime()) << 
+			" after waiting " << waitingTime << "s\n";
 		cout << "Detected a carrier frequency of " << carrier_cycle_freq_av << " - updating bit timing and cycle decoder with this!\n";
 		cout << "Next 1/2 cycle is " << _FREQUENCY(mCycleDecoder.lastHalfCycleFrequency()) << "\n";
 	}

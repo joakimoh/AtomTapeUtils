@@ -526,7 +526,17 @@ bool Filter::sinusoidalSegment(
         return false;
 
     const double PI = 3.14159265358979323846;
-
+    double f = PI * (phase2 - phase1) / (180.0 * nSamples);
+    double phase = phase1 * PI / 180;
+    for (int s = 0; s < nSamples; s++) {
+        Sample y = (Sample)round(sin(phase + s * f) * mMaxSampleAmplitude);
+        outShapes[sampleIndex++] = y;
+    }
+    // The code below was a refinement of the one above but was in the end not as good as the original
+    // The idea was to secure that the zero crossing was consistent with the original tape audio which
+    // was not the case for the code above. But the update seems to confuse the tape decoding in
+    // many cases so therefore a change back to the original code was made.
+/*
     if (abs(phase2 - phase1) == 180) {
         // Get sample index for zero crossing
         double z_value = (inSamples[sampleIndex] + inSamples[sampleIndex + nSamples - 1]) / 2.0;
@@ -568,7 +578,7 @@ bool Filter::sinusoidalSegment(
     else {
         return false;
     }
-    
+  */  
 
     return true;
 }
