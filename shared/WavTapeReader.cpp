@@ -104,13 +104,15 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 	// Set the acceptance of a premature gap/header/data to half that of the minCycle
 	const int carrier_duration_threshold_half_cycles = minCycles / 4;
 
+	double f_S = (double)mCycleDecoder.getSampleFreq();
+
 	int carrier_half_cycle_count = 0; // filtered number of detected carrier cycles
 	int encountered_carrier_half_cycles = 0; // true number of detected carrier cycles
 	int min_half_carrier_cycles = minCycles  * 2;
 	double t_dummy_byte_start = -1;
 	double t_dummy_byte = -1;
 	preludeCycles = -1;
-	double half_cycle_duration_acc = 0;
+	uint32_t half_cycle_duration_acc = 0;
 	double t_wait_start = getTime();
 	string s;
 	bool detected_dummy_byte = false;
@@ -133,6 +135,8 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 			t_dummy_byte_start = -1;
 			detected_dummy_byte = false;
 			t_dummy_byte = -1;
+			half_cycle_duration_acc = 0;
+			encountered_carrier_half_cycles = 0;
 		}
 
 		// Record time when the carrier cycles starts to come
@@ -161,8 +165,11 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 		// Increase carrier count for F2 cycle and decrease it for F1/undefined type of 1/2 cycles
 		if (mCycleDecoder.lastHalfCycleFrequency() == Frequency::F2) {
 			carrier_half_cycle_count++;
-			half_cycle_duration_acc += half_cycle_duration;
-			encountered_carrier_half_cycles++;
+			int hc_d = mCycleDecoder.getHalfCycle().duration;
+			if (mCycleDecoder.strictValidHalfCycleRange(Frequency::F2, hc_d)) {
+				half_cycle_duration_acc += hc_d;
+				encountered_carrier_half_cycles++;
+			}
 			lost_carrier_cycles = 0;
 		} 
 		else {
@@ -240,7 +247,8 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 	else
 		postludecycles = (int) round(duration * carrierFreq());
 
-	double carrier_cycle_freq_av = 1 / (2 * half_cycle_duration_acc / encountered_carrier_half_cycles);
+
+	double carrier_cycle_freq_av = 1 / (2 * (double) half_cycle_duration_acc / (f_S * encountered_carrier_half_cycles));
 	double base_freq_av = carrier_cycle_freq_av / 2;
 
 	// Update bit timing based on new measured carrier frequency
@@ -373,7 +381,7 @@ bool WavTapeReader::getDataBit(Bit& bit)
 	double t_start = getTime();
 
 	if (mDebugInfo.tracing)
-		DEBUG_PRINT(getTime(), DBG, "%f->%f:%d\n", mDataSamples - mBitTiming.dataBitSamples, mDataSamples, n_bit_samples);
+		DEBUG_PRINT(getTime(), DBG, "Expected samples %f->%f:%d\n", mDataSamples - mBitTiming.dataBitSamples, mDataSamples, n_bit_samples);
 
 	// Advance time corresponding to one bit and count the no of transitions (1/2 cycles)
 	int min_half_cycle_duration, max_half_cycle_duration;

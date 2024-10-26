@@ -49,9 +49,11 @@ private:
 
 	int slope(double i);
 
-	bool crCurveSegment(double phase1, double phase2, int nSamples, Samples& inSamples, Samples& outSamples, int &sampleIndex);
+	bool sinusoidalSegment(Extremum prevExtremum, Extremum extremum, int phase1, int phase2, int nSamples, Samples& inSamples, Samples& outSamples, int &sampleIndex);
 
-	bool scaleSegment(double phase1, double phase2, int nSamples, Samples& inSamples, Samples& outSamples, int &sampleIndex);
+	bool scaledSegment(Extremum prevExtremum, Extremum extremum, int phase1, int phase2, int nSamples, Samples& inSamples, Samples& outSamples, int &sampleIndex);
+
+	bool extremumSegment(Extremum prevExtremum, Extremum extremum, int phase1, int phase2, int nSamples, Samples& inSamples, Samples& outSamples, int& sampleIndex);
 
 	bool derivative(int pos, Samples& samples, int nSamples, double& d);
 
@@ -60,7 +62,7 @@ private:
 	void plotDebug(int debugLevel, string text, ExtremumSample& sample, int extremumIndex, ExtremumSamples& samples);
 
 	bool plotFromExtremums(
-		function<bool (double, double, int, Samples&, Samples&, int&)> plotFunction,
+		function<bool (Extremum, Extremum, int, int, int, Samples&, Samples&, int&)> plotFunction,
 		int nExtremums, ExtremumSamples& extremums, Samples& inSamples, Samples& outSamples, int nSamples
 	);
 

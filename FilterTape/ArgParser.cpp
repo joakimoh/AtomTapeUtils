@@ -15,27 +15,29 @@ bool ArgParser::failed()
 void ArgParser::printUsage(const char *name)
 {
 	
-	cout << "Filters a tape audio file (of poor quality) so that the result is a tape file with a normalised DC level as\n";
-	cout << "well as normalised amplitudes. The normalisation could be made either by scaling of the original samples\n";
-	cout << "(default) or by reshaping (option -sinus) the original samples as ideal sinusoidal curves.\n\n";
+	cout << "Filters a tape audio file (of poor quality) so that the result is a tape file without a DC offset and\n";
+	cout << "with normalised amplitudes. The normalisation could be made either by scaling of the original samples\n";
+	cout << "(default) or by reshaping (option -sine) the original samples as ideal sinusoidal curves.\n\n";
 	cout << "The sensitivity is by default high so any change in amplitude would be detected as a transition\n";
 	cout << "(from low to high or high to low). Tape segments that are silent (but slightly noisy) could potentially\n";
 	cout << "therefore be interpreted as transitions with phantom sinusoidal curves (of random frequency) being created.\n";
-	cout << "For some tape decoders this could be a problem (normally not for the Scantape utility though) but if it is a problem\n";
-	cout << "the sensitivity can be lowered using the option -d.\n";
+	cout << "For some tape decoders this could be a problem but if it is a problem the sensitivity can be lowered using\n";
+	cout << "the option - d.\n";
 	cout << "Toggling between the reshaping and scaling could also be done if the filtering doesn't yield the expected result.\n";
 	cout << "There are many other settings but the -d and -scale options are the ones that\n";
 	cout << "usually could need a bit of variation to get it 'right'.\n\n";
-	cout << "Usage:\t" << name << " <WAV file> [-o <output file] [-scale] [-reshape]\n";
+	cout << "Usage:\t" << name << " <WAV file> [-o <output file] [-sine] [-extremums]\n";
 	cout << "\t [-a <#samples>] [-d <threshold>] [-p <distance>] [-m]\n"; 
 	cout << "\t [-sl <saturation level>] [-sh <saturation high>] [-v]\n";
 	cout << "\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '_out.wav'.\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
-	cout << "-sinus:\n\tThe original samples will be replaced by ideal sinusoidal curves based on the same detected extremes.\n";
+	cout << "-sine:\n\tThe original samples will be replaced by ideal sinusoidal curves based on the same detected extremes.\n";
 	cout << "\n";
-	cout << "-a <n>:\n\tIf non-zero this specifies the number of samples 2n + 1 around a sample point that are \n"; 
+	cout << "-extremums:\n\tOnly generate the extremums (min, max) detected for the tape. Useful for debugging.\n";
+	cout << "\n";
+	cout << "-a <n>:\n\tIf non-zero this specifies the number of samples 2n + 1 around a sample point that are \n";
 	cout << "\taveraged together.\n";
 	cout << "\tDefault: 1\n";
 	cout << "\n";
@@ -81,8 +83,11 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		else if (strcmp(argv[ac], "-v") == 0) {
 			logging.verbose = true;
 		}
-		else if (strcmp(argv[ac], "-sinus") == 0) {
+		else if (strcmp(argv[ac], "-sine") == 0) {
 			filterType = SINUSOIDAL;
+		}
+		else if (strcmp(argv[ac], "-extremums") == 0) {
+			filterType = EXTREMUM;
 		}
 		else if (strcmp(argv[ac], "-p") == 0 && ac + 1 < argc) {
 			minPeakDistance = strtod(argv[ac + 1], NULL);

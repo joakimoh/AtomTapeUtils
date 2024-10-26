@@ -217,7 +217,7 @@ bool WavCycleDecoder::getNextSample(bool& transition)
 	// Update 1/2 cycle info for a transition
 	if (level != level_p) {
 		updateHalfCycleFreq(mHalfCycle.nSamples, level_p);
-		mHalfCycle.nSamples = 0;
+		mHalfCycle.nSamples = 1; // Also count the sample that just was read above
 		transition = true;
 	}
 	else

@@ -9,7 +9,7 @@
 
 using namespace std;
 
-enum FilterType { SINUSOIDAL, SCALE};
+enum FilterType { SINUSOIDAL, SCALE, EXTREMUM};
 
 class ArgParser
 {

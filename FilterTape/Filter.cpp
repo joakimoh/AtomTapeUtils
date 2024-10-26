@@ -275,20 +275,26 @@ bool Filter::plotFromExtremums(FilterType filterType, int nExtremums, ExtremumSa
 {
     if (filterType == SCALE)
         return plotFromExtremums(
-            [this](double phase1, double phase2, int nSamples, Samples& inSamples, Samples& outSamples, int& sampleIndex)
-            { return scaleSegment(phase1, phase2, nSamples, inSamples, outSamples, sampleIndex); },
+            [this](Extremum prevExtremum, Extremum extremum, int phase1, int phase2, int nSamples, Samples& inSamples, Samples& outSamples, int& sampleIndex)
+            { return scaledSegment(prevExtremum, extremum, phase1, phase2, nSamples, inSamples, outSamples, sampleIndex); },
+            nExtremums, extremums, inSamples, outSamples, nSamples
+        );
+    else if (filterType == SINUSOIDAL)
+        return plotFromExtremums(
+            [this](Extremum prevExtremum, Extremum extremum, int phase1, int phase2, int nSamples, Samples& inSamples, Samples& outSamples, int& sampleIndex)
+            { return sinusoidalSegment(prevExtremum, extremum, phase1, phase2, nSamples, inSamples, outSamples, sampleIndex); },
             nExtremums, extremums, inSamples, outSamples, nSamples
         );
     else
         return plotFromExtremums(
-            [this](double phase1, double phase2, int nSamples, Samples& inSamples, Samples& outSamples, int& sampleIndex)
-            { return crCurveSegment(phase1, phase2, nSamples, inSamples, outSamples, sampleIndex); },
+            [this](Extremum prevExtremum, Extremum extremum, int phase1, int phase2, int nSamples, Samples& inSamples, Samples& outSamples, int& sampleIndex)
+            { return extremumSegment(prevExtremum, extremum, phase1, phase2, nSamples, inSamples, outSamples, sampleIndex); },
             nExtremums, extremums, inSamples, outSamples, nSamples
         );
 }
 
 bool Filter::plotFromExtremums(
-        function<bool (double, double, int, Samples&, Samples&, int& )> plotFunction,
+        function<bool (Extremum, Extremum, int, int, int, Samples&, Samples&, int& )> plotFunction,
     int nExtremums, ExtremumSamples& extremums, Samples &inSamples, Samples& outSamples, int nSamples)
 {
     int extremum_index = 0;
@@ -308,12 +314,12 @@ bool Filter::plotFromExtremums(
         case LOCAL_MIN:
             if (prev_extremum_sample.extremum == START_NEG_SLOPE) {
                 //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
-                if (!plotFunction(180, 270, n_samples_between_extremums, inSamples, outSamples, sample_index))
+                if (!plotFunction(prev_extremum_sample.extremum, extremum_sample.extremum, 180, 270, n_samples_between_extremums, inSamples, outSamples, sample_index))
                     return false;
             } else if (prev_extremum_sample.extremum == LOCAL_MAX) {
                 if (extremum_sample.pos - prev_extremum_sample.pos > minPeakDistanceSamples) {
                     //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
-                    if (!plotFunction(90, 270, n_samples_between_extremums, inSamples, outSamples, sample_index))
+                    if (!plotFunction(prev_extremum_sample.extremum, extremum_sample.extremum, 90, 270, n_samples_between_extremums, inSamples, outSamples, sample_index))
                         return false;
                 }
                 else {
@@ -346,7 +352,7 @@ bool Filter::plotFromExtremums(
                         if (extremum_sample.extremum == Extremum::PLATEAU) {
                             //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
                             n_samples_between_extremums = extremum_sample.pos - prev_extremum_sample.pos;
-                            if (!plotFunction(-90, 0, n_samples_between_extremums, inSamples, outSamples, sample_index))
+                            if (!plotFunction(prev_extremum_sample.extremum, extremum_sample.extremum, -90, 0, n_samples_between_extremums, inSamples, outSamples, sample_index))
                                 return false;
                         }
                         else {
@@ -370,13 +376,13 @@ bool Filter::plotFromExtremums(
         case LOCAL_MAX:
             if (prev_extremum_sample.extremum == START_POS_SLOPE) {
                 //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
-                if (!plotFunction(0, 90, n_samples_between_extremums, inSamples, outSamples, sample_index))
+                if (!plotFunction(prev_extremum_sample.extremum, extremum_sample.extremum, 0, 90, n_samples_between_extremums, inSamples, outSamples, sample_index))
                     return false;
             }
             else if (prev_extremum_sample.extremum == LOCAL_MIN) {
                 if (extremum_sample.pos - prev_extremum_sample.pos > minPeakDistanceSamples) {
                     //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
-                    if (!plotFunction(-90, 90, n_samples_between_extremums, inSamples, outSamples, sample_index))
+                    if (!plotFunction(prev_extremum_sample.extremum, extremum_sample.extremum, -90, 90, n_samples_between_extremums, inSamples, outSamples, sample_index))
                         return false;
                 }
                 else {
@@ -410,7 +416,7 @@ bool Filter::plotFromExtremums(
                         if (extremum_sample.extremum == Extremum::PLATEAU) {
                             //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
                             n_samples_between_extremums = extremum_sample.pos - prev_extremum_sample.pos;
-                            if (!plotFunction(90, 180, n_samples_between_extremums, inSamples, outSamples, sample_index))
+                            if (!plotFunction(prev_extremum_sample.extremum, extremum_sample.extremum, 90, 180, n_samples_between_extremums, inSamples, outSamples, sample_index))
                                 return false;
                         }
                         else {
@@ -433,12 +439,12 @@ bool Filter::plotFromExtremums(
         case PLATEAU:
             if (prev_extremum_sample.extremum == LOCAL_MIN) {
                 //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
-                if (!plotFunction(-90, 0, n_samples_between_extremums, inSamples, outSamples, sample_index))
+                if (!plotFunction(prev_extremum_sample.extremum, extremum_sample.extremum, -90, 0, n_samples_between_extremums, inSamples, outSamples, sample_index))
                     return false;
             }
             else if (prev_extremum_sample.extremum == LOCAL_MAX) {
                 //plotDebug(DBG, extremum_sample, prev_extremum_sample, extremum_index, extremums);
-                if (!plotFunction(90, 180, n_samples_between_extremums, inSamples, outSamples, sample_index))
+                if (!plotFunction(prev_extremum_sample.extremum, extremum_sample.extremum, 90, 180, n_samples_between_extremums, inSamples, outSamples, sample_index))
                     return false;
             }
             else if (prev_extremum_sample.extremum == START_NEG_SLOPE || prev_extremum_sample.extremum == START_POS_SLOPE) {
@@ -504,21 +510,72 @@ bool Filter::plotFromExtremums(
     return true;
 }
 
-bool Filter::crCurveSegment(double phase1, double phase2, int nSamples, Samples& inSamples, Samples& outShapes, int& sampleIndex)
+//
+// Create a partial sine wave for either a 90 degrees span (zero to peak) or for a 180 degrees span (peak to peak)
+// - for the 90 degrees span, samples for a 1/4 sine wave will be created
+// - for the 180 degrees span, samples for the first 90 degrees will be created and than another for the remaining 90 degrees
+//   using the mean value of the original samples as the zero crossing reference
+//
+bool Filter::sinusoidalSegment(
+    Extremum prevExtremum, Extremum extremum, int phase1, int phase2, int nSamples,
+    Samples& inSamples, Samples& outShapes, int& sampleIndex
+)
 {    
+
+    if (sampleIndex + nSamples >= inSamples.size())
+        return false;
+
     const double PI = 3.14159265358979323846;
-    double f = PI * (phase2 - phase1) / (180 * nSamples);
-    double o = phase1 * PI / 180;
-    for (int s = 0; s < nSamples; s++) {
-        Sample y = (Sample) round(sin(o + s*f) * mMaxSampleAmplitude);
-        outShapes[sampleIndex++] = y;
+
+    if (abs(phase2 - phase1) == 180) {
+        // Get sample index for zero crossing
+        double z_value = (inSamples[sampleIndex] + inSamples[sampleIndex + nSamples - 1]) / 2.0;
+        int z_index = -1;
+        for (int s = 1; s < nSamples && z_index == -1; s++) {
+            double v1 = (double)inSamples[sampleIndex + s - 1];
+            double v2 = (double)inSamples[sampleIndex + s];
+            if (abs(v1 - z_value) <= abs(v2 - z_value))
+                z_index = s;
+        }
+        if (z_index == -1) {
+            for (int s = 0; s < nSamples; s++) outShapes[sampleIndex++] = (Sample)0;
+            return true;
+        }
+        // Plot the first 90 degrees up to the zero crossing
+        double f = PI * 90 / (180 * z_index);
+        double phase = phase1 * PI / 180;
+        for (int s = 0; s < z_index; s++) {
+            Sample y = (Sample)round(sin(phase + s * f) * mMaxSampleAmplitude);
+            outShapes[sampleIndex++] = y;
+        }
+        // Plot the remaining 90 degreees
+        f = PI * 90 / (180 * (nSamples - z_index));
+        phase = (phase1 + 90) * PI / 180;
+        for (int s = 0; s < nSamples- z_index; s++) {
+            Sample y = (Sample)round(sin(phase + s * f) * mMaxSampleAmplitude);
+            outShapes[sampleIndex++] = y;
+        }
+        
     }
+    else if (abs(phase2 - phase1) == 90) {
+        double f = PI * (phase2 - phase1) / (180.0 * nSamples);
+        double phase = phase1 * PI / 180;
+        for (int s = 0; s < nSamples; s++) {
+            Sample y = (Sample)round(sin(phase + s * f) * mMaxSampleAmplitude);
+            outShapes[sampleIndex++] = y;
+        }
+    }
+    else {
+        return false;
+    }
+    
 
     return true;
 }
 
-bool Filter::scaleSegment(
-    double phase1, double phase2, int nSamples, Samples& inSamples, Samples& outShapes, int& sampleIndex
+bool Filter::scaledSegment(
+    Extremum prevExtremum, Extremum extremum, int phase1, int phase2, int nSamples,
+    Samples& inSamples, Samples& outShapes, int& sampleIndex
 )
 {
     if (sampleIndex + nSamples >= inSamples.size())
@@ -563,5 +620,27 @@ bool Filter::scaleSegment(
         outShapes[sampleIndex++] = y;
     }
 
+    return true;
+}
+
+bool Filter::extremumSegment(
+    Extremum prevExtremum, Extremum extremum, int phase1, int phase2, int nSamples,
+    Samples& inSamples, Samples& outSamples, int& sampleIndex
+)
+{
+    if (sampleIndex + nSamples >= inSamples.size())
+        return false;
+
+    switch (prevExtremum) {
+        case Extremum::LOCAL_MAX:
+            for (int s = 0; s < nSamples; s++) outSamples[sampleIndex++] = (Sample) mMaxSampleAmplitude;
+            break;
+        case Extremum::LOCAL_MIN:
+            for (int s = 0; s < nSamples; s++) outSamples[sampleIndex++] = (Sample) -mMaxSampleAmplitude;
+            break;
+        default:
+            for (int s = 0; s < nSamples; s++) outSamples[sampleIndex++] = (Sample) 0;
+            break;
+    }
     return true;
 }
