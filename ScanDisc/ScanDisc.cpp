@@ -154,7 +154,7 @@ int main(int argc, const char* argv[])
             // Creata ABC/BBC program file
             AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
             string ABC_file_name = Utility::crEncodedProgramFileNamefromDir(arg_parser.dstDir, arg_parser.targetMachine, tape_file);
-            if (!ABC_codec.encode(tape_file, ABC_file_name)) {
+            if (!ABC_codec.detokenise(tape_file, ABC_file_name)) {
                 cout << "Failed to write the program file!\n";
                 //return -1;
             }

@@ -290,10 +290,8 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
         tapeFile.blocks.clear();
         tapeFile.complete = true;
         tapeFile.baudRate = 300;
-        tapeFile.metaData.targetMachine = TargetMachine::ACORN_ATOM;
-        tapeFile.metaData.execAdr = 0x2900;
-        tapeFile.metaData.loadAdr = 0xc2b2;
-        tapeFile.metaData.name = block_name;
+        FileMetaData meta_data(TargetMachine::ACORN_ATOM, block_name);
+        tapeFile.metaData = meta_data;
     }
     else {
         cout << "Invalid TAP header detected!\n";

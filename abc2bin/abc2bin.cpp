@@ -37,14 +37,8 @@ int main(int argc, const char* argv[])
 
     AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
     TapeFile tape_file(arg_parser.targetMachine);
-    if (!ABC_codec.decode(arg_parser.srcFileName, tape_file)) {
+    if (!ABC_codec.tokenise(arg_parser.srcFileName, arg_parser.dstFileName)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
-        return false;
-    }
-
-    // Create the output file
-    if (!TAPCodec::data2Binary(tape_file, arg_parser.dstFileName)) {
-        cout << "Can't create binary file " << arg_parser.dstFileName << "\n";
         return false;
     }
 

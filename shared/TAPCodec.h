@@ -52,7 +52,7 @@ public:
 	static bool tap2Bytes(TapeFile& tapeFile, uint32_t& loadAdress, Bytes& data);
 	
 
-	bool bytes2TAP(Bytes& data, FileMetaData fileMetaData, TapeFile& tapeFile);
+	static bool bytes2TAP(Bytes& data, FileMetaData fileMetaData, TapeFile& tapeFile);
 
 
 	static bool data2Binary(TapeFile& tapFile, string& binFileName);

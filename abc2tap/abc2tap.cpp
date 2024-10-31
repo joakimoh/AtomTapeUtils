@@ -51,7 +51,7 @@ int main(int argc, const char* argv[])
 
     AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, ACORN_ATOM);
     TapeFile TAP_file(ACORN_ATOM);
-    if (!ABC_codec.decode(arg_parser.srcFileName, TAP_file)) {
+    if (!ABC_codec.tokenise(arg_parser.srcFileName, TAP_file)) {
         printf("Failed to decode program file '%s'\n", arg_parser.srcFileName.c_str());
     }
 

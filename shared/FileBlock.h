@@ -23,6 +23,16 @@ public:
 	TargetMachine targetMachine;
 
 	FileMetaData(string n, uint32_t LA, uint32_t EA, TargetMachine t) : name(n), loadAdr(LA), execAdr(EA), targetMachine(t) {}
+	FileMetaData(TargetMachine tm, string program) : targetMachine(tm), name(program) {
+		if (targetMachine <= BBC_MASTER) {
+			loadAdr = 0xffff0e00;
+			execAdr = 0xffff0e00;
+		}
+		else {
+			loadAdr = 0x2900;
+			execAdr = 0xc2b2;
+		}
+	}
 
 	void init() { name = "???"; loadAdr = 0x0; execAdr = 0x0; targetMachine = TargetMachine::UNKNOWN_TARGET; }
 	void init(TargetMachine t) { name = "???"; loadAdr = 0x0; execAdr = 0x0; targetMachine = t; }

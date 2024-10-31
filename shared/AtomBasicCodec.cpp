@@ -7,6 +7,8 @@
 #include "Logging.h"
 #include "FileBlock.h"
 #include <cstdlib>
+#include "BinCodec.h"
+#include "TAPCodec.h"
 
 using namespace std;
 
@@ -28,176 +30,356 @@ AtomBasicCodec::AtomBasicCodec(Logging logging, TargetMachine targetMachine) :mD
                 mTokenDictStr[a] = e;
             }
         }
-        if (e.id2 != -1) {
-            mTokenDictId[e.id2] = e;
+
+        if (e.tokeniseInfo & ADD_40_FOR_START_OF_STATEMENT) {
+            mTokenDictId[e.id1 + 0x40] = e;
         }
 
         
     }
 
+    if (logging.verbose) {
+
+        string prefix = "";
+
+        cout << "\nKeywords for which no tokenisation shall be made if the keyword is followed by an alphabetic char:\n";
+        
+        for (int i = 0; i < mBBMTokens.size(); i++) {
+            TokenEntry e = mBBMTokens[i];
+            if (e.tokeniseInfo & CONDITIONAL_TOKENISATION) {
+                cout << prefix << e.fullT;
+                prefix = ", ";
+            }
+        }
+        cout << "\n";
+
+        cout << "\nKeywords for which middle of statement applies:\n";
+        prefix = "";
+        for (int i = 0; i < mBBMTokens.size(); i++) {
+            TokenEntry e = mBBMTokens[i];
+            if (e.tokeniseInfo & MIDDLE_OF_STATEMENT) {
+                cout << prefix << e.fullT;
+                prefix = ", ";
+            }
+        }
+        cout << "\n";
+
+        cout << "\nKeywords for which start of statement applies:\n";
+        prefix = "";
+        for (int i = 0; i < mBBMTokens.size(); i++) {
+            TokenEntry e = mBBMTokens[i];
+            if (e.tokeniseInfo & START_OF_STATEMENT) {
+                cout << prefix << e.fullT;
+                prefix = ", ";
+            }
+        }
+        cout << "\n";
+
+        cout << "\nKeywords for which no tokenisation shall be made of a following name token:\n";
+        prefix = "";
+        for (int i = 0; i < mBBMTokens.size(); i++) {
+            TokenEntry e = mBBMTokens[i];
+            if (e.tokeniseInfo & FN_OR_PROC_NAME) {
+                cout << prefix << e.fullT;
+                prefix = ", ";
+            }
+        }
+        cout << "\n";
+
+        cout << "\nKeywords for which a goto line could exist and then should be tokenised:\n";
+        prefix = "";
+        for (int i = 0; i < mBBMTokens.size(); i++) {
+            TokenEntry e = mBBMTokens[i];
+            if (e.tokeniseInfo & GOTO_LINE) {
+                cout << prefix << e.fullT;
+                prefix = ", ";
+            }
+        }
+        cout << "\n";
+
+        cout << "\nKeywords for which the rest of the line should NOT be tokenised:\n";
+        prefix = "";
+        for (int i = 0; i < mBBMTokens.size(); i++) {
+            TokenEntry e = mBBMTokens[i];
+            if (e.tokeniseInfo & STOP_TOKENISE) {
+                cout << prefix << e.fullT;
+                prefix = ", ";
+            }
+        }
+        cout << "\n";
+
+        cout << "\nKeywords for which 0x40 shall be added to the id for left hand assignment:\n";
+        prefix = "";
+        for (int i = 0; i < mBBMTokens.size(); i++) {
+            TokenEntry e = mBBMTokens[i];
+            if (e.tokeniseInfo & ADD_40_FOR_START_OF_STATEMENT) {
+                cout << prefix << e.fullT;
+                prefix = ", ";
+            }
+        }
+        cout << "\n";
+    }
+
 }
 
-
-
-bool AtomBasicCodec::encode(TapeFile& tapeFile, string& filePath)
+bool AtomBasicCodec::detokenise(string& srcFile, string& dstFile)
 {
-    if (mDebugInfo.verbose && tapeFile.blocks.empty()) {
-        printf("TAP File '%s' is empty => no Program file created!\n", filePath.c_str());
+    // Read source code bytes
+    Bytes tokenised_program;
+    string program;
+    if (!readFileBytes(true, srcFile, tokenised_program, program)) {
         return false;
     }
 
-    ofstream fout(filePath);
-    if (!fout) {
-        printf("Can't write to program file '%s'!\n", filePath.c_str());
+    // Detokenise the bytes
+    Bytes source_program;
+    bool faulty_program_termination;
+    if (!detokenise(program, tokenised_program, source_program, faulty_program_termination)) {
+        cout << "Failed to detokenise program '" << program << "'\n";
         return false;
     }
 
-    // Set target machine based on Tape File
-    mTargetMachine = tapeFile.metaData.targetMachine;
+    // Write the bytes to file
+    if (!writeFileBytes(false, program, source_program, dstFile)) {
+        cout << "Can't write detokenised bytes to file '" << dstFile << "'\n";
+        return false;
+    }
 
-    if (mTargetMachine <= BBC_MASTER)
-        return encodeBBM(tapeFile, filePath, fout);
-    else
-        return encodeAtom(tapeFile, filePath, fout);
+    return true;
+
 }
 
-bool getTapeByte(TapeFile& f, FileBlockIter& fi, BytesIter& bi, int &read_bytes, Byte &tapeByte)
+bool AtomBasicCodec::detokenise(TapeFile& tapeFile, string& dstFile)
 {
-    if (fi >= f.blocks.end())
+    Bytes tokenised_code;
+    uint32_t load_adr;
+
+    // Get bytes from Tape File
+    if (!TAPCodec::tap2Bytes(tapeFile, load_adr, tokenised_code)) {
         return false;
-    while (fi < f.blocks.end() && bi >= fi->data.end()) {
-        fi++;
-        if (fi < f.blocks.end())
-            bi = fi -> data.begin();
     }
-    if (fi >= f.blocks.end() || bi >= fi->data.end())
+
+    // Detokenise the bytes
+    Bytes source_program;
+    bool faulty_program_termination;
+    string program = tapeFile.programName;
+    if (!detokenise(program, tokenised_code, source_program, faulty_program_termination)) {
+        cout << "Failed to detokenise program '" << program << "'\n";
         return false;
+    }
 
-    tapeByte = *bi;
-
-    bi++;
-
-    read_bytes++;
+    // Write the bytes to file
+    if (!writeFileBytes(false, program, source_program, dstFile)) {
+        cout << "Can't write detokenised bytes to file '" << dstFile << "'\n";
+        return false;
+    }
 
     return true;
 }
 
-int tapeDataSz(TapeFile& f)
+bool AtomBasicCodec::detokenise(string program, Bytes& tokenisedProgram, string& dstFile, bool &faultyTermination)
 {
-    int sz = 0;
-    for (int i = 0; i < f.blocks.size(); i++)
-        sz += (int) f.blocks[i].data.size();
-    return sz;
+    // Detokenise the bytes
+    Bytes source_program;
+    if (tokenisedProgram.size() == 0 || !detokenise(program, tokenisedProgram, source_program, faultyTermination)) {
+        return false;
+    }
+
+    // Write the bytes to file
+    if (!writeFileBytes(false, program, source_program, dstFile)) {
+        cout << "Can't write detokenised bytes to file '" << dstFile << "'\n";
+        return false;
+    }
+
+    return true;
 }
 
-
-bool AtomBasicCodec::encodeBBM(TapeFile& tapeFile, string& filePath, ofstream& fout)
+bool AtomBasicCodec::detokenise(string program, Bytes& tokenisedProgram, Bytes& SourceProgram, bool &faultyTermination)
 {
-    FileBlockIter file_block_iter = tapeFile.blocks.begin();
-    BytesIter bi = file_block_iter->data.begin();
-    uint32_t exec_adr = Utility::bytes2uint(&file_block_iter->bbmHdr.execAdr[0], 4, true);
-    uint32_t load_adr = Utility::bytes2uint(&file_block_iter->bbmHdr.loadAdr[0], 4, true);
-    int data_len = Utility::bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 2, true);;
-    string name = file_block_iter->bbmHdr.name;
+    if (mDebugInfo.verbose)
+        cout << "\nDetokenising program '" << program << "'...\n\n";
 
-    Byte b;
+    if (mTargetMachine <= BBC_MASTER)
+        return detokeniseBBM(program, tokenisedProgram, SourceProgram, faultyTermination);
+    else
+        return detokeniseAtom(program, tokenisedProgram, SourceProgram, faultyTermination);
+
+    if (mDebugInfo.verbose && faultyTermination)
+        cout << "Program '" << program << "' didn't terminate with 0xff!\n";
+
+    if (mDebugInfo.verbose) {
+        cout << "\nDone encoding program '" << program << " '...\n\n";
+    }
+}
+
+bool AtomBasicCodec::detokeniseBBM(string program, Bytes& tokenisedProgram, Bytes& SourceProgram, bool &faultyTermination)
+{
+    faultyTermination = false;
+
     int read_bytes = 0;
 
-    int tape_file_sz = tapeDataSz(tapeFile);
+    int tape_file_sz = (int) tokenisedProgram.size();
 
-    if (mDebugInfo.verbose)
-        cout << "\nTrying to encode program '" << tapeFile.blocks.front().bbmHdr.name << " ' as a BBC file...\n\n";
 
     int line_pos = -1;
     int line_no_low = 0;
     int line_no_high = 0;
     bool first_line = true;
-    bool end_of_program = false;
-    int n_blocks = 0;
-    bool unexpected_end_of_program = false;
+    bool end_of_program = false;   
     int line_len;
+
+    bool parsing_goto_line = false;
+    int encoded_goto_line_cnt = -1;
+    string goto_line_bytes = "";
     
-    while (getTapeByte(tapeFile, file_block_iter, bi, read_bytes, b) && !end_of_program) {
+    TokeniseState t_state = TOKENISATION;
+    BytesIter t_code_iter = tokenisedProgram.begin();
+    int line_no = -1;
+    while (t_code_iter < tokenisedProgram .end()  && !end_of_program) {
         
-        if (line_pos == 0) {
-            if (b == 0xff) {
-                end_of_program = true;
-                int n_non_ABC_bytes = tape_file_sz - read_bytes;
-                if (mDebugInfo.verbose && n_non_ABC_bytes > 0) {
-                    unexpected_end_of_program = true;
-                    printf("Program file '%s' contains %d extra bytes after end of program - skipping this data for BBC file generation!\n", name.c_str(), n_non_ABC_bytes);
+        Byte b = *t_code_iter++;
+
+        switch (t_state) {
+
+            case START_OF_LINE:
+
+                if (line_pos == 0) {
+                    if (b == 0xff) {
+                        end_of_program = true;
+                        int n_non_ABC_bytes = tape_file_sz - read_bytes;
+                        if (mDebugInfo.verbose && n_non_ABC_bytes > 0) {
+                            faultyTermination = true;
+                            cout << "Program file '" << program << "' contains " << n_non_ABC_bytes <<
+                                " extra bytes after end of program - skipping this data for BBC Micro BASIC file generation!\n";
+                        }
+                    }
+                    else {
+                        line_no_high = b;
+                        line_pos++;
+                    }
                 }
-            }
-            else {
-                line_no_high = b;
-                line_pos++;
-            }
-        }
-        else if (line_pos == 1) {
-            line_no_low = b;
-            line_pos++;
-        }
-        else if (line_pos == 2) {
-            line_len = b;
-            line_pos = -1;
-            int line_no = line_no_high * 256 + line_no_low;
-            char line_no_s[7];
-            sprintf(line_no_s, "%5d", line_no);
-            fout << line_no_s;
-        }
-        else if (b == 0xd) {
-            line_pos = 0;
-            if (!first_line) {
-                fout << "\n";
-            }
-            first_line = false;
+                else if (line_pos == 1) {
+                    line_no_low = b;
+                    line_pos++;
+                }
+                else { // if (line_pos == 2) {
+                    line_len = b;
+                    line_no = line_no_high * 256 + line_no_low;
+                    stringstream ss;
+                    ss << setw(5) << line_no;
+                    string s = ss.str();
+                    for (int i = 0; i < s.length(); SourceProgram.push_back((Byte)s[i++]));
+                    t_state = TOKENISATION;
+                }
+                break;
 
-        }
-        else {
-            if (mTokenDictId.find(b) != mTokenDictId.end())
-                fout << mTokenDictId[b].fullT;
-            else
-                fout << (char) b;
-        }
+            default:
 
+                if (b == 0xd) {
+                    t_state = START_OF_LINE;
+                    line_pos = 0;
+                    if (!first_line) {
+                        SourceProgram.push_back(0xd);
+                    }
+                    first_line = false;
+                }
+
+                else {
+
+                    // Check for keyword
+                    TokenEntry keyword_entry;
+                    string keyword = "";
+                    bool keyword_detected = false;
+                    if (mTokenDictId.find(b) != mTokenDictId.end()) {
+                        keyword_entry = mTokenDictId[(int) b];
+                        keyword = keyword_entry.fullT;
+                        keyword_detected = true;
+                    }
+
+                    bool stop_further_processing = false;
+
+                    // Check for pending goto line no
+                    if (t_state == PARSING_GOTO_LINE_NO) {
+                        stop_further_processing = true;
+                        if (goto_line_bytes.length() == 0) {
+                            if (b == 0x20)
+                                SourceProgram.push_back(b);
+                            else if (b == 0x8d)
+                                goto_line_bytes += (char)b;
+                            else { // Not an encoded line no => continue processing!
+                                t_state = TOKENISATION;
+                                stop_further_processing = false;
+                            }
+                        }
+                        else { // some encoded bytes already read
+
+                            goto_line_bytes += (char)b;
+                            if (goto_line_bytes.length() == 4) {
+
+                                int goto_line;
+                                if (!decodeLineNo(goto_line_bytes, goto_line))
+                                    return false;
+                                stringstream ss;
+                                ss << goto_line;
+                                string s = ss.str();
+                                for (int i = 0; i < s.length(); SourceProgram.push_back((Byte)s[i++]));
+                                t_state = TOKENISATION;
+                            }
+                        }
+                    }
+
+                    // No further tokenisation?
+                    if (!stop_further_processing && t_state == NO_TOKENISATION) {
+                        SourceProgram.push_back(b);
+                    }
+
+                    if (!stop_further_processing && t_state == TOKENISATION) {
+                        if (keyword_detected) {
+                            // Add keyword to source code
+                            for (int i = 0; i < keyword.length(); SourceProgram.push_back((Byte)keyword[i++]));
+                            // Check for GOTO-type of keyword
+                            if (keyword_entry.tokeniseInfo & TokeniseInfo::GOTO_LINE) {
+                                t_state = PARSING_GOTO_LINE_NO;
+                                goto_line_bytes = "";
+                            }
+                            // Check for stop tokenisation-type of keyword
+                            else if (keyword_entry.tokeniseInfo & TokeniseInfo::STOP_TOKENISE)
+                                t_state = NO_TOKENISATION;
+                        }
+                        else
+                            // No (tokenised) keyword => add char to source code 'as is'
+                            SourceProgram.push_back(b);
+                    }
+
+                }
+
+                break;
+        }
 
     }
 
-    if (mDebugInfo.verbose && (!end_of_program || unexpected_end_of_program))
-        printf("Program '%s' didn't terminate with 0xff!\n", tapeFile.blocks.front().bbmHdr.name);
+    faultyTermination = faultyTermination || !end_of_program;
 
-    if (mDebugInfo.verbose) {
-        tapeFile.logTAPFileHdr();
-        cout << "\nDone encoding program '" << tapeFile.blocks.front().bbmHdr.name << " ' as a BBC file...\n\n";
-    }
-
-    fout.close();
 
     return true;
 }
-bool AtomBasicCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& fout)
-{
-    FileBlockIter file_block_iter = tapeFile.blocks.begin();
-    BytesIter bi = file_block_iter->data.begin();
-    int exec_adr = file_block_iter->atomHdr.execAdrHigh * 256 + file_block_iter->atomHdr.execAdrLow;
-    int load_adr = file_block_iter->atomHdr.loadAdrHigh * 256 + file_block_iter->atomHdr.loadAdrLow;
-    int data_len = file_block_iter->atomHdr.lenHigh * 256 + file_block_iter->atomHdr.lenLow;
-    string name = file_block_iter->atomHdr.name;
 
-    Byte b;
+bool AtomBasicCodec::detokeniseAtom(string program, Bytes& tokenisedProgram, Bytes& SourceProgram, bool& faultyTermination)
+{
+
     int read_bytes = 0;
 
-    int tape_file_sz = tapeDataSz(tapeFile);
-    
-    if (mDebugInfo.verbose)
-        cout << "\nEncoding program '" << tapeFile.blocks.front().atomHdr.name << " ' as an ABC file...\n\n";
+    int tape_file_sz = (int) tokenisedProgram.size();
 
     int line_pos = -1;
     int line_no_high = 0;
     bool first_line = true;
     bool end_of_program = false;
-    int n_blocks = 0;
-    while (getTapeByte(tapeFile, file_block_iter, bi, read_bytes, b) && !end_of_program) {
+
+    BytesIter t_code_iter = tokenisedProgram.begin();
+    while (t_code_iter < tokenisedProgram.end() && !end_of_program) {
+
+        Byte b = *t_code_iter++;
 
         //
         // Format of Acorn Atom BASIC program in memory:
@@ -209,9 +391,8 @@ bool AtomBasicCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& 
                 if (b == 0xff) {
                     end_of_program = true;
                     int n_non_ABC_bytes = tape_file_sz - read_bytes;
-                    if (mDebugInfo.verbose && n_non_ABC_bytes > 0) {
-                        printf("Program file '%s' contains %d extra bytes after end of program - skipping this data for ABC file generation!\n", name.c_str(), n_non_ABC_bytes);
-                    }
+                    cout << "Program file '" << program << "' contains " << n_non_ABC_bytes <<
+                        " extra bytes after end of program - skipping this data for Acorn Atom BASIC file generation!\n";
                 }
                 else {
                     line_no_high = int(b);
@@ -222,34 +403,95 @@ bool AtomBasicCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& 
                 int line_no_low = int(b);
                 line_pos = -1;
                 int line_no = line_no_high * 256 + line_no_low;
-                char line_no_s[7];
-                sprintf(line_no_s, "%5d", line_no);
-                fout << line_no_s;
+                stringstream ss;
+                ss << setw(5) << line_no;
+                string s = ss.str();
+                for (int i = 0; i < s.length(); SourceProgram.push_back((Byte)s[i++]));
             }
             else if (b == 0xd) {
                 line_pos = 0;
                 if (!first_line) {
-                    fout << "\n";
+                    SourceProgram.push_back(0xd);
                 }
                 first_line = false;
 
             }
             else {
-                fout << (char) b;
+                SourceProgram.push_back(b);
             }
 
 
-            
+
 
     }
 
-    if (mDebugInfo.verbose && !end_of_program)
-        printf("Program '%s' didn't terminate with 0xff!\n", tapeFile.blocks.front().atomHdr.name);
+    faultyTermination = faultyTermination || !end_of_program;
 
-    if (mDebugInfo.verbose) {
-        cout << "\n";
-        tapeFile.logTAPFileHdr();
-        cout << "\nDone encoding program '" << tapeFile.blocks.front().atomHdr.name << " ' as an ABC file...\n\n";
+    return true;
+}
+
+bool AtomBasicCodec::readFileBytes(bool tokenisedBytes, string& srcFile, Bytes& data, string& program)
+{
+    ios_base::openmode flags = ios::in;
+    if (tokenisedBytes)
+        flags = ios::in | ios::binary | ios::ate;
+
+    ifstream fin(srcFile, flags);
+    if (!fin) {
+        cout << "Failed to open file '" << srcFile << "´\n";
+        return false;
+    }
+    filesystem::path fin_p = srcFile;
+    string src_file_name = fin_p.stem().string();
+    program = TapeFile::crValidBlockName(mTargetMachine, src_file_name);
+
+    // Read source code bytes
+    Byte b;
+    if (tokenisedBytes) {
+        while (fin.read((char*)&b, sizeof(Byte)))
+            data.push_back(b);
+    }
+    else {
+        string line;
+        while (getline(fin, line)) {
+            for (int i = 0; i < line.length(); i++)
+                data.push_back((Byte)line[i]);
+            data.push_back(0xd);
+        }
+    }
+    fin.close();
+
+    return true;
+}
+
+bool AtomBasicCodec::writeFileBytes(bool tokenisedBytes, string program, Bytes& data, string& dstFile)
+{
+    if (data.size() == 0)
+        return false;
+
+    ios_base::openmode flags = ios::out;
+    if (tokenisedBytes)
+        flags = ios::out | ios::binary | ios::ate;
+
+    // Write the bytes to file
+    ofstream fout(dstFile, flags);
+    if (!fout) {
+        cout << "Can't write to file '" << dstFile << "'\n";
+        return false;
+    }
+    BytesIter bi = data.begin();
+    if (tokenisedBytes) {
+        while (bi < data.end())
+            fout << *bi++;
+    }
+    else {
+        while (bi < data.end()) {
+            if (*bi == 0xd)
+                fout << "\n";
+            else
+                fout << *bi;
+            bi++;
+        }
     }
 
     fout.close();
@@ -257,303 +499,126 @@ bool AtomBasicCodec::encodeAtom(TapeFile& tapeFile, string& filePath, ofstream& 
     return true;
 }
 
-bool AtomBasicCodec::decodeAtom(FileMetaData metaData, Bytes &data, TapeFile& tapeFile)
+bool AtomBasicCodec::tokenise(string& srcFile, string& dstFile)
 {
-
-    BytesIter data_iterator = data.begin();
-    if (DEBUG_LEVEL == DBG && mDebugInfo.verbose)
-        Utility::logData(0x2900, data_iterator, (int) data.size());
-
-
-    // Create ATM block
-    FileBlock block(ACORN_ATOM);
-    bool new_block = true;
-    int count = 0;
-    int load_address = metaData.loadAdr;
-    BytesIter data_iter = data.begin();
-    int block_sz;
-    int exec_adr = metaData.execAdr;
-    int tape_file_sz = 0;
-    int n_blocks = 0;
-    while (data_iter < data.end()) {
-
-        if (new_block) {
-            count = 0;
-            if (data.end() - data_iter < 256)
-                block_sz = (int) (data.end() - data_iter);
-            else
-                block_sz = 256;
-            block.data.clear();
-            block.tapeStartTime = -1;
-            block.tapeEndTime = -1;
-            block.atomHdr.execAdrHigh = (exec_adr >> 8) & 0xff;
-            block.atomHdr.execAdrLow = exec_adr & 0xff;
-            block.atomHdr.loadAdrHigh = load_address / 256;
-            block.atomHdr.loadAdrLow = load_address % 256;
-            for (int i = 0; i < sizeof(block.atomHdr.name); i++) {
-                if (i < metaData.name.length())
-                    block.atomHdr.name[i] = metaData.name[i];
-                else
-                    block.atomHdr.name[i] = 0;
-            }
-            new_block = false;
-        }
-
-
-        if (count < block_sz) {
-            block.data.push_back(*data_iter++);
-            count++;
-        }
-        else {
-            int data_len = (int) block.data.size();
-            if (mDebugInfo.verbose)
-                block.logHdr();
-            block.atomHdr.lenHigh = 1;
-            block.atomHdr.lenLow = 0;
-            tapeFile.blocks.push_back(block);
-            new_block = true;
-            load_address += count;
-            BytesIter block_iterator = block.data.begin();
-            tape_file_sz += data_len;
-            n_blocks++;
-            if (DEBUG_LEVEL == DBG && mDebugInfo.verbose)
-                Utility::logData(load_address, block_iterator, data_len);
-        }
-
-
-
-
+    Bytes src_code_bytes;
+    string program;
+    if (!readFileBytes(false, srcFile, src_code_bytes, program)) {
+        cout << "Failed to read bytes from file '" << srcFile << "´\n";
+        return false;
     }
 
-    // Catch last block
-    {
-        int data_len = (int) block.data.size();
-        if (mDebugInfo.verbose)
-            block.logHdr();
-        block.atomHdr.lenHigh = count / 256;
-        block.atomHdr.lenLow = count % 256;
-        tapeFile.blocks.push_back(block);
-        BytesIter block_iterator = block.data.begin();
-
-        tape_file_sz += data_len;
-        n_blocks++;
-        if (DEBUG_LEVEL == DBG && mDebugInfo.verbose)
-            Utility::logData(load_address, block_iterator, data_len);
+    // Tokenise the bytes
+    Bytes tokenised_bytes;
+    if (!tokenise(program, src_code_bytes, tokenised_bytes)) {
+        return false;
     }
 
-    if (mDebugInfo.verbose) {
-        int exec_adr = tapeFile.blocks[0].atomHdr.execAdrHigh * 256 + tapeFile.blocks[0].atomHdr.execAdrLow;
-        int load_adr = tapeFile.blocks[0].atomHdr.loadAdrHigh * 256 + tapeFile.blocks[0].atomHdr.loadAdrLow;
-        string tape_filename = tapeFile.blocks[0].atomHdr.name;
-        if (mDebugInfo.verbose) {
-            cout << "\n";
-            tapeFile.logTAPFileHdr();
-        }
+    if (!writeFileBytes(true, program, tokenised_bytes, dstFile)) {
+        cout << "Can't write bytes to file '" << dstFile << "'\n";
+        return false;
+    }
 
+    return true;
+
+}
+
+bool AtomBasicCodec::tokenise(string& srcFile, TapeFile& tapeFile)
+{
+    Bytes src_code_bytes;
+    string program;
+    if (!readFileBytes(false, srcFile, src_code_bytes, program)) {
+        cout << "Failed to read bytes from file '" << srcFile << "´\n";
+        return false;
+    }
+
+    // Tokenise the bytes
+    Bytes tokenised_bytes;
+    if (!tokenise(program, src_code_bytes, tokenised_bytes)) {
+        return false;
+    }
+
+    // Encode the tokenised bytes as a Tape File
+    FileMetaData meta_data(mTargetMachine, program);
+    if (!TAPCodec::bytes2TAP(tokenised_bytes, meta_data, tapeFile)) {
+        cout << "Failed to encode tokenised bytes as a Tape File for program '" << program << "´\n";
+        return false;
     }
 
     return true;
 }
 
-bool AtomBasicCodec::decodeBBM(FileMetaData fileMetaData, Bytes &data, TapeFile& tapeFile)
+bool AtomBasicCodec::tokenise(string& srcFile, Bytes& tokenisedProgram)
 {
-    
-    if (DEBUG_LEVEL == DBG && mDebugInfo.verbose) {
-        BytesIter data_iterator = data.begin();
-        Utility::logData(0xffff0e00, data_iterator, (int) data.size());
-    }
-
-    // Create BBM block
-    FileBlock block(BBC_MODEL_B);
-    bool new_block = true;
-    uint32_t count = 0;
-    uint32_t file_load_address = fileMetaData.loadAdr;
-    uint32_t load_address = file_load_address;
-    BytesIter data_iter = data.begin();
-    uint32_t block_sz;
-    uint32_t exec_adr = fileMetaData.execAdr;
-    uint32_t tape_file_sz = 0;
-    uint32_t n_blocks = 0;
-
-    while (data_iter < data.end()) {
-
-        if (new_block) {
-            count = 0;
-            if (data.end() - data_iter < 256)
-                block_sz = (int) (data.end() - data_iter);
-            else
-                block_sz = 256;
-
-            if (!block.init())
-                return false;
-            if (!block.encodeTAPHdr(fileMetaData.name, file_load_address, load_address, exec_adr, n_blocks, block_sz))
-                return false;
-
-            new_block = false;
-
-        }
-
-        if (count < block_sz) {
-            block.data.push_back(*data_iter++);
-            count++;
-        }
-        if (count == block_sz) {
-
-            if (data_iter == data.end())
-                block.bbmHdr.blockFlag = 0x80;
-
-            if (mDebugInfo.verbose)
-                block.logHdr();
-
-            tapeFile.blocks.push_back(block);
-            new_block = true;
-            load_address += block_sz;
-            tape_file_sz += block_sz;
-            n_blocks++;
-
-            if (DEBUG_LEVEL == DBG && mDebugInfo.verbose) {
-                BytesIter block_iterator = block.data.begin();
-                Utility::logData(load_address, block_iterator, block_sz);
-            }
-        }
-
-    }
-
-    // Set the type for each block (FIRST, LAST, OTHER or SINGLE) - can only be made when the no of blocks are known
-    if (!tapeFile.setBlockTypes())
+    // Read source code bytes
+    Bytes source_code;
+    string program;
+    if (!readFileBytes(false, srcFile, source_code, program)) {
         return false;
+    }
 
-
-
-    if (mDebugInfo.verbose) {
-        cout << "\n";
-        tapeFile.logTAPFileHdr();
+    // Tokenise them
+    if (!tokenise(program, source_code, tokenisedProgram)) {
+        return false;
     }
 
     return true;
 }
 
-bool AtomBasicCodec::decode(FileMetaData fileMetaData, Bytes& data, TapeFile &tapeFile)
-{
-    if (data.size() == 0)
-        return false;
-
-    if (fileMetaData.targetMachine <= BBC_MASTER)
-        return decodeBBM(fileMetaData, data, tapeFile);
-    else
-        return decodeAtom(fileMetaData, data, tapeFile);
-}
-
-bool AtomBasicCodec::decode(string &fullPathFileName, TapeFile& tapeFile)
+bool AtomBasicCodec::tokenise(string program, Bytes& sourceCode, Bytes& tokenisedData)
 {
 
-    ifstream fin(fullPathFileName);
-
-    if (!fin) {
-        printf("Failed to open file '%s'!\n", fullPathFileName.c_str());
+    if (sourceCode.size() == 0)
         return false;
-    }
-    filesystem::path fin_p = fullPathFileName;
-    string file_name = fin_p.stem().string();
-    string block_name;
 
-    block_name = TapeFile::crValidBlockName(mTargetMachine, file_name);
+    // Tokenise each line
+    BytesIter bi = sourceCode.begin();
+    while (bi < sourceCode.end()) {
 
-    if (mDebugInfo.verbose)
-        cout << "\nDecoding ABC/BBC Micro file '" << fullPathFileName << "'...\n\n";
-
-    tapeFile.init(tapeFile.metaData.targetMachine);
-    tapeFile.complete = true;
-    tapeFile.programName = block_name;
-
-    string line;
-    int line_no;
-    fin.seekg(0);
-    Bytes data;
-    string code;
-
-    // Store program as a byte vector
-    while (getline(fin, line)) {
-
+        // Read line
+        string line;
+        string code ;
+        int line_no;
+        while (bi < sourceCode.end() && *bi != 0xd)
+            line += (char)*bi++;
+        if (bi < sourceCode.end())
+            bi++;
         istringstream sin(line);
+
+        // Get line no
         sin >> line_no;
 
-        if (sin.eof())
-            code = "";
-        else
-            getline(sin, code);
+        // Get rest of line
+        getline(sin, code);
 
-        data.push_back(0xd);
-        data.push_back(line_no / 256);
-        data.push_back(line_no % 256);
+        // Add start of line (0xd) and line no
+        tokenisedData.push_back(0xd);
+        tokenisedData.push_back(line_no / 256);
+        tokenisedData.push_back(line_no % 256);  
 
         if (mTargetMachine <= BBC_MASTER) {
             string tCode;
-            if (!tokenizeLine(code, tCode)) {
-                cout << "Failed to tokenize line '" << code << "' ('" << tCode << "')\n";
+            if (!tokeniseLine(line_no, code, tCode)) {
+                cout << "Failed to tokenise line '" << code << "' ('" << tCode << "')\n";
                 return false;
             }
-            data.push_back((Byte) (4+tCode.length())); // line length + "size for <CR>,line no & line no"=4
-            for (int i = 0; i < tCode.length(); data.push_back((Byte) tCode[i++]));
-
+            tokenisedData.push_back((Byte) (4+tCode.length())); // line length + "size for <CR>,line no & line no"=4
+            for (int i = 0; i < tCode.length(); tokenisedData.push_back((Byte) tCode[i++]));
         }
-        else {
-            for (int i = 0; i < code.length(); data.push_back((Byte) code[i++]));
+        else { // mTargetMachine == ACORN_ATOM
+            for (int i = 0; i < code.length(); tokenisedData.push_back((Byte) code[i++]));
         }
     }
-    data.push_back(0x0d);
-    data.push_back(0xff);
-    fin.close();
 
-    
-    if (mTargetMachine <= BBC_MASTER) {
-        FileMetaData meta_data(block_name, 0xffff0e00, 0xffff0e00, mTargetMachine);
-        return decodeBBM(meta_data, data, tapeFile);
-    }
-    else {
-        FileMetaData meta_data(block_name, 0x2900, 0x2cb2, mTargetMachine);
-        return decodeAtom(meta_data, data, tapeFile);
-    }
-
-    cout << "\nDone decoding program file '" << file_name << "'...\n\n'";
+    // Add end of program marker
+    tokenisedData.push_back(0x0d);
+    tokenisedData.push_back(0xff);
 
     return true;
 
 }
 
-bool AtomBasicCodec::decode(Bytes& data, string& fullPathFileName)
-{
-    if (data.size() == 0)
-        return false;
-
-    TapeFile tape_file(mTargetMachine);
-
-    ofstream fout(fullPathFileName);
-    if (!fout) {
-        printf("Can't write to program file '%s'!\n", fullPathFileName.c_str());
-        return false;
-    }
-
-    filesystem::path fin_p = fullPathFileName;
-    string file_name = fin_p.stem().string();
-    string block_name;
-    block_name = TapeFile::crValidBlockName(mTargetMachine, file_name);
-
-    bool success;
-    if (mTargetMachine <= BBC_MASTER) {
-        FileMetaData meta_data(block_name, 0xffff0e00, 0xffff0e00, mTargetMachine);
-        success = decodeBBM(meta_data, data, tape_file);
-    }
-    else {
-        FileMetaData meta_data(block_name, 0x2900, 0x2cb2, mTargetMachine);
-        success = decodeAtom(meta_data, data, tape_file);
-    }
-
-    return encode(tape_file, fullPathFileName);
-
-}
-
-bool AtomBasicCodec::tokenizeLine(string &line, string& tCode)
+bool AtomBasicCodec::tokeniseLine(int lineNo, string &line, string& tCode)
 {
     string space, token;
     TokenEntry entry;
@@ -562,32 +627,128 @@ bool AtomBasicCodec::tokenizeLine(string &line, string& tCode)
     bool within_string = false;
     bool fun_or_proc = false;
     string code = line;
+    bool no_tokenisation = false;
+    uint8_t last_keyword_id;
+    string last_space;
+    bool pending_conditional_tokenisation = false;
+    string last_token;
+
+    bool pending_goto = false;
 
     tCode = "";
     while (code.length() > 0) {
+
+        bool skip_further_processing = false;
+
+        // Get next token
         if (!getKeyWord(fun_or_proc, start_of_statement, within_string, code, space, token, entry)) {
             return false;
         }
-        if (entry.fullT != "") {
-            if (entry.id2 != -1 && start_of_statement) {
-                tCode += space + (char) (entry.id2); // start of a statement <=> potential left side of assigment => id2 applicable
-            } 
-            else {
-                tCode += space + (char) entry.id1;
+        bool keyword_detected = entry.fullT != "" && !no_tokenisation;
+
+        // Check for any pending conditional tokenisation of a keyword (from the last round)
+        if (pending_conditional_tokenisation) {
+            // Decide whether the last keyword should be tokenised or not
+            pending_conditional_tokenisation = false;
+            if (
+                space.size() == 0 && token.size() > 0 &&
+                ((token[0] >= 'a' && token[0] <= 'z') || (token[0] >= 'A' && token[0] <= 'Z'))
+            ) {
+                // Don't tokenise as followed by an alphabetic character
+                tCode += last_space + last_token;
+                //cout << "CONDITIONAL TOKENISATION at line " << lineNo << " of '" << last_token << "'" <<
+                //    " => NO TOKENISATION as followed by '" << space + token << "'\n";
             }
-            
+            else {
+                tCode += last_space + (char)last_keyword_id;
+                //cout << "CONDITIONAL TOKENISATION at line " << lineNo << " of '" << last_token << "'" <<
+                //    " => TOKENISATION as followed by '" << space + token << "'\n";
+            }
         }
-        else {
-            if (token == ":")
+
+        // If the token was a keyword, then determine it's id
+        uint8_t keyword_id = 0x0;
+        if (keyword_detected) {
+            if ((entry.tokeniseInfo & ADD_40_FOR_START_OF_STATEMENT) && start_of_statement) {
+                keyword_id = entry.id1 + 0x40; // start of a statement <=> potential left side of assigment => add 0x40 to id
+                //cout << "ASSIGMENT at line " << lineNo << " of '" << last_token << "'" <<
+                //    " => add 0x40 to keyword id => 0x" << hex << keyword_id << " (instead of 0x " << entry.id1 << dec << ")\n";
+            }
+            else {
+                keyword_id = entry.id1;
+            }
+        }
+
+        // Check for any pending GOTO line no to encode (from the last round)
+        if (pending_goto) {
+            pending_goto = false;
+            int line_no;
+            if (entry.fullT == "" && token2Int(token, line_no) && line_no >= 0 && line_no < 32768) {
+                // A GOTO line no that shall be encoded identified           
+                string encoded_bytes;
+                if (!encodeLineNo(line_no, encoded_bytes))
+                    return false;
+                tCode += space + encoded_bytes;
+                skip_further_processing = true; // stop this round
+                // cout << "GOTO line " << line_no << " to encode for keyword '" << last_token << "' at line " << lineNo << "\n";
+            }
+            //cout << "NO GOTO LINE (but instead a token '" << token << "') to encode for keyword '" << last_token << "' at line " << lineNo << "\n";
+            //if (keyword_detected)
+            //    cout << "KEYWORD detected at line " << lineNo << "\n";
+        }
+
+        // Process a tokenisable keyword
+        if (!skip_further_processing && !no_tokenisation && keyword_detected) {
+
+            if (entry.tokeniseInfo & TokeniseInfo::CONDITIONAL_TOKENISATION) {
+                // The tokenisation of the keyword is conditional and has to wait to next round (so save it)
+                pending_conditional_tokenisation = true;
+            }
+            else {
+                tCode += space + (char) keyword_id;
+                if (entry.tokeniseInfo & TokeniseInfo::GOTO_LINE) {
+                    // Postpone processing of GOTO line no to next round
+                    pending_goto = true;
+                    // cout << "GOTO-type of keyword '" << entry.fullT << "' at line " << lineNo << "\n";
+                }
+                else if (entry.tokeniseInfo & TokeniseInfo::STOP_TOKENISE) {
+                    // No further tokenisation shall be made for the line
+                    no_tokenisation = true;
+                    // cout << "Stop tokenisation - type of keyword '" << entry.fullT << "' at line " << lineNo << "\n";
+                }
+            }
+        }
+        
+        // Process a non-keyword token (including non-tokenisable keyword)
+        if (!skip_further_processing && !keyword_detected) {
+
+            // As there are keywords with different ids for assignment and use in expression,
+            // we need to know if it's an assignment (start of statement) or not.
+            if (token == ":")                  
                 start_of_statement = true;
             else
                 start_of_statement = false;
+
+            // Stop tokenisation if we're in the middle of a string
             if (token == "\"")
                 within_string = !within_string;
 
             tCode += space + token;
         }
 
+        if (keyword_detected)
+            last_keyword_id = keyword_id; //remember keyword id for next round
+
+        last_space = space;
+        last_token = token;
+
+    }
+
+    // Catch a potentially last pending keyword
+    if (pending_conditional_tokenisation) {
+        // Decide whether the last keyword should be tokenised or not
+        pending_conditional_tokenisation = false;
+       tCode += last_space + (char)last_keyword_id;
     }
 
     return true;
@@ -654,7 +815,7 @@ bool AtomBasicCodec::getKeyWord(bool &fun_or_proc, bool startOfStatement, bool w
     int pos = 0;
 
     token = "";
-    const TokenEntry empty = { "", "", {-1,-1} };
+    const TokenEntry empty = { "", "", 0x00, 0x00 };
     space = "";
 
     entry = empty;
@@ -753,4 +914,57 @@ bool AtomBasicCodec::matchAgainstKeyword(string& text, int pos, string& token, T
         return true;
     }
     return false;
+}
+
+// Tokenising the line number:
+    // The top two bits are split off each of the two bytes of the 16-bit line number.
+    // These bits are combined (in binary as 00LlHh00), exclusive-ORred with 0x54, and
+    // stored as the first byte of the 3-byte sequence. The remaining six bits of each
+    // byte are then stored, in LO/HI order, ORred with 0x40.
+    // 
+    // Used for AUTO, DELETE, ELSE, GOSUB, GOTO, LIST, RENUMBER, RESTORE and THEN
+    // 
+    // Only seems to be applied for line no < 32768 (0x4000)
+    //
+bool AtomBasicCodec::encodeLineNo(int lineNo, string &encodedBytes)
+{
+    if (lineNo < 0 || lineNo >= 32768)
+        return false;
+
+    encodedBytes = "\x8d";
+    int b15b14 = (lineNo >> 14) & 0x3;
+    int b7b6 = (lineNo >> 6) & 0x3;
+    int byte_0 = (((b7b6 << 4) & 0x30) | ((b15b14 << 2) & 0x0c)) ^ 0x54;
+    int byte_1 = (lineNo & 0x3f) | 0x40;
+    int byte_2 = ((lineNo >> 8) & 0x3f) | 0x40;
+    encodedBytes += (char) byte_0;
+    encodedBytes += (char) byte_1;
+    encodedBytes += (char) byte_2;
+    return true;
+}
+
+bool AtomBasicCodec::decodeLineNo(string encodedBytes, int& lineNo)
+{
+
+    if (encodedBytes[0] != (char) 0x8d)
+        return false;
+
+    int b6b0 = encodedBytes[2] & 0x3f;
+    int b13b8 = encodedBytes[3] & 0x3f;
+    int b7b6 = ((encodedBytes[1] ^ 0x54) >> 4) & 0x3;
+    int b15b14 = ((encodedBytes[1] ^ 0x54) >> 2) & 0x3;
+    lineNo = (b15b14 << 14) | (b13b8 << 8) | (b7b6 << 6) | b6b0;
+    return true;
+}
+
+bool AtomBasicCodec::token2Int(string token, int &num)
+{
+    try {
+        num = stoi(token);
+    }
+    catch (const invalid_argument& ia) {
+        return false;
+    }
+
+    return true;
 }

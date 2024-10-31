@@ -45,7 +45,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
     readStatus = FileReadStatus::OK;
 
     tapFile.init();
-    FileMetaData meta_data("", 0x0, 0x0, mTarget);
+    FileMetaData meta_data(mTarget, "");
     tapFile.metaData = meta_data;
 
     bool file_selected = false;

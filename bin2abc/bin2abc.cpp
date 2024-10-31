@@ -56,10 +56,9 @@ int main(int argc, const char* argv[])
 
     AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
 
-    TapeFile TAP_file(arg_parser.targetMachine);
-
-
-    if (!ABC_codec.decode(data, arg_parser.dstFileName)) {
+    string program;
+    bool incorrect_termination;
+    if (!ABC_codec.detokenise(program, data, arg_parser.dstFileName, incorrect_termination)) {
         printf("Failed to decode binary program file '%s' into a readable program text file\n", arg_parser.dstFileName.c_str());
     }
 
