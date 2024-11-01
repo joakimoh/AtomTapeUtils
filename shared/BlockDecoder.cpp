@@ -7,8 +7,8 @@
 
 
 BlockDecoder::BlockDecoder(
-	TapeReader& tapeReader, Logging logging, TargetMachine targetMachine) :
-	mReader(tapeReader), mDebugInfo(logging), mTargetMachine(targetMachine)
+	TapeReader& tapeReader, Logging logging, TargetMachine targetMachine, bool limitBlockNo) :
+	mReader(tapeReader), mDebugInfo(logging), mTargetMachine(targetMachine), mLimitBlockNo(limitBlockNo)
 {
 	nReadBytes = 0; // Not needed but made to make compiler happy
 }
@@ -179,7 +179,7 @@ bool BlockDecoder::readBlock(
 	updateCRC(readBlock, crc, hdr_bytes);
 
 	// Decode header
-	if (!readBlock.decodeTapeHdr(name_bytes, hdr_bytes)) {
+	if (!readBlock.decodeTapeHdr(name_bytes, hdr_bytes, mLimitBlockNo)) {
 		if (mDebugInfo.tracing)
 			DEBUG_PRINT(getTime(), ERR, "Failed to decode header for file '%s'\n", readBlock.blockName().c_str());
 		return false;

@@ -48,12 +48,14 @@ protected:
 
 	TargetMachine mTargetMachine = ACORN_ATOM;
 
+	bool mLimitBlockNo = false;
+
 public:
 
 
 	int nReadBytes;
 
-	BlockDecoder(TapeReader& tapeReader, Logging logging, TargetMachine targetMachine);
+	BlockDecoder(TapeReader& tapeReader, Logging logging, TargetMachine targetMachine, bool limitBlockNo = false);
 
 	bool readBlock(BlockTiming blockTiming, bool firstBlock, FileBlock& readBlock, bool& leadToneDetected, BlockError &readStatus);
 

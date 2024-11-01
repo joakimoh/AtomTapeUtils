@@ -258,7 +258,7 @@ bool FileBlock::firstBlock()
     return blockType == BlockType::First || blockType == BlockType::Single;
 }
 
-bool FileBlock::decodeTapeHdr(Bytes &name, Bytes &hdr_bytes)
+bool FileBlock::decodeTapeHdr(Bytes &name, Bytes &hdr_bytes, bool limitBlockNo)
 {
     if (targetMachine == ACORN_ATOM) {
 
@@ -281,10 +281,10 @@ bool FileBlock::decodeTapeHdr(Bytes &name, Bytes &hdr_bytes)
         return false;
 
     // Decode rest of header
-    return decodeTapeHdr(hdr_bytes);
+    return decodeTapeHdr(hdr_bytes, limitBlockNo);
 }
 
-bool FileBlock::decodeTapeHdr(Bytes& hdr_bytes)
+bool FileBlock::decodeTapeHdr(Bytes& hdr_bytes, bool limitBlockNo)
 {
     if (targetMachine == ACORN_ATOM) {
 
@@ -339,6 +339,10 @@ bool FileBlock::decodeTapeHdr(Bytes& hdr_bytes)
         for (int i = 0; i < 2; bbmHdr.blockNo[i++] = hdr_bytes[BBM_TAPE_BLOCK_NO + i]);
         for (int i = 0; i < 2; bbmHdr.blockLen[i++] = hdr_bytes[BBM_TAPE_BLOCK_LEN + i]);
         blockNo = Utility::bytes2uint(&bbmHdr.blockNo[0], 2, true);
+        if (limitBlockNo) {
+            bbmHdr.blockNo[1] = 0x0;
+            blockNo = blockNo & 0xff;
+        }
 
         // Decode flag - b7 = last block, b6 = empty block, b0 = locked block
         bbmHdr.blockFlag = hdr_bytes[BBM_TAPE_BLOCK_FLAGS];
@@ -357,6 +361,10 @@ bool FileBlock::decodeTapeHdr(Bytes& hdr_bytes)
     }
     else
         return false;
+
+    if (limitBlockNo)
+        // Only use low byte of block no (fix for some programs with the high byte block no being incorrect - usually 0xff)
+        blockNo = blockNo & 0xff;
 
     return true;
 }

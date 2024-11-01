@@ -22,7 +22,6 @@ class FileDecoder
 
 protected:
 
-
 	Logging mDebugInfo;
 	bool mCat = false;
 	TapeProperties mTapeTiming;

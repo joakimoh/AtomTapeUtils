@@ -111,8 +111,8 @@ public:
 	bool updateCRC(Word& crc, Byte data);
 	static bool updateCRC(TargetMachine targetMachine, Word& crc, Byte data);
 
-	bool decodeTapeHdr(Bytes &name, Bytes &hdr);
-	bool decodeTapeHdr(Bytes &hdr);
+	bool decodeTapeHdr(Bytes &name, Bytes &hdr, bool limitBlockNo = false);
+	bool decodeTapeHdr(Bytes &hdr, bool limitBlockNo);
 	bool encodeTapeHdr(Bytes &hdr);
 	bool logHdr(ostream* fout);
 	bool logHdr();

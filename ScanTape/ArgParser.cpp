@@ -39,7 +39,9 @@ void ArgParser::printUsage(const char *name)
 	cout << "\tof the file will be ignored for that reason.\n\n";
 	cout << "-c:\n\tOnly output a catalogue of the files found on the tape.\n\n";
 
-	cout << "\nADVANCED OPTIONS:\n\n";	
+	cout << "\nADVANCED OPTIONS:\n\n";
+	cout << "-lbno:\n\tLimit block no. If enabled, the high byte of each tape block no will be discarded.\n";
+	cout << "\tUseful for tape blocks with the high byte of the block no being incorrect\n\n";
 	cout << "-s <start time>:\n\tThe time to start detecting files from\n\t- default is 0.\n\n";
 	cout << "-f <freq tolerance>:\n\tTolerance of the 1200/2400 frequencies [0,1[\n\t- default is 0.25.\n\n";
 	cout << "-l <level tolerance>:\n\tSchmitt-trigger level tolerance [0,1[\n\t- default is 0.\n\n";
@@ -89,7 +91,10 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	ac = 2;
 	bool genFiles = false;
 	while (ac < argc) {
-		if (strcmp(argv[ac], "-c") == 0) {
+		if (strcmp(argv[ac], "-lbno") == 0) {
+			limitBlockNo = true;
+		}
+		else if (strcmp(argv[ac], "-c") == 0) {
 			cat = true;
 		}
 		else if (strcmp(argv[ac], "-n") == 0) {

@@ -131,7 +131,7 @@ int main(int argc, const char* argv[])
 
 
     // Create A Block Decoder used to detect and read one block from a tape reader
-    BlockDecoder block_decoder(*tape_reader, arg_parser.logging, arg_parser.targetMachine);
+    BlockDecoder block_decoder(*tape_reader, arg_parser.logging, arg_parser.targetMachine, arg_parser.limitBlockNo);
 
     // Create a File Decoder used to detect and read a complete Tape File
     FileDecoder fileDecoder(block_decoder, arg_parser.logging, arg_parser.targetMachine, arg_parser.tapeTiming, arg_parser.cat);

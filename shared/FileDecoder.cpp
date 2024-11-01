@@ -20,7 +20,8 @@ using namespace std;
 FileDecoder::FileDecoder(
     BlockDecoder& blockDecoder,
     Logging logging, TargetMachine targetMachine, TapeProperties tapeTiming, bool catOnly
-) : mDebugInfo(logging), mBlockDecoder(blockDecoder), mCat(catOnly), mTarget(targetMachine), mTapeTiming(tapeTiming)
+) : mDebugInfo(logging), mBlockDecoder(blockDecoder), mCat(catOnly), mTarget(targetMachine),
+mTapeTiming(tapeTiming)
 {
     if (mDebugInfo.verbose) {
         cout << "\n\nTape Timing for decoding files:\n\n";
@@ -109,7 +110,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
         BlockError block_error;
         last_valid_block_end_time = block_end_time;
         bool success = mBlockDecoder.readBlock(blockTiming, first_block, read_block, lead_tone_detected, block_error);
-        block_no = read_block.blockNo; 
+        block_no = read_block.blockNo;
 
         if (read_block.tapeStartTime == -1)
             block_start_time = default_block_start_time;

@@ -30,6 +30,8 @@ public:
 	bool genTAP = false;
 	bool genSSD = false;
 
+	bool limitBlockNo = false; // If true, the high byte of each tape block no will be discarded
+
 	string dstFileName;
 
 	Logging logging;
