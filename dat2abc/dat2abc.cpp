@@ -44,7 +44,6 @@ int main(int argc, const char* argv[])
         printf("Failed to decode DATA file '%s'\n", arg_parser.srcFileName.c_str());
     }
 
-
     AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
     if (!ABC_codec.detokenise(TAP_file, arg_parser.dstFileName)) {
         printf("Failed to encode DATA file '%s' as ABC/BBC file '%s'\n",

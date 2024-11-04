@@ -28,6 +28,7 @@ public:
 
     static uint32_t bytes2uint(Byte* bytes, int n, bool littleEndian);
     static void uint2bytes(uint32_t u, Byte* bytes, int n, bool littleEndian);
+    static void uint2bytes(uint32_t u, Bytes &bytes, int n, bool littleEndian);
 
     static string crReadableString(string s, int n);
     static string crDefaultOutFileName(string filePath);

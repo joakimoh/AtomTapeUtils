@@ -17,6 +17,7 @@
 #include "../shared/Logging.h"
 #include "../shared/Utility.h"
 #include "../shared/TAPCodec.h"
+#include "../shared/BinCodec.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -25,7 +26,7 @@ using namespace std::filesystem;
 
 /*
  * 
- * Create UEF, DATA & TAP/MMC files from Acorn Atom BASIC (ABC) program
+ * Create UEF, DATA & TAP/MMC files from an Acorn Atom/BBC Micro BASIC source program file
  * * 
  */
 int main(int argc, const char* argv[])
@@ -63,13 +64,12 @@ int main(int argc, const char* argv[])
     }
 
     // Generate TAP file
-    if (arg_parser.targetMachine == ACORN_ATOM) {
-        TAPCodec TAP_codec = TAPCodec(arg_parser.logging);
-        string TAP_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "tap");
-        if (!TAP_codec.encode(TAP_file, TAP_file_name)) {
-            cout << "Failed to write the TAP file!\n";
-        }
+    TAPCodec TAP_codec = TAPCodec(arg_parser.logging);
+    string TAP_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "tap");
+    if (!TAP_codec.encode(TAP_file, TAP_file_name)) {
+        cout << "Failed to write the TAP file!\n";
     }
+
 
     // generate UEF file
     UEFCodec UEF_codec = UEFCodec(false, arg_parser.logging, arg_parser.targetMachine);
@@ -80,7 +80,8 @@ int main(int argc, const char* argv[])
 
     // Create binary file
     string BIN_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, TAP_file, "");
-    if (!TAPCodec::data2Binary(TAP_file, BIN_file_name)) {
+    BinCodec BIN_codec(arg_parser.logging);
+    if (!BIN_codec.encode(TAP_file, BIN_file_name)) {
         cout << "can't create Binary file " << BIN_file_name << "\n";
     }
 

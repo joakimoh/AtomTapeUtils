@@ -1,5 +1,7 @@
 #include "BinCodec.h"
 #include "Utility.h"
+#include <iostream>
+#include <fstream>
 
 //
 // Create BIN Codec.
@@ -12,7 +14,7 @@ BinCodec::BinCodec(Logging logging): mDebugInfo(logging)
 //
 // Encode TAP File structure as binary data
 //
-bool BinCodec::encode(TapeFile& tapeFile, FileMetaData &fileMetaData, Bytes& data)
+bool BinCodec::encode(TapeFile& tapeFile, FileHeader &fileMetaData, Bytes& data)
 {
     if (tapeFile.blocks.empty()) {
         cout << "Empty TAP file => no DATA to encode!\n";
@@ -20,13 +22,13 @@ bool BinCodec::encode(TapeFile& tapeFile, FileMetaData &fileMetaData, Bytes& dat
     }
 
     if (mDebugInfo.verbose)
-        cout << "\nEncoding program '" << tapeFile.programName << "' as a BINARY data...\n\n";
+        cout << "\nEncoding program '" << tapeFile.header.name << "' as a BINARY data...\n\n";
 
     // Extract meta data
-    fileMetaData.execAdr = tapeFile.blocks[0].execAdr();
-    fileMetaData.loadAdr = tapeFile.blocks[0].loadAdr();
-    fileMetaData.name = tapeFile.programName;
-    fileMetaData.targetMachine = tapeFile.metaData.targetMachine;
+    fileMetaData.execAdr = tapeFile.header.execAdr;
+    fileMetaData.loadAdr = tapeFile.header.loadAdr;
+    fileMetaData.name = tapeFile.header.name;
+    fileMetaData.targetMachine = tapeFile.header.targetMachine;
 
     // Extract data
     FileBlockIter file_block_iter = tapeFile.blocks.begin();
@@ -40,16 +42,51 @@ bool BinCodec::encode(TapeFile& tapeFile, FileMetaData &fileMetaData, Bytes& dat
 
     if (mDebugInfo.verbose) {
         cout << "\n";
-        tapeFile.logTAPFileHdr();
-        cout << "\nDone encoding program '" << tapeFile.blocks[0].bbmHdr.name << "' as binary data...\n\n";
+        tapeFile.logFileHdr();
+        cout << "\nDone encoding program '" << tapeFile.header.name << "' as binary data...\n\n";
     }
 	return true;
+}
+
+/*
+ * Encode TAP File structure as Binary data
+ */
+bool BinCodec::encode(TapeFile& tapeFile, string& binFileName)
+{
+
+    if (tapeFile.blocks.size() == 0)
+        return false;
+
+    FileBlockIter file_block_iter = tapeFile.blocks.begin();
+    int sz = 0;
+    for (; file_block_iter < tapeFile.blocks.end(); sz += (int)(*file_block_iter++).data.size());
+    if (sz == 0)
+        return false;
+
+    // Create the output file
+    ofstream fout(binFileName, ios::out | ios::binary | ios::ate);
+    if (!fout) {
+        cout << "can't write to file " << binFileName << "\n";
+        return false;
+    }
+
+    // Write all block data to the file
+    file_block_iter = tapeFile.blocks.begin();
+    while (file_block_iter < tapeFile.blocks.end()) {
+        BytesIter data_iter = file_block_iter->data.begin();
+        while (data_iter < file_block_iter->data.end())
+            fout << *data_iter++;
+        file_block_iter++;
+    }
+    fout.close();
+
+    return true;
 }
 
 //
 // Decode binary data as Tape File structure
 //
-bool BinCodec::decode(FileMetaData fileMetaData, Bytes &data, TapeFile& tapeFile)
+bool BinCodec::decode(FileHeader fileMetaData, Bytes &data, TapeFile& tapeFile)
 {
     if (data.size() == 0)
         return false;
@@ -60,8 +97,8 @@ bool BinCodec::decode(FileMetaData fileMetaData, Bytes &data, TapeFile& tapeFile
 
     tapeFile.init();
     tapeFile.complete = true;
-    tapeFile.programName = fileMetaData.name;
-    tapeFile.metaData = fileMetaData;
+    tapeFile.header.name = fileMetaData.name;
+    tapeFile.header = fileMetaData;
 
 
     int load_adr = fileMetaData.loadAdr;
@@ -102,7 +139,10 @@ bool BinCodec::decode(FileMetaData fileMetaData, Bytes &data, TapeFile& tapeFile
         if (count == block_sz) {
 
             if (mDebugInfo.verbose)
-                block.logHdr();
+                block.logFileBlockHdr();
+
+            // Mirror the complete file's locked status to each block
+            block.locked = tapeFile.header.locked;
 
             tapeFile.blocks.push_back(block);
             new_block = true;
@@ -121,7 +161,7 @@ bool BinCodec::decode(FileMetaData fileMetaData, Bytes &data, TapeFile& tapeFile
 
     if (mDebugInfo.verbose) {
         cout << "\n";
-        tapeFile.logTAPFileHdr();
+        tapeFile.logFileHdr();
     }
 
     if (mDebugInfo.verbose)

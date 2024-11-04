@@ -28,6 +28,7 @@
 #include "../shared/FileBlock.h"
 #include "../shared/WavEncoder.h"
 #include "../shared/DiscCodec.h"
+#include "../shared/BinCodec.h"
 
 using namespace std;
 using namespace std::filesystem;
@@ -167,7 +168,7 @@ int main(int argc, const char* argv[])
     UEFCodec UEF_encoder(arg_parser.tapeTiming.preserve, arg_parser.logging, arg_parser.targetMachine);
     CSWCodec CSW_encoder(arg_parser.tapeTiming.preserve, 44100, arg_parser.tapeTiming, arg_parser.logging, arg_parser.targetMachine);
     WavEncoder WAV_encoder(arg_parser.tapeTiming.preserve, 44100, arg_parser.tapeTiming, arg_parser.logging, arg_parser.targetMachine);
-    TAPCodec TAP_encoder(arg_parser.logging);
+    TAPCodec TAP_encoder(arg_parser.logging, arg_parser.targetMachine);
 
     bool genTapeFile = false;
     ostream* tfout_p = NULL;
@@ -212,13 +213,13 @@ int main(int argc, const char* argv[])
     while (fileDecoder.readFile(*fout_p, tape_file, arg_parser.searchedProgram, read_status)) {
 
         // If the file was read with some content then add it to the list of tape files
-        if (tape_file.blocks.size() > 0 && (arg_parser.searchedProgram == "" || tape_file.programName == arg_parser.searchedProgram)) {
+        if (tape_file.blocks.size() > 0 && (arg_parser.searchedProgram == "" || tape_file.header.name == arg_parser.searchedProgram)) {
             if (tape_file.complete) // save complete files
                 tape_files_complete.push_back(tape_file);
             tape_files.push_back(tape_file); // also save incomplete files (to support recovery of damaged files)
         }
  
-        selected_file_found = selected_file_found || (arg_parser.searchedProgram == "" || tape_file.programName == arg_parser.searchedProgram);
+        selected_file_found = selected_file_found || (arg_parser.searchedProgram == "" || tape_file.header.name == arg_parser.searchedProgram);
 
     }
 
@@ -253,14 +254,12 @@ int main(int argc, const char* argv[])
                     //return -1;
                 }
 
-                // Create TAP file (Acorn Atom only)
-                if (arg_parser.targetMachine == ACORN_ATOM) {
-                    TAPCodec TAP_codec = TAPCodec(arg_parser.logging);
-                    string TAP_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "tap");
-                    if (!TAP_codec.encode(tape_file, TAP_file_name)) {
-                        cout << "Failed to write the TAP file!\n";
-                        //return -1;
-                    }
+                // Create TAP file
+                TAPCodec TAP_codec = TAPCodec(arg_parser.logging);
+                string TAP_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "tap");
+                if (!TAP_codec.encode(tape_file, TAP_file_name)) {
+                    cout << "Failed to write the TAP file!\n";
+                    //return -1;
                 }
 
                 // Create UEF file
@@ -272,7 +271,8 @@ int main(int argc, const char* argv[])
 
                 // Create BIN file
                 string BIN_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "bin");
-                if (!TAPCodec::data2Binary(tape_file, BIN_file_name)) {
+                BinCodec BIN_codec(arg_parser.logging);
+                if (!BIN_codec.encode(tape_file, BIN_file_name)) {
                     cout << "can't create Binary file " << BIN_file_name << "\n";
                     //return -1;
                 }
@@ -286,7 +286,7 @@ int main(int argc, const char* argv[])
                 else
                     cout << "   ";
                 // Log found file
-                tape_file.logTAPFileHdr();
+                tape_file.logFileHdr();
             }
 
             else if (genTapeFile && tape_file.complete) {
@@ -329,7 +329,7 @@ int main(int argc, const char* argv[])
                         if (samples_p != NULL) delete samples_p;
                         return (-1);
                     }
-                }
+             }
             
         }
     }

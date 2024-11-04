@@ -82,7 +82,7 @@ bool CSWCodec::encode(TapeFile& tapeFile, string& filePath)
 
 
     if (mDebugInfo.verbose)
-        cout << "\nDone encoding program '" << tapeFile.programName << "' as a CSW file...\n\n";
+        cout << "\nDone encoding program '" << tapeFile.header.name << "' as a CSW file...\n\n";
 
     return true;
 
@@ -90,7 +90,7 @@ bool CSWCodec::encode(TapeFile& tapeFile, string& filePath)
 
 bool CSWCodec::encode(TapeFile& tapeFile)
 {
-    if (tapeFile.metaData.targetMachine <= BBC_MASTER)
+    if (tapeFile.header.targetMachine <= BBC_MASTER)
         return encodeBBM(tapeFile);
     else
         return encodeAtom(tapeFile);
@@ -121,7 +121,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile)
 
 
     if (mDebugInfo.verbose)
-        cout << "\nEncode program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
+        cout << "\nEncode program '" << tapeFile.header.name << "' as a CSW file...\n\n";
 
 
     FileBlockIter file_block_iter = tapeFile.blocks.begin();
@@ -197,7 +197,7 @@ bool CSWCodec::encodeBBM(TapeFile& tapeFile)
         mCRC = 0;
 
         // Store header bytes
-        if (!file_block_iter->encodeTapeHdr(header_data)) {
+        if (!file_block_iter->encodeTapeBlockHdr(header_data)) {
             cout << "Failed to encode header bytes for block #" << block_no << "\n";
             return false;
         }
@@ -339,10 +339,10 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile)
         return false;
 
     if (mDebugInfo.verbose)
-        cout << "\nEncode program '" << tapeFile.blocks[0].atomHdr.name << "' as a CSW file...\n\n";
+        cout << "\nEncode program '" << tapeFile.header.name << "' as a CSW file...\n\n";
 
 
-    FileBlockIter ATM_block_iter = tapeFile.blocks.begin();
+    FileBlockIter file_block_iter = tapeFile.blocks.begin();
 
     int block_no = 0;
     int n_blocks = (int)tapeFile.blocks.size();
@@ -356,12 +356,12 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile)
         cout << first_block_gap << " s GAP\n";
 
 
-    while (ATM_block_iter < tapeFile.blocks.end()) {
+    while (file_block_iter < tapeFile.blocks.end()) {
 
         // Write a lead tone for the block
         if (mUseOriginalTiming) {
-            lead_tone_duration = (ATM_block_iter->leadToneCycles) / high_tone_freq;
-            mTapeTiming.phaseShift = ATM_block_iter->phaseShift;
+            lead_tone_duration = (file_block_iter->leadToneCycles) / high_tone_freq;
+            mTapeTiming.phaseShift = file_block_iter->phaseShift;
         }
         if (!writeTone(lead_tone_duration)) {
             printf("Failed to write lead tone of duration %f s\n", lead_tone_duration);
@@ -387,11 +387,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile)
         // --------------------------------------------------------------------------
 
 
-        int data_len = ATM_block_iter->atomHdr.lenHigh * 256 + ATM_block_iter->atomHdr.lenLow;  // get data length
-
-        Byte b7 = (block_no < n_blocks - 1 ? 0x80 : 0x00);          // calculate flags
-        Byte b6 = (data_len > 0 ? 0x40 : 0x00);
-        Byte b5 = (block_no != 0 ? 0x20 : 0x00);
+        int data_len = file_block_iter->size;                        // get data length
 
         Bytes header_data;
 
@@ -399,27 +395,11 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile)
         for (int i = 0; i < 4; i++)
             header_data.push_back(0x2a);
 
-        // store block name
-        int name_len = 0;
-        for (; name_len < sizeof(ATM_block_iter->atomHdr.name) && ATM_block_iter->atomHdr.name[name_len] != 0; name_len++);
-        for (int i = 0; i < name_len; i++)
-            header_data.push_back(ATM_block_iter->atomHdr.name[i]);
-
-        header_data.push_back(0xd);
-
-        header_data.push_back(b7 | b6 | b5);                        // store flags
-
-        header_data.push_back((block_no >> 8) & 0xff);              // store block no
-        header_data.push_back(block_no & 0xff);
-
-        header_data.push_back((data_len > 0 ? data_len - 1 : 0));   // store length - 1
-
-        header_data.push_back(ATM_block_iter->atomHdr.execAdrHigh);     // store execution address
-        header_data.push_back(ATM_block_iter->atomHdr.execAdrLow);
-
-        header_data.push_back(ATM_block_iter->atomHdr.loadAdrHigh);     // store load address
-        header_data.push_back(ATM_block_iter->atomHdr.loadAdrLow);
-
+        // Store header bytes
+        if (!file_block_iter->encodeTapeBlockHdr(header_data)) {
+            cout << "Failed to encode header bytes for block #" << block_no << "\n";
+            return false;
+        }
 
         // Encode the header bytes
         BytesIter hdr_iter = header_data.begin();
@@ -436,7 +416,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile)
 
         // Add micro tone between header and data
         if (mUseOriginalTiming)
-            data_block_micro_lead_tone_duration = (ATM_block_iter->microToneCycles) / high_tone_freq;
+            data_block_micro_lead_tone_duration = (file_block_iter->microToneCycles) / high_tone_freq;
         if (!writeTone(data_block_micro_lead_tone_duration)) {
             printf("Failed to write micro lead tone of duration %f s\n", data_block_micro_lead_tone_duration);
         }
@@ -452,9 +432,9 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile)
          // --------------------------------------------------------------------------
 
         // Write block data
-        BytesIter bi = ATM_block_iter->data.begin();
+        BytesIter bi = file_block_iter->data.begin();
         Bytes block_data;
-        while (bi < ATM_block_iter->data.end())
+        while (bi < file_block_iter->data.end())
             block_data.push_back(*bi++);
 
         // Encode the block data bytes
@@ -485,7 +465,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile)
 
         // Write a gap at the end of the block
         if (mUseOriginalTiming)
-            block_gap = (ATM_block_iter->blockGap);
+            block_gap = (file_block_iter->blockGap);
         else if (block_no == n_blocks - 1)
             block_gap = last_block_gap;
 
@@ -498,7 +478,7 @@ bool CSWCodec::encodeAtom(TapeFile& tapeFile)
         if (mDebugInfo.verbose)
             cout << block_gap << " s GAP\n";
 
-        ATM_block_iter++;
+        file_block_iter++;
 
         block_no++;
 

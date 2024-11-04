@@ -9,7 +9,7 @@ All utilites are run from command line (DOS or Linux). There are many utilities 
 
 ### You have a tape with old Acorn Atom/BBC Micro programs that you have digitalised into a WAV file and you want to extract the programs from it.
 
-The WAV file must be a 16-bit/mono PCM file (preferable 44.1 kHz but other sampling rates could potentially be used as well).
+The WAV file should preferably be a 44.1 kHz 16-bit mono PCM file (other sampling rates, 8-bit and multiple channels are supported to some extent although not recommended).
 Filter the WAV file *my_tape.wav* to clean it up a bit before trying to decode it.
 (This filtering can be skipped if you already have an audio file of excellent quality.)
 
@@ -33,7 +33,7 @@ Convert to TAP/MMC format (for loading into emulator or onto memory card of an A
 
 `> abc2tap myprog.abc -o myprog`
 
-Convert to WAV format (for loading into an Acorn Atom via audio cable connected between desktop and Acorn Atom)
+Convert to WAV format (for loading into an Acorn Atom/BBC Micro via audio cable connected between the host desktop and the computer)
 
 `> abc2wav myprog.abc -o myprog.wav`
 
@@ -53,10 +53,10 @@ Optionally, you could do all this (except for the WAV & CSW files generation) wi
 - csw2wav: Convert a CSW file to a WAV file (44.1kHz/16-bit/mono PCM) - this has no machine context and can be used independently of the target machine
 - dat2abc: Convert hex dump file into text file with an Acorn Atom/BBC Micro program
 - dat2bin: Convert hex dump file into binary file (useful if you want to disassemble machine code)
-- dat2tap: Convert hex dump file into a TAP/MMC file (Acorn Atom only)
+- dat2tap: Convert hex dump file into a TAP/MMC file ('Wouter Ras' format - see https://www.stairwaytohell.com/atom/wouterras)
 - dat2uef: Convert hex dump file into  an UEF file
-- dat2wav: Convert hex dump file into a WAV file (16-bit PCM WAV for Acorn Atom)
-- tap2abc: Convert TAP/MMC file into an Acorn Atom program text file
+- dat2wav: Convert hex dump file into a WAV file (16-bit mono PCM WAV with 44.1 kHz sample rate)
+- tap2abc: Convert TAP/MMC file into Acorn Atom/BBC Micro BASIC source code
 - tap2dat: Convert TAP/MMC file into a hex dump file
 - uef2csw: Convert UEF file into a CSW file - this has no machine context and can be used independently of the target machine*
 - uef2wav: Combert UEF file into WAW file (44.1kHz/16-bit/mono PCM) - this has no machine context and can be used independently of the target machine*
@@ -124,7 +124,7 @@ For each detected Acorn Atom/BBC Micro program file, the following files will be
 - *program name*.abc - text file with the BASIC program (looks as it would appear when listed on the Acorn Atom/BBC Micro)
 - *program name*.dat - hex dump of the same program file (useful if the program includes binary data)
 - *program name*.uef - UEF file that can be loaded into an emulator like Atomulator (for Acorn Atom) or BeenEm (for BBC Micro)
-- *program name*.tap - TAP/MMC "ATM" ("Wouter Ras" format) file (Acorn Atom only) that can be stored on an SD memory card (or in the MMC directory of Atomulator) for use with an AtoMMC device connected to an Acorn Atom. Please note that the TAP and MMC is one and the same format. A TAP/MMC file can also be loaded into the Acorn Atom emulator from Wouter Ras
+- *program name*.tap - TAP/MMC "ATM" ("Wouter Ras" format) file that can be stored on an SD memory card (or in the MMC directory of Atomulator) for use with an AtoMMC device connected to an Acorn Atom. Please note that the TAP and MMC is one and the same format. A TAP/MMC file can also be loaded into the Acorn Atom emulator from Wouter Ras
 - *program name*.bin - The raw program data. Useful e.g., if the program is stored as machine code and you want to disassemble it.
 
 The program name will be used as the file name. Any detected non-alphanumeric characters will however be replaced with \_XX in the generated file's name where XX is the hex code for the character. If the decoded file is corrupted, then only the .abc and .dat files are generated and the file name base will be *program name*\_incomplete*\_*n1*\_*n2* where n1 and n2 tell which blocks of the program were detected (from block n1 to block n2). If a block is just partially detected, the missing data bytes will be replaced with zeroes in the generated files. Thus, it is possible to recover partially read files to some extent. If no data was missing but the CRC was not correct then the name base will be *program name*\_corrupted.
@@ -135,7 +135,7 @@ With the option -ssd both these programs can also generate an Acorn DFS disc ima
 
 # ScanTAP
 
-The utility ScanTAP (Acorn Atom only) is similar to ScanTape but instead takes a TAP file as input and extracts the included Atom Tape Files in the same way as ScanTape does.
+The utility ScanTAP is similar to ScanTape but instead takes a TAP file as input and extracts the included Tape Files in the same way as ScanTape does. Works both for Acorn Atom and BBC Micro even if the format originally was created for Acorn Atom.
 
 # ScanDisc
 

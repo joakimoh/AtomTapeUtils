@@ -200,7 +200,7 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile)
         // --------------------------------------------------------------------------
 
 
-        int data_len = Utility::bytes2uint(&file_block_iter->bbmHdr.blockLen[0], 4, true); // get data length
+        int data_len = file_block_iter->size; // get data length
 
         
 
@@ -218,7 +218,7 @@ bool UEFCodec::encodeBBM(TapeFile& tapeFile)
         Word header_CRC = 0;
 
         // Store header bytes
-        if (!file_block_iter->encodeTapeHdr(header_data)) {
+        if (!file_block_iter->encodeTapeBlockHdr(header_data)) {
             *mFout << "Failed to encode header for block #" << block_no << "\n";
             return false;
         }
@@ -352,36 +352,16 @@ bool UEFCodec::encodeAtom(TapeFile& tapeFile)
         // 
         // --------------------------------------------------------------------------
 
-
-        int data_len = file_block_iter->atomHdr.lenHigh * 256 + file_block_iter->atomHdr.lenLow;  // get data length
-
-        Byte b7 = (block_no < n_blocks - 1 ? 0x80 : 0x00);          // calculate flags
-        Byte b6 = (data_len > 0 ? 0x40 : 0x00);
-        Byte b5 = (block_no != 0 ? 0x20 : 0x00);
-
         Bytes header_data;
 
         Byte preamble[4] = { 0x2a, 0x2a, 0x2a, 0x2a };              // store preamble
         addBytes2Vector(header_data, preamble, 4);
 
-        int name_len = 0;
-        for (; name_len < sizeof(file_block_iter->atomHdr.name) && file_block_iter->atomHdr.name[name_len] != 0; name_len++);
-        addBytes2Vector(header_data, (Byte*)file_block_iter->atomHdr.name, name_len); // store block name
-
-        header_data.push_back(0xd);
-
-        header_data.push_back(b7 | b6 | b5);                        // store flags
-
-        header_data.push_back((block_no >> 8) & 0xff);              // store block no
-        header_data.push_back(block_no & 0xff);
-
-        header_data.push_back((data_len > 0 ? data_len - 1 : 0));   // store length - 1
-
-        header_data.push_back(file_block_iter->atomHdr.execAdrHigh);     // store execution address
-        header_data.push_back(file_block_iter->atomHdr.execAdrLow);
-
-        header_data.push_back(file_block_iter->atomHdr.loadAdrHigh);     // store load address
-        header_data.push_back(file_block_iter->atomHdr.loadAdrLow);
+        // Store header bytes
+        if (!file_block_iter->encodeTapeBlockHdr(header_data)) {
+            *mFout << "Failed to encode header for block #" << block_no << "\n";
+            return false;
+        }
 
 
         if (!writeComplexDataChunk(*mTapeFile_p, 8, 'N', -1, header_data, CRC)) {
@@ -593,7 +573,7 @@ bool UEFCodec::encode(TapeFile& tapeFile)
 
     if (mFirstFile) {
         mFirstFile = false;
-        mTargetMachine = tapeFile.metaData.targetMachine;
+        mTargetMachine = tapeFile.header.targetMachine;
         if (!writeFileIndepPart(tapeFile))
             return false;
     }

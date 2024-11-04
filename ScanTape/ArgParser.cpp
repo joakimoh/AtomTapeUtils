@@ -32,7 +32,7 @@ void ArgParser::printUsage(const char *name)
 	cout << "-uef <file>:\n\tGenerate one UEF tape file with all successfully decoded programs.\n\n";
 	cout << "-csw <file>:\n\tGenerate one CSW tape file with all successfully decoded programs.\n\n";
 	cout << "-wav <file>:\n\tGenerate one WAV tape file with all successfully decoded programs.\n\n";
-	cout << "-tap <file>:\n\tGenerate one TAP tape file (Acorn Atom only) with all successfully decoded programs.\n\n";
+	cout << "-tap <file>:\n\tGenerate one TAP tape file with all successfully decoded programs.\n\n";
 	cout << "-ssd <file>:\n\tGenerate one disc image (SSD) file with all successfully decoded programs.\n";
 	cout << "\tThe required format for the files (.ssd or .dsd) will be selected by the utility itself.\n";
 	cout << "\tbased on the no of files (<= 31 => .ssd; >31 && <=62 => .dsd). The original extension (if any).\n";
@@ -240,12 +240,6 @@ ArgParser::ArgParser(int argc, const char* argv[])
 
 	if ((int)genFiles + (int)genUEF + (int)genWAV + (int)genCSW + (int)genTAP + (int)genSSD == 1 && cat) {
 		cout << "Only one of options -g, -uef, -wav, -csw, -tap and -ssd can be specifed!\n";
-		printUsage(argv[0]);
-		return;
-	}
-
-	if (genTAP && targetMachine <= BBC_MASTER) {
-		cout << "Option -tap cannot be combined with option -bbm!\n";
 		printUsage(argv[0]);
 		return;
 	}

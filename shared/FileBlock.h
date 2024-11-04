@@ -15,15 +15,25 @@ enum BlockType { First = 0x1, Last = 0x2, Other = 0x4, Single = 0x3, Unknown = 0
 
 #define _BLOCK_ORDER(x) (x==BlockType::First?"First":(x==BlockType::Last?"Last":(x==BlockType::Other?"Other":(x==BlockType::Single?"Single":"Unknown"))))
 
-class FileMetaData {
-public:
-	string name;
-	uint32_t loadAdr;
-	uint32_t execAdr;
-	TargetMachine targetMachine;
+class FileHeader {
 
-	FileMetaData(string n, uint32_t LA, uint32_t EA, TargetMachine t) : name(n), loadAdr(LA), execAdr(EA), targetMachine(t) {}
-	FileMetaData(TargetMachine tm, string program) : targetMachine(tm), name(program) {
+public:
+	string			name;
+	uint32_t		loadAdr;
+	uint32_t		execAdr;
+	uint32_t		size;
+	TargetMachine	targetMachine;
+	bool			locked = false;		// Lock status for file (locked if at least one block is locked) 
+
+	FileHeader() {}
+
+	FileHeader(string n, uint32_t LA, uint32_t EA, uint32_t sz, TargetMachine t) :
+		name(n), loadAdr(LA), execAdr(EA), targetMachine(t), size(sz), locked(false) {}
+
+	FileHeader(string n, uint32_t LA, uint32_t EA, uint32_t sz, TargetMachine t, bool l) :
+		name(n), loadAdr(LA), execAdr(EA), targetMachine(t), size(sz), locked(l) {}
+
+	FileHeader(TargetMachine tm, string program) : targetMachine(tm), name(program) {
 		if (targetMachine <= BBC_MASTER) {
 			loadAdr = 0xffff0e00;
 			execAdr = 0xffff0e00;
@@ -34,35 +44,41 @@ public:
 		}
 	}
 
-	void init() { name = "???"; loadAdr = 0x0; execAdr = 0x0; targetMachine = TargetMachine::UNKNOWN_TARGET; }
-	void init(TargetMachine t) { name = "???"; loadAdr = 0x0; execAdr = 0x0; targetMachine = t; }
+	void init() { name = "???"; loadAdr = 0x0; execAdr = 0x0; size = 0x0;  targetMachine = TargetMachine::UNKNOWN_TARGET; locked = false; }
+	void init(TargetMachine t) { name = "???"; loadAdr = 0x0; execAdr = 0x0; size = 0x0;  targetMachine = t; locked = false; }
 };
 
 class FileBlock {
 
 public:
 
+	// Block Header
+	string		name;		// Block name - normally the same as a complete TapeFile's program name
+	uint32_t	loadAdr;	// Load address for the block
+	uint32_t	execAdr;	// Execution address for the block - normally the same as a complete TapeFile's load address
+	uint16_t	no;			// Block no (the blocks of a file should normally be numbered sequentially in ascending order, starting from 0)
+	uint16_t	size;		// Size of the block (normally <= 256 but could be larger)
+	bool		locked = false;		// Lock status for block 
+	uint32_t	nextAdr;	// Address of the following block (N/A if zero)
 
+	// Block Data
+	vector<Byte> data;		// The block data (could be empty)
 
+	// Block Type (First, Other, Single,Last)
+	BlockType blockType = BlockType::Unknown;
+
+	// Target Machine (Acorn Atom, BBC Micro, Electron, etc.)
 	TargetMachine targetMachine;
 
-	union {
-		ATMHdr atomHdr;
-		BTMHdr bbmHdr;
-	};
-
+	// Block's correctness status (when read from tape)
 	bool completeHdr = true;
 	bool completeData = true;
-	
-	int blockNo = -1; // ATM header lacks block no so add it here
 
-	vector<Byte> data;
+	// Overall block timing (when read from tape)
+	double tapeStartTime = -1; // start of block
+	double tapeEndTime = -1; // end of block
 
-	// Overall block timing when parsing WAV file
-	double tapeStartTime = 0; // start of block
-	double tapeEndTime = 0; // end of block
-
-	// Detailed block timing - used for UEF/CSW file generation later on
+	// Detailed block timing (timing from tape when applicable) - used for UEF/CSW file generation later on
 	int phaseShift = 180; // half_cycle [degrees] when shifting from high to low frequency - normally 180 degrees
 	int preludeToneCycles = 4; // no of high frequency cycles for prelude lead tone (BBC Micro only) - normally 4 
 	int leadToneCycles = 9600; // no of high frequency cycles for lead tone (including postlude for BBC Micro)- normally 4 * 2400 = 10 080
@@ -72,8 +88,7 @@ public:
 
 
 protected:
-	
-	BlockType blockType = BlockType::Unknown;
+
 
 private:
 
@@ -83,48 +98,51 @@ private:
 	static string atomTapeBlockHdrFieldName(int offset);
 	static string bbmTapeBlockHdrFieldName(int offset);
 
+	bool updateFromBBMFlags(Byte flags);
+	bool updateFromAtomFlags(Byte flags, Byte block_sz_M1);
 
-
-
+	Byte crAtomFlags();
+	Byte crBBMFlags();
 
 public:
+
+	// Expected size of a tape header
+	int tapeHdrSz();
+
+	bool firstBlock() { return (blockType == BlockType::First || blockType == BlockType::Single); }
+	bool lastBlock() { return (blockType == BlockType::Last || blockType == BlockType::Single); }
+
+	Byte crFlags();
 
 	BlockType getBlockType();
 	void setBlockType(BlockType bt);
 
-	FileBlock(TargetMachine bt);
+	FileBlock(TargetMachine target);
+	FileBlock(TargetMachine target, string name, uint32_t no, uint32_t loadAdr, uint32_t execAdr, uint32_t blockLen);
 	
 	bool init();
 	bool init(CapturedBlockTiming& block_info);
-
-	// Properties
-	int tapeHdrSz();
-	string blockName();
-	uint32_t loadAdr();
-	uint32_t execAdr();
-	int dataSz();
-	bool lastBlock();
-	bool firstBlock();
 
 	string tapeField(int n);
 
 	bool updateCRC(Word& crc, Byte data);
 	static bool updateCRC(TargetMachine targetMachine, Word& crc, Byte data);
 
-	bool decodeTapeHdr(Bytes &name, Bytes &hdr, bool limitBlockNo = false);
-	bool decodeTapeHdr(Bytes &hdr, bool limitBlockNo);
-	bool encodeTapeHdr(Bytes &hdr);
-	bool logHdr(ostream* fout);
-	bool logHdr();
+	// Decode Atom/BBC Micro cassette format block header into Tape File header
+	bool decodeTapeBlockHdr(Bytes &name, Bytes &hdr, bool limitBlockNo = false);
+	
+	// Encode Tape File header into Atom/BBC Micro cassette format block header
+	bool encodeTapeBlockHdr(Bytes &hdr);
 
+
+	bool logFileBlockHdr(ostream* fout);
+	bool logFileBlockHdr();
+
+	// Encode Tape File header from explicit parameters
 	bool encodeTAPHdr(
 		string tapefileName, uint32_t fileLoadAdr, uint32_t loadAdr, uint32_t execAdr, uint32_t blockNo, uint32_t BlockSz
 	);
-
-	bool readTapeFileName(TargetMachine target_machine, BytesIter& data_iter, Bytes& data, Word& CRC);
-
 	
-
 };
 
 
@@ -134,28 +152,35 @@ class TapeFile {
 
 public:
 
-	FileMetaData metaData;
+	// File header (with name, load & execution address and size)
+	FileHeader	header;
 
-	TapeFile(TargetMachine targetMachine) : metaData("???", 0x0, 0x0, targetMachine) {}
-	TapeFile(FileMetaData md) : metaData(md.name, md.loadAdr, md.execAdr, md.targetMachine) { }
-	TapeFile() : metaData("???", 0x0, 0x0, TargetMachine::UNKNOWN_TARGET) {}
-
+	// The file blocks
 	vector<FileBlock> blocks;
 
+	int firstBlock = -1; // first encountered block's no
+	int lastBlock = -1; // last encountered block's no
+
+	// File's correctness status (when read from tape)
 	bool complete = true; // true if all blocks were successfully detected
 	bool corrupted = false; // true if at least one block could be corrupted (CRC was incorrect)
 
-	int firstBlock = 0; // first encountered block's no
-	int lastBlock = 0; // last encountered block's no
-
-	string programName; // Name used for each block of the file
-
-	bool validTiming = false; // true if the file's timing information is valid
+	bool validTiming = false; // true if the file's block timing information is valid
 
 	int baudRate = 300;
 
-	void logTAPFileHdr(ostream* fout);
-	void logTAPFileHdr();
+	// Overall block timing (when read from tape)
+	double tapeStartTime = -1; // start of first block
+	double tapeEndTime = -1; // end of last block
+
+public:
+
+	TapeFile(TargetMachine targetMachine) : header("???", 0x0, 0x0, 0x0, targetMachine) {}
+	TapeFile(FileHeader h) { header = h; }
+	TapeFile() : header("???", 0x0, 0x0, 0x0, TargetMachine::UNKNOWN_TARGET) {}
+
+	void logFileHdr(ostream* fout);
+	void logFileHdr();
 	void init();
 	void init(TargetMachine targetMachine);
 
@@ -166,8 +191,6 @@ public:
 	// when creating the tape file (but only after creation of it)
 	//
 	bool setBlockTypes();
-
-	int size();
 
 	static string crValidHostFileName(string fileName);
 

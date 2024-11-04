@@ -179,14 +179,14 @@ bool BlockDecoder::readBlock(
 	updateCRC(readBlock, crc, hdr_bytes);
 
 	// Decode header
-	if (!readBlock.decodeTapeHdr(name_bytes, hdr_bytes, mLimitBlockNo)) {
+	if (!readBlock.decodeTapeBlockHdr(name_bytes, hdr_bytes, mLimitBlockNo)) {
 		if (mDebugInfo.tracing)
-			DEBUG_PRINT(getTime(), ERR, "Failed to decode header for file '%s'\n", readBlock.blockName().c_str());
+			DEBUG_PRINT(getTime(), ERR, "Failed to decode header for file '%s'\n", readBlock.name.c_str());
 		return false;
 	}
 
 	if (mDebugInfo.verbose)
-		readBlock.logHdr();
+		readBlock.logFileBlockHdr();
 
 	if (readBlock.targetMachine <= BBC_MASTER) { // For all but Atom, the header has a separate CRC
 
@@ -194,7 +194,7 @@ bool BlockDecoder::readBlock(
 		Word hdr_CRC;
 		if (!getWord(&hdr_CRC)) {
 			if (mDebugInfo.tracing)
-				DEBUG_PRINT(getTime(), ERR, "Failed to read header CRC for file '%s'\n", readBlock.blockName().c_str());
+				DEBUG_PRINT(getTime(), ERR, "Failed to read header CRC for file '%s'\n", readBlock.name.c_str());
 			return false;
 		}
 		nReadBytes += 2;
@@ -203,7 +203,7 @@ bool BlockDecoder::readBlock(
 		if (hdr_CRC != crc) {
 			if (mDebugInfo.tracing) {
 				DEBUG_PRINT(getTime(), ERR, "Calculated header CRC 0x%x differs from received CRC 0x%x for file '%s'\n", crc, hdr_CRC,
-					readBlock.blockName().c_str());
+					readBlock.name.c_str());
 			}
 			readStatus |= BLOCK_HDR_CRC_ERR;
 		}
@@ -223,7 +223,7 @@ bool BlockDecoder::readBlock(
 		double waiting_time;
 		if (!mReader.waitForCarrier(100, waiting_time, readBlock.microToneCycles, DATA_FOLLOWS)) {
 			if (mDebugInfo.tracing)
-				DEBUG_PRINT(getTime(), ERR, "Failed to detect micro tone for file '%s'!\n", readBlock.blockName().c_str());
+				DEBUG_PRINT(getTime(), ERR, "Failed to detect micro tone for file '%s'!\n", readBlock.name.c_str());
 			return false;
 		}
 
@@ -234,11 +234,11 @@ bool BlockDecoder::readBlock(
 
 
 	// Get data bytes (if they exist)
-	int block_len = readBlock.dataSz();
+	int block_len = readBlock.size;
 	if (block_len > 0) {
 		if (!mReader.readBytes(readBlock.data, block_len, n_read_bytes)) {
 			if (mDebugInfo.tracing)
-				DEBUG_PRINT(getTime(), ERR, "Failed to read block data for file '%s'!\n", readBlock.blockName().c_str());
+				DEBUG_PRINT(getTime(), ERR, "Failed to read block data for file '%s'!\n", readBlock.name.c_str());
 			nReadBytes += n_read_bytes;
 			return false;
 		}
@@ -249,7 +249,7 @@ bool BlockDecoder::readBlock(
 			cout << dec << n_read_bytes << " bytes of expected " << block_len << " of data bytes read at " << Utility::encodeTime(getTime()) << "\n";
 
 		if (DEBUG_LEVEL == DBG && mDebugInfo.tracing && readBlock.data.size() > 0)
-			Utility::logData(readBlock.loadAdr(), &readBlock.data[0], block_len);
+			Utility::logData(readBlock.loadAdr, &readBlock.data[0], block_len);
 	}
 	readStatus = BlockError(readStatus ^ BLOCK_DATA_INCOMPLETE);
 	readBlock.completeData = true;
@@ -263,7 +263,7 @@ bool BlockDecoder::readBlock(
 	if (readBlock.targetMachine <= BBC_MASTER && ending_CRC_exists) {
 		if (!getWord(&data_CRC)) {
 			if (mDebugInfo.tracing)
-				DEBUG_PRINT(getTime(), ERR, "Failed to read block CRC for file '%s'\n", readBlock.blockName().c_str());
+				DEBUG_PRINT(getTime(), ERR, "Failed to read block CRC for file '%s'\n", readBlock.name.c_str());
 			return false;
 		}
 		nReadBytes += 2;
@@ -272,7 +272,7 @@ bool BlockDecoder::readBlock(
 		Byte c;
 		if (!mReader.readByte(c)) {
 			if (mDebugInfo.tracing)
-				DEBUG_PRINT(getTime(), ERR, "Failed to read block CRC for file '%s'\n", readBlock.blockName().c_str());
+				DEBUG_PRINT(getTime(), ERR, "Failed to read block CRC for file '%s'\n", readBlock.name.c_str());
 			return false;
 		}
 		nReadBytes += 1;
@@ -283,7 +283,7 @@ bool BlockDecoder::readBlock(
 	if (ending_CRC_exists && data_CRC != crc) {
 		if (mDebugInfo.tracing)
 			DEBUG_PRINT(getTime(), ERR, "Calculated (data) CRC 0x%x differs from received  CRC 0x%x for file '%s'\n", crc, data_CRC,
-				readBlock.blockName().c_str());
+				readBlock.name.c_str());
 		if (readBlock.targetMachine <= BBC_MASTER)
 			readStatus |= BLOCK_DATA_CRC_ERR;
 		else
@@ -361,11 +361,9 @@ bool BlockDecoder::getBlockName(Bytes &name)
 	Byte b;
 	Byte terminator = 0x0;
 	int max_len = BBM_TAPE_NAME_LEN;
-	int max_ATM_len = BTM_HDR_NAM_SZ;
 	if (mTargetMachine == ACORN_ATOM) {
 		terminator = 0xd;
 		max_len = ATOM_TAPE_NAME_LEN;
-		max_ATM_len = ATM_HDR_NAM_SZ;
 	}
 
 	int i = 0;

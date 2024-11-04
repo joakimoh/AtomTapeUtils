@@ -14,7 +14,7 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char *name)
 {
-	cout << "Generate UEF, DAT, BIN (and TAP - Acorn Atom only) files based on a program file.\n\n"; 
+	cout << "Generate UEF, DAT, BIN and TAP files based on a program file.\n\n"; 
 	cout << "Usage:\t" << name << " <ABC file> [-g <output directory>] [-v] [-bbm]\n";
 	cout << " \t -g <dir>\n\n";
 	cout << "<ABC file>:\n\tAcorn Atom BASIC program file to decode\n\n";

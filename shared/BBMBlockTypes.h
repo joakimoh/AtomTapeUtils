@@ -33,21 +33,6 @@ typedef struct {
 #define BBM_TAPE_BLOCK_LEN 10
 #define BBM_TAPE_BLOCK_FLAGS 12
 #define BBM_TAPE_BLOCK_NEXT_ADR 13
-//
-// BBC Micro File structure
-// 
-// One block of such a file is referred to as a BTM Block (from Bbc micro Tape Module)
-// 
-#define BTM_HDR_NAM_SZ 10
-typedef struct BTMHdr_struct {
-	char name[BTM_HDR_NAM_SZ];
-	Byte loadAdr[4];
-	Byte execAdr[4];
-	Byte blockNo[2];
-	Byte blockLen[2];
-	Byte blockFlag; // b7 = last block, b6 = empty block, b0 = locked block
-	bool locked; // true if block is Locked
-} BTMHdr;
-
+#define BBM_TAPE_HDR_SZ sizeof(BBMTapeBlockHdr)
 
 #endif

@@ -23,15 +23,16 @@ using namespace std::filesystem;
 
 /*
  *
- * Create Atom TAP/MMC file from Acorn Atom BASIC (ABC) program
+ * Create a TAP/MMC file from an Acorn Atom/BBC Micro BASIC data (DAT) file
+ * containing the binary program in a readable format.
  *
- * The Atom TAP/MMC file format is used by Atomulator as well as the
+ * The TAP/MMC file format is used by Atomulator as well as the
  * AtoMMC2 & AtoMMC v4 SD/MMC card interface for storing native
  * Acorn Atom files onto an SC/MMC card.
  *
  * Format: <file name: 16> <load addr: 2> <exec addr: 2> <len: 2> <data>
  *
- * Where file name is max 13 chars and right-padded with zeros and
+ * Where file name is max 13 chars (Atom) or 10 chars (BBC Micro) and right-padded with zeros and
  * addresses and len are stored in little-endian order.
  *
  * See: http://www.acornatom.nl/atom_plaatjes/sd-files/atommmc2.html

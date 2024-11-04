@@ -14,12 +14,14 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Scans an Acorn Atom TAP file for program files and generates either a set of\n";
-	cout << "files of different formats per detected program or a new tape or disc file\n";
-	cout << "with the content being the detected (and selected) programs.\n\n"; cout << "Usage:\t" << name << " <TAP file> [-v] [-n <program>]\n";
+	cout << "Scans a TAP file ('Wouter Ras' format - see https://www.stairwaytohell.com/atom/wouterras/)\n";
+	cout << "for program files and generates either a set of files of different formats per detected\n";
+	cout << "program or a new tape or disc file with the content being the detected (and selected) programs.\n\n";
+	cout << "Usage:\t" << name << " <TAP file> [-v] [-bbm] [-n <program>]\n";
 	cout << " \t -g <dir> | -uef <file> | -wav <file> | -csw <file> | -ssd <file> | -c\n\n";
 	cout << "<TAP file>:\n\tTAP file to decode.\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
+	cout << "-bbm:\n\tScan for BBC Micro (default is Acorn Atom).\n\n";
 	cout << "-n <program>:\n\tOnly search for (and extract) <program>.\n\n";
 	cout << "-g <dir>:\n\tDirectory to put generated files in\n\t- default is work directory.\n\n";
 	cout << "-uef <file>:\n\tGenerate one UEF tape file with all successfully decoded programs.\n\n";
@@ -67,6 +69,9 @@ ArgParser::ArgParser(int argc, const char* argv[])
 	while (ac < argc) {
 		if (strcmp(argv[ac], "-c") == 0) {
 			cat = true;
+		}
+		else if (strcmp(argv[ac], "-bbm") == 0) {
+			// Nothing to do as already handled above
 		}
 		else if (strcmp(argv[ac], "-n") == 0) {
 			searchedProgram = argv[ac + 1];

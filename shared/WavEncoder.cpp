@@ -76,7 +76,7 @@ bool WavEncoder::encode(TapeFile& tapeFile, string& filePath)
         return false;
 
     if (mDebugInfo.verbose)
-        cout << "\nDone encoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
+        cout << "\nDone encoding program '" << tapeFile.blocks[0].name << "' as a WAV file...\n\n";
 
     return true;
 }
@@ -84,7 +84,7 @@ bool WavEncoder::encode(TapeFile& tapeFile, string& filePath)
 // Get samples from tape file and add it to the total set of samples
 bool WavEncoder::encode(TapeFile& tapeFile)
 {
-    if (tapeFile.metaData.targetMachine <= BBC_MASTER)
+    if (tapeFile.header.targetMachine <= BBC_MASTER)
         return encodeBBM(tapeFile);
     else
         return encodeAtom(tapeFile); 
@@ -118,7 +118,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile)
     FileBlockIter block_iter = tapeFile.blocks.begin();
 
     if (mDebugInfo.verbose)
-        cout << "\nEncoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
+        cout << "\nEncoding program '" << tapeFile.blocks[0].name << "' as a WAV file...\n\n";
 
 
     int block_no = 0;
@@ -184,7 +184,7 @@ bool WavEncoder::encodeBBM(TapeFile& tapeFile)
         mCRC = 0;
 
         // Store header bytes
-        if (!block_iter->encodeTapeHdr(header_data)) {
+        if (!block_iter->encodeTapeBlockHdr(header_data)) {
              cout << "Failed to encode header bytes for block #" << block_no << "\n";
             return false;
         }
@@ -339,7 +339,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile)
     FileBlockIter block_iter = tapeFile.blocks.begin();
 
     if (mDebugInfo.verbose)
-        cout << "\nEncoding program '" << tapeFile.blocks[0].blockName() << "' as a WAV file...\n\n";
+        cout << "\nEncoding program '" << tapeFile.blocks[0].name << "' as a WAV file...\n\n";
     
 
     int block_no = 0;
@@ -390,7 +390,7 @@ bool WavEncoder::encodeAtom(TapeFile &tapeFile)
             header_data.push_back(0x2a);
 
         // Store header bytes
-        if (!block_iter->encodeTapeHdr(header_data)) {
+        if (!block_iter->encodeTapeBlockHdr(header_data)) {
             cout << "Failed to encode header for block #" << block_no << "\n";
             return false;
         }

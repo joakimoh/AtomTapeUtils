@@ -14,12 +14,14 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Generates program source code from an Acorn Atom TAP file.\n\n";
-	cout << "Usage:\t" << name << " <TAP file> [-o <output file>] [-v]\n";
+	cout << "Generates program source code from a TAP file ('Wouter Ras' format - see\n";
+	cout << "https://www.stairwaytohell.com/atom/wouterras/).\n\n";
+	cout << "Usage:\t" << name << " <TAP file> [-bbm] [-o <output file>] [-v]\n";
 	cout << "<TAP file>:\n\tTAP file to decode\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.abc'.\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
+	cout << "-bbm:\n\tGenerate for BBC Micro (default is Acorn Atom).\n\n";
 	cout << "\n";
 }
 
@@ -47,6 +49,9 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		if (strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
 			dstFileName = argv[ac + 1];
 			ac++;
+		}
+		else if (strcmp(argv[ac], "-bbm") == 0) {
+			targetMachine = BBC_MODEL_B;
 		}
 		else if (strcmp(argv[ac], "-v") == 0) {
 			logging.verbose = true;

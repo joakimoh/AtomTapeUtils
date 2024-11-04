@@ -22,12 +22,13 @@ public:
 	//
 	// Encode TAP File structure as binary data
 	//
-	bool encode(TapeFile& tapFile, FileMetaData &fileMetaData, Bytes &data);
+	bool encode(TapeFile& tapFile, FileHeader &fileMetaData, Bytes &data);
+	static bool encode(TapeFile& tapFile, string& binFileName);
 
 	//
 	// Decode binary data as TAP File structure
 	//
-	bool decode(FileMetaData fileMetaData, Bytes &data, TapeFile& tapFile);
+	bool decode(FileHeader fileMetaData, Bytes &data, TapeFile& tapFile);
 
 
 private:

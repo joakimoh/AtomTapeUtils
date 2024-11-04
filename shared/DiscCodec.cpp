@@ -261,18 +261,37 @@ bool DiscCodec::read(string discPath, Disc& disc)
     return true;
 }
 
-bool DiscCodec::write(string title, string discPath, vector<TapeFile> &tapeFiles)
+bool DiscCodec::write(string title, string discPath, vector<TapeFile> &tapeFilesIn)
 {
-    if (tapeFiles.size() == 0 || tapeFiles.size() > 62) {
-        cout << "No of files to write to image was " << tapeFiles.size() << " but must be between 1 and 62!\n";
+    if (tapeFilesIn.size() == 0 || tapeFilesIn.size() > 62) {
+        cout << "No of files to write to image was " << tapeFilesIn.size() << " but must be between 1 and 62!\n";
         return false;
     }
 
-    
-    for (int f = 0; f < tapeFiles.size(); f++) {
-        if (tapeFiles[f].blocks.size() == 0) {
-            cout << "At least one file to write to image was empty!\n";
-            return false;
+    // Skip empty files and make sure file names become unique and are valid disc file names
+    vector<TapeFile> tapeFiles;
+    map<string, TapeFile> fileNames;
+    for (int f = 0; f < tapeFilesIn.size(); f++) {
+        if (tapeFilesIn[f].blocks.size() == 0) {
+            if (mVerbose)
+                cout << "File '" << tapeFilesIn[f].header.name << "' was empty - skipping it for the disc image!\n";
+        }
+        else {
+            TapeFile file = tapeFilesIn[f];
+            string disc_filename = tapeFilesIn[f].crValidDiscFilename(tapeFilesIn[f].header.name);
+            int no_of_files = (int) tapeFilesIn.size();
+            int n = 0;
+            for (; fileNames.find(disc_filename) != fileNames.end() && n < no_of_files; n++) {
+                disc_filename = disc_filename.substr(0, disc_filename.length() - 1) + to_string(n % 10);
+            }
+            fileNames[disc_filename] = file;
+            if (n == no_of_files) {
+                cout << "Failed to generate unique disc file names!\n";
+                return false;
+            }
+            file.header.name = disc_filename;
+            file.logFileHdr();
+            tapeFiles.push_back(file);
         }
     }
 
@@ -352,9 +371,9 @@ bool DiscCodec::write(string title, string discPath, vector<TapeFile> &tapeFiles
 
         // Write file names and their directories (in Sector 0)
         for (int f = first_file_no; f < first_file_no+n_files_side; f++) {
-            string disc_filename = tapeFiles[f].crValidDiscFilename(tapeFiles[f].programName);
+            string disc_filename = tapeFiles[f].header.name;
             if (mVerbose)
-                cout << "File #" << f << " '" << tapeFiles[f].programName << "' (stored as disc file '" << disc_filename << "')\n";
+                cout << "File #" << f << " '" << tapeFiles[f].header.name << "' (stored as disc file '" << disc_filename << "')\n";
             for (int i = 0; i < 7; i++) {
                 Byte c = 0x20;
                 if (i < disc_filename.size())
@@ -362,7 +381,8 @@ bool DiscCodec::write(string title, string discPath, vector<TapeFile> &tapeFiles
                 side_image_bytes[side].push_back(c);
 
             }
-            Byte d = (Byte) '+'; // Just have all files in one directory '+'
+            // Set directory name ('+') and locked status
+            Byte d = (Byte) '+' | (tapeFiles[f].header.locked?0x80:0x00);
             side_image_bytes[side].push_back(d);
         }
 
@@ -406,22 +426,22 @@ bool DiscCodec::write(string title, string discPath, vector<TapeFile> &tapeFiles
             FileBlock& first_block = tapeFiles[f].blocks[0];
             Byte file_info[8];
             uint32_t start_sector = next_available_sector;
-            next_available_sector += (int)ceil((double)tapeFiles[f].size() / sector_size);
+            next_available_sector += (int)ceil((double)tapeFiles[f].header.size / sector_size);
 
             if (mVerbose)
-                cout << "Program " << first_block.blockName() << " starts at Sector " << start_sector << " and occupies " <<
+                cout << "Program " << first_block.name << " starts at Sector " << start_sector << " and occupies " <<
                 next_available_sector - start_sector << " sectors\n";
 
-            Byte load_adr_b9b10 = (first_block.loadAdr() >> (32 - 2)) & 0xc0;
-            Byte exec_adr_b9b10 = (first_block.execAdr() >> (32 - 6)) & 0xc0;
+            Byte load_adr_b9b10 = (tapeFiles[f].header.loadAdr >> (32 - 2)) & 0xc0;
+            Byte exec_adr_b9b10 = (tapeFiles[f].header.execAdr >> (32 - 6)) & 0xc0;
             Byte start_sector_b8b9 = (start_sector >> 8) & 0x3;
 
-            file_info[0] = first_block.loadAdr() & 0xff;
-            file_info[1] = (first_block.loadAdr() >> 8) & 0xff;
-            file_info[2] = first_block.execAdr() & 0xff;
-            file_info[3] = (first_block.execAdr() >> 8) & 0xff;
-            file_info[4] = tapeFiles[f].size() & 0xff;
-            file_info[5] = (tapeFiles[f].size() >> 8) & 0xff;
+            file_info[0] = tapeFiles[f].header.loadAdr & 0xff;
+            file_info[1] = (tapeFiles[f].header.loadAdr >> 8) & 0xff;
+            file_info[2] = tapeFiles[f].header.execAdr & 0xff;
+            file_info[3] = (tapeFiles[f].header.execAdr >> 8) & 0xff;
+            file_info[4] = tapeFiles[f].header.size & 0xff;
+            file_info[5] = (tapeFiles[f].header.size >> 8) & 0xff;
             file_info[6] = load_adr_b9b10 | exec_adr_b9b10 | start_sector_b8b9;
             file_info[7] = start_sector & 0xff;
 
@@ -444,7 +464,7 @@ bool DiscCodec::write(string title, string discPath, vector<TapeFile> &tapeFiles
             vector<FileBlock>& blocks = tapeFiles[f].blocks;
 
             if (mVerbose)
-                cout << "Writing block data for program " << tapeFiles[f].programName << " with #" << blocks.size() << " blocks\n";
+                cout << "Writing block data for program " << tapeFiles[f].header.name << " with #" << blocks.size() << " blocks\n";
 
             int data_sz = 0;
             for (int b = 0; b < blocks.size(); b++) {

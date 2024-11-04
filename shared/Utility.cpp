@@ -145,6 +145,16 @@ void Utility::uint2bytes(uint32_t u, Byte* bytes, int n, bool littleEndian)
 
 }
 
+void Utility::uint2bytes(uint32_t u, Bytes &bytes, int n, bool littleEndian)
+{
+    Byte tmp_bytes[4]; 
+    uint2bytes(u, tmp_bytes, n, littleEndian);
+
+    for (int i = 0; i < n && i < 4; i++)
+        bytes.push_back(tmp_bytes[i]);
+
+}
+
 string Utility::getFileExt(string filePath)
 {
     filesystem::path file_path = filePath;
@@ -211,7 +221,7 @@ string Utility::crEncodedProgramFileNamefromDir(string dirPath, TargetMachine ta
 string Utility::crEncodedFileNamefromDir(string dirPath, TapeFile &tapeFile, string fileExt)
 {
     filesystem::path dir_path = dirPath;
-    filesystem::path file_base = tapeFile.crValidHostFileName(tapeFile.programName);
+    filesystem::path file_base = tapeFile.crValidHostFileName(tapeFile.header.name);
     stringstream suffix;
 
     string file_ext;

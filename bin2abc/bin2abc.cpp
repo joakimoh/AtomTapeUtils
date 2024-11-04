@@ -20,7 +20,7 @@ using namespace std::filesystem;
 
 /*
  *
- * Create UEF from Acorn Atom BASIC (ABC) program
+ * Create an Acorn Atom/BBC Micro BASIC source program file from a binary file.
  * *
  */
 int main(int argc, const char* argv[])

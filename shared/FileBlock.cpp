@@ -30,8 +30,6 @@ bool TapeFile::setBlockTypes()
 
     // Type of last block
     this->blocks[this->blocks.size() - 1].setBlockType(BlockType::Last);
-    if (this->metaData.targetMachine <= BBC_MASTER)
-        this->blocks[this->blocks.size() - 1].bbmHdr.blockFlag |= 0x80;
 
     // Type of first block
     if (this->blocks.size() == 1)
@@ -53,19 +51,29 @@ void TapeFile::init()
 
 void TapeFile::init(TargetMachine targetMachine)
 {
-    metaData.init(targetMachine);
+    header.init(targetMachine);
     blocks.clear();
     complete = false;
     corrupted = false;
     firstBlock = -1;
     lastBlock = -1;
-    programName = "FAILED";
+    header.name = "FAILED";
     validTiming = false;
     baudRate = 300;
 }
 
-FileBlock::FileBlock(TargetMachine bt) {
-    targetMachine = bt;
+FileBlock::FileBlock(TargetMachine t) {
+    targetMachine = t;
+}
+
+FileBlock::FileBlock(TargetMachine t, string blockName, uint32_t blockNo, uint32_t LA, uint32_t EA, uint32_t sz)
+{
+    this->targetMachine = t;
+    this->name = blockName;
+    this->no = blockNo;
+    this->loadAdr = LA;
+    this->execAdr = EA;
+    this->size = sz;
 }
 
 string FileBlock::tapeField(int n)
@@ -118,14 +126,6 @@ string FileBlock::bbmTapeBlockHdrFieldName(int offset)
 
 }
 
-string FileBlock::blockName() {
-    if (targetMachine == ACORN_ATOM)
-        return atomHdr.name;
-    else
-        return bbmHdr.name;
-}
-
-
 bool FileBlock::init(CapturedBlockTiming& block_info)
 {
     init();
@@ -147,7 +147,7 @@ bool FileBlock::init()
 {
     this->data.clear();
     
-    this->blockNo = -1;
+    this->no = -1;
     this->blockType= BlockType::Unknown;
 
     this->preludeToneCycles = -1; 
@@ -161,10 +161,12 @@ bool FileBlock::init()
     this->tapeStartTime = -1;
     this->trailerToneCycles = -1;
 
-    if (this->targetMachine <= BBC_MASTER)
-        Utility::initbytes((Byte *)  & this->bbmHdr.name[0], 0, sizeof(BTMHdr));
-    else
-        Utility::initbytes((Byte*)&this->atomHdr.name[0], 0, sizeof(ATMHdr));
+    this->loadAdr = 0x0;
+    this->execAdr = 0x0;
+    this->size = 0x0;
+    this->no = 0x0;
+    this->locked = false;
+    this->nextAdr = 0x0;
 
     return true;
 }
@@ -185,6 +187,13 @@ bool FileBlock::updateCRC(TargetMachine targetMachine, Word& crc, Byte data)
         return false;
 }
 
+int FileBlock::tapeHdrSz()
+{
+    if (targetMachine <= BBC_MASTER)
+        return BBM_TAPE_HDR_SZ;
+    else
+        return ATOM_TAPE_HDR_SZ;
+}
 
 bool FileBlock::updateAtomCRC(Word& CRC, Byte data)
 {
@@ -212,210 +221,184 @@ bool FileBlock::updateBBMCRC(Word& CRC, Byte data)
      return true;
 }
 
-int FileBlock::tapeHdrSz()
+bool FileBlock::decodeTapeBlockHdr(Bytes &name_bytes, Bytes &hdr_bytes, bool limitBlockNo)
 {
-    if (targetMachine == ACORN_ATOM)
-        return sizeof(AtomTapeBlockHdr);
-    else if (targetMachine <= BBC_MASTER)
-        return sizeof(BBMTapeBlockHdr);
-    else
-        return -1;
-}
-
-int FileBlock::dataSz()
-{
-    if (targetMachine == ACORN_ATOM)
-        return atomHdr.lenHigh * 256 + atomHdr.lenLow;
-    else if (targetMachine <= BBC_MASTER)
-        return Utility::bytes2uint(&bbmHdr.blockLen[0], 2, true);
-    else
-        return -1;
-}
-
-uint32_t FileBlock::loadAdr()
-{
+    // Decode name
+    name = "";
+    Byte terminator = 0xd;
     if (targetMachine <= BBC_MASTER)
-        return Utility::bytes2uint(&bbmHdr.loadAdr[0], 4, true);
-    else
-        return atomHdr.loadAdrHigh * 256 + atomHdr.loadAdrLow;
-}
-
-uint32_t FileBlock::execAdr()
-{
-    if (targetMachine <= BBC_MASTER)
-        return Utility::bytes2uint(&bbmHdr.execAdr[0], 4, true);
-    else
-        return atomHdr.execAdrHigh * 256 + atomHdr.execAdrLow;
-}
-
-bool FileBlock::lastBlock()
-{
-    return blockType == BlockType::Last || blockType == BlockType::Single;
-}
-
-bool FileBlock::firstBlock()
-{
-    return blockType == BlockType::First || blockType == BlockType::Single;
-}
-
-bool FileBlock::decodeTapeHdr(Bytes &name, Bytes &hdr_bytes, bool limitBlockNo)
-{
-    if (targetMachine == ACORN_ATOM) {
-
-        // Add block name to header (terminating 0xd excluded)
-        for (int i = 0; i < name.size()-1 && i < ATM_HDR_NAM_SZ; i++)
-            atomHdr.name[i] = name[i];
-        for (int i = (int) name.size()-1; i < ATM_HDR_NAM_SZ; i++)
-            atomHdr.name[i] = '\0';
-
+        terminator = 0x0;
+    for (int i = 0; i < name_bytes.size() && name_bytes[i] != terminator; i++) {
+        name = name + (char)name_bytes[i];
     }
-    else if (targetMachine <= BBC_MASTER) {
-
-        // Add block name to header
-        for (int i = 0; i < name.size() && i < BTM_HDR_NAM_SZ; i++)
-            bbmHdr.name[i] = name[i];
-        for (int i = (int) name.size(); i < BTM_HDR_NAM_SZ; i++)
-            bbmHdr.name[i] = '\0';    
-    }
-    else
-        return false;
-
+    
     // Decode rest of header
-    return decodeTapeHdr(hdr_bytes, limitBlockNo);
-}
-
-bool FileBlock::decodeTapeHdr(Bytes& hdr_bytes, bool limitBlockNo)
-{
-    if (targetMachine == ACORN_ATOM) {
-
-        // Check that the no of remaining bytes are sufficient to hold the header
-        if (hdr_bytes.size() < sizeof(AtomTapeBlockHdr))
-            return false;
-
-        // Read rest of header into the ATM Block header
-        atomHdr.loadAdrLow = hdr_bytes[ATOM_TAPE_BLOCK_LOAD_ADR_L];
-        atomHdr.loadAdrHigh = hdr_bytes[ATOM_TAPE_BLOCK_LOAD_ADR_H];
-        atomHdr.execAdrLow = hdr_bytes[ATOM_TAPE_BLOCK_EXEC_ADR_L];
-        atomHdr.execAdrHigh = hdr_bytes[ATOM_TAPE_BLOCK_EXEC_ADR_H];
-        Byte block_sz_M1 = hdr_bytes[ATOM_TAPE_BLOCK_LEN];
-        Byte flags = hdr_bytes[ATOM_TAPE_BLOCK_FLAGS]; // b7: not  last block.; b6: block has data; b5:not 1st block.
-        int block_sz;
-        if ((flags & 0x40) == 0x40)
-            block_sz = block_sz_M1 + 1;
-        else
-            block_sz = 0;
-        atomHdr.lenLow = block_sz % 256;
-        atomHdr.lenHigh = block_sz / 256;
-
-        // Extract block no
-        int block_no_H = hdr_bytes[ATOM_TAPE_BLOCK_NO_H];
-        int block_no_L = hdr_bytes[ATOM_TAPE_BLOCK_NO_L];
-        blockNo = block_no_H * 256 + block_no_L;
-
-        // Determine block type (First, Other or Last)
-        if ((flags & 0x80) == 0x80) { // b7 = 1 => Not the last block (i.e., first or middle block)
-            if ((flags & 0x20) == 0x20) // b5 = 1 => Not the first block (i.e. middle block)
-                blockType = BlockType::Other;
-            else
-                blockType = BlockType::First;
-        }
-        else { // The last block (could also be the first block if there is only one block in total
-            if ((flags & 0x20) == 0x20) // b5 = 1 => Not the first block
-                blockType = BlockType::Last;
-            else
-                blockType = BlockType::Single; // Single block which is both the First and Last block
-        }
-
-    }
-    else if (targetMachine <= BBC_MASTER) {
+    if (targetMachine <= BBC_MASTER) {
 
         // Check that the no of remaining bytes are sufficient to hold the header
         if (hdr_bytes.size() < sizeof(BBMTapeBlockHdr))
             return false;
 
-        // Read rest of header into the BBM Block header
-        for (int i = 0; i < 4; bbmHdr.loadAdr[i++] = hdr_bytes[BBM_TAPE_BLOCK_LOAD_ADR + i]);
-        for (int i = 0; i < 4; bbmHdr.execAdr[i++] = hdr_bytes[BBM_TAPE_BLOCK_EXEC_ADR + i]);
-        for (int i = 0; i < 2; bbmHdr.blockNo[i++] = hdr_bytes[BBM_TAPE_BLOCK_NO + i]);
-        for (int i = 0; i < 2; bbmHdr.blockLen[i++] = hdr_bytes[BBM_TAPE_BLOCK_LEN + i]);
-        blockNo = Utility::bytes2uint(&bbmHdr.blockNo[0], 2, true);
-        if (limitBlockNo) {
-            bbmHdr.blockNo[1] = 0x0;
-            blockNo = blockNo & 0xff;
-        }
+        // Get block data from BBM Tape Header
+        loadAdr = Utility::bytes2uint(&hdr_bytes[BBM_TAPE_BLOCK_LOAD_ADR], 4, true);
+        execAdr = Utility::bytes2uint(&hdr_bytes[BBM_TAPE_BLOCK_EXEC_ADR], 4, true);
+        size = Utility::bytes2uint(&hdr_bytes[BBM_TAPE_BLOCK_LEN], 2, true);
+        no = Utility::bytes2uint(&hdr_bytes[BBM_TAPE_BLOCK_NO], 2, true);
+        nextAdr = Utility::bytes2uint(&hdr_bytes[BBM_TAPE_BLOCK_NEXT_ADR], 4, true);
+        Byte flags = hdr_bytes[BBM_TAPE_BLOCK_FLAGS];
 
-        // Decode flag - b7 = last block, b6 = empty block, b0 = locked block
-        bbmHdr.blockFlag = hdr_bytes[BBM_TAPE_BLOCK_FLAGS];
-        bbmHdr.locked = (bbmHdr.blockFlag & 0x1) != 0; // b0 = locke0d ;block
-        if (bbmHdr.blockFlag & 0x80) {
-            if (blockNo == 0)
-                blockType = BlockType::Single;
-            else
-                blockType = BlockType::Last;
-        }
-        else if (blockNo == 0)
-            blockType = BlockType::First;
-        else
-            blockType = BlockType::Other;
+        if (limitBlockNo)
+            // Only use low byte of block no (fix for some programs with the high byte block no being incorrect - usually 0xff)
+            no = no & 0xff;
+
+        // Update Tape File Block Header based on flags
+        if (!updateFromBBMFlags(flags))
+            return false;
+
+
+    } else if (targetMachine == ACORN_ATOM) {
+
+        // Check that the no of remaining bytes are sufficient to hold the header
+        if (hdr_bytes.size() < sizeof(AtomTapeBlockHdr))
+            return false;
+
+        // Get block data from Atom Tape Header
+        loadAdr = hdr_bytes[ATOM_TAPE_BLOCK_LOAD_ADR_H] * 256 + hdr_bytes[ATOM_TAPE_BLOCK_LOAD_ADR_L];
+        execAdr = hdr_bytes[ATOM_TAPE_BLOCK_EXEC_ADR_H] * 256 + hdr_bytes[ATOM_TAPE_BLOCK_EXEC_ADR_L];
+        no = hdr_bytes[ATOM_TAPE_BLOCK_NO_H] * 256 + hdr_bytes[ATOM_TAPE_BLOCK_NO_L];
+        uint32_t block_sz_M1 = hdr_bytes[ATOM_TAPE_BLOCK_LEN];
+        Byte flags = hdr_bytes[ATOM_TAPE_BLOCK_FLAGS]; // b7: not  last block.; b6: block has data; b5:not 1st block.
+
+        if (limitBlockNo)
+            // Only use low byte of block no (fix for some programs with the high byte block no being incorrect - usually 0xff)
+            no = no & 0xff;
+
+        // Update Tape File Block Header based on flags
+        if (!updateFromAtomFlags(flags, block_sz_M1))
+            return false;
 
     }
+   
     else
         return false;
-
-    if (limitBlockNo)
-        // Only use low byte of block no (fix for some programs with the high byte block no being incorrect - usually 0xff)
-        blockNo = blockNo & 0xff;
 
     return true;
 }
 
-bool FileBlock::encodeTapeHdr(Bytes &hdr)
+bool FileBlock::updateFromBBMFlags(Byte flags)
 {
-    if (targetMachine == ACORN_ATOM) {
-        
-        //header = <name:2 - 14> <flag:1> <block no:2> <block len -1:1> <exec adr:2> <load adr:2>
+    if (flags & 0x40) // b6 set for empty block
+        size = 0;
+    if (no == 0)
+        blockType = BlockType::First;
+    else
+        blockType = BlockType::Other;
+    if (flags & 0x80) { // b7 set for last block
+        if (no == 0)
+            blockType = BlockType::Single;
+        else
+            blockType = BlockType::Last;
+    }
+    locked = (flags & 0x1) != 0; // b0 set for locked block
+ 
+    return true;
+}
 
-        int data_len = atomHdr.lenHigh * 256 + atomHdr.lenLow;  // get data length
+Byte FileBlock::crBBMFlags()
+{
+    Byte b7 = (lastBlock() ? 0x80 : 0x00);
+    Byte b6 = (size == 0 ? 0x40 : 0x00);
+    Byte b0 = (locked ? 0x1 : 0x0);
 
-        Byte b7 = (blockType != BlockType::Last && blockType != BlockType::Single ? 0x80 : 0x00); // Bit 7  set if not the last block 
-        Byte b6 = (data_len > 0 ? 0x40 : 0x00); // Bit 6  set if  block contains data.
-        Byte b5 = (blockType != BlockType::First && blockType != BlockType::Single? 0x20 : 0x00); // Bit 5 set if not the first block
+    return (b7 | b6 | b0);
+}
 
-        // Write block name
-        int name_len = 0;
-        for (; name_len < sizeof(atomHdr.name) && atomHdr.name[name_len] != 0; name_len++);
-        for (int i = 0; i < name_len; i++) hdr.push_back(atomHdr.name[i]);
-        hdr.push_back(0xd); // 0xd as terminator
+bool FileBlock::updateFromAtomFlags(Byte flags, Byte block_sz_M1)
+{
+    if ((flags & 0x40) == 0x40)
+        size = block_sz_M1 + 1;
+    else
+        size = 0;
 
-        // Write rest of block
-        hdr.push_back(b7 | b6 | b5);                        // store flags
-        hdr.push_back((blockNo >> 8) & 0xff);              // store block no
-        hdr.push_back(blockNo & 0xff);
-        hdr.push_back((data_len > 0 ? data_len - 1 : 0));   // store length - 1
-        hdr.push_back(atomHdr.execAdrHigh);     // store execution address
-        hdr.push_back(atomHdr.execAdrLow);
-        hdr.push_back(atomHdr.loadAdrHigh);     // store load address
-        hdr.push_back(atomHdr.loadAdrLow);
+    // Determine block type (First, Other or Last)
+    if ((flags & 0x80) == 0x80) { // b7 = 1 => Not the last block (i.e., first or middle block)
+        if ((flags & 0x20) == 0x20) // b5 = 1 => Not the first block (i.e. middle block)
+            blockType = BlockType::Other;
+        else
+            blockType = BlockType::First;
+    }
+    else { // The last block (could also be the first block if there is only one block in total
+        if ((flags & 0x20) == 0x20) // b5 = 1 => Not the first block
+            blockType = BlockType::Last;
+        else
+            blockType = BlockType::Single; // Single block which is both the First and Last block
     }
 
-    else if (targetMachine <= BBC_MASTER) {
+    return true;
+}
+
+Byte FileBlock::crAtomFlags()
+{
+    Byte b7 = (!lastBlock() ? 0x80 : 0x00); // Bit 7  set if not the last block 
+    Byte b6 = (size > 0 ? 0x40 : 0x00); // Bit 6  set if  block contains data.
+    Byte b5 = (!firstBlock() ? 0x20 : 0x00); // Bit 5 set if not the first block
+    
+    return (b7 | b6 | b5);
+
+}
+
+Byte FileBlock::crFlags()
+{
+    if (targetMachine <= BBC_MASTER)
+        return crBBMFlags();
+    else
+        return crAtomFlags();
+}
+
+// Encode Tape File block header into Atom/BBC Micro cassette format block header
+bool FileBlock::encodeTapeBlockHdr(Bytes &hdr)
+{
+    if (targetMachine <= BBC_MASTER) {
 
         // <name:1-10> <load adr:4> <exec adr:4> <block no:2> <block len:2> <block flag:1> <next adr:4>
 
-        // store block name
-        int name_len = 0;
-        for (; name_len < sizeof(bbmHdr.name) && bbmHdr.name[name_len] != 0; name_len++);
-        for (int i = 0; i < name_len; i++)
-            hdr.push_back(bbmHdr.name[i]);
+        // Write block name
+        for (int i = 0; i < name.length() && i < BBM_TAPE_NAME_LEN; hdr.push_back(name[i++]));
         hdr.push_back(0x0); // 0x0 as terminator
 
-        Utility::copybytes(bbmHdr.loadAdr, hdr, 4); // load address
-        Utility::copybytes(bbmHdr.execAdr, hdr, 4); // exec address
-        Utility::copybytes(bbmHdr.blockNo, hdr, 2); // block no
-        Utility::copybytes(bbmHdr.blockLen, hdr, 2); // block len
-        hdr.push_back(bbmHdr.blockFlag); // block flag
-        Utility::initbytes(hdr, 0, 4); // next address
+        Utility::uint2bytes(loadAdr, hdr, 4, true);     // load adr
+        Utility::uint2bytes(execAdr, hdr, 4, true);     // exec adr
+        Utility::uint2bytes(no, hdr, 2, true);          // block no
+        Utility::uint2bytes(size, hdr, 2, true);        // block len
+        Byte flags = crBBMFlags();                      // flags
+        hdr.push_back(flags);
+        Utility::uint2bytes(0x0, hdr, 4, true);         // next address
     }
+
+    else if (targetMachine == ACORN_ATOM) {
+        
+        if (size > 256)
+            return false;
+
+        //header = <name:2 - 14> <flag:1> <block no:2> <block len -1:1> <exec adr:2> <load adr:2>
+
+        // Write block name
+        int name_len = 0;
+        for (int i = 0; i < name.length() && i < ATOM_TAPE_NAME_LEN; hdr.push_back(name[i++]));
+        hdr.push_back(0xd); // 0xd as terminator
+
+        // Write rest of block
+        Byte flags = crAtomFlags();                 // flags
+        hdr.push_back(flags);
+        hdr.push_back((no >> 8) & 0xff);            // block no
+        hdr.push_back(no & 0xff);
+        hdr.push_back((size > 0 ? size - 1 : 0));   // block length - 1
+        hdr.push_back((execAdr >> 8) & 0xff);       // execution address
+        hdr.push_back(execAdr & 0xff);
+        hdr.push_back((loadAdr >> 8) & 0xff);       // load address
+        hdr.push_back(loadAdr & 0xff);
+    }
+    
     else
         return false;
 
@@ -423,43 +406,23 @@ bool FileBlock::encodeTapeHdr(Bytes &hdr)
     
 }
 
-bool FileBlock::logHdr(ostream* fout)
+
+
+bool FileBlock::logFileBlockHdr(ostream* fout)
 {
     if (fout == NULL)
         return true;
 
-    if (targetMachine == ACORN_ATOM) {
-        uint32_t exec_adr = atomHdr.execAdrHigh * 256 + atomHdr.execAdrLow;
-        uint32_t load_adr = atomHdr.loadAdrHigh * 256 + atomHdr.loadAdrLow;
-        uint32_t block_sz = atomHdr.lenHigh * 256 + atomHdr.lenLow;
-        *fout << setw(13) << setfill(' ') << atomHdr.name << " " <<
-            hex << setfill('0') << setw(4) << load_adr << " " <<
-            hex << setfill('0') << setw(4) << load_adr + block_sz - 1 << " " <<
-            hex << setfill('0') << setw(4) << exec_adr << " " <<
-            hex << setfill('0') << setw(4) << blockNo << " " <<
-            hex << setfill('0') << setw(4) << block_sz << " " << setfill(' ') << " " <<
-            setw(8) << _BLOCK_ORDER(this->blockType);
-        if (leadToneCycles != -1 || microToneCycles != -1 || blockGap != -1) {
-            *fout << Utility::roundedPD(" LEAD TONE ", (double)leadToneCycles / F2_FREQ, ": ") <<
-                Utility::roundedPD("MICRO TONE ", (double)microToneCycles / F2_FREQ, ": ") <<
-                Utility::roundedPD("GAP ", blockGap, "");
-        }
-      
-    }
-    else {
-        uint32_t exec_adr = Utility::bytes2uint(&bbmHdr.execAdr[0], 4, true);
-        uint32_t file_load_adr = Utility::bytes2uint(&bbmHdr.loadAdr[0], 4, true);
-        uint32_t block_sz = Utility::bytes2uint(&bbmHdr.blockLen[0], 2, true);
-        uint32_t block_no = Utility::bytes2uint(&bbmHdr.blockNo[0], 2, true);
-        Byte flag = bbmHdr.blockFlag;
-        *fout << setw(10) << setfill(' ') << bbmHdr.name << " " <<
-            hex << setfill('0') << setw(8) << file_load_adr + 256 * block_no << " " <<
-            hex << setfill('0') << setw(8) << file_load_adr + 256 * block_no + block_sz - 1 << " " <<
-            hex << setfill('0') << setw(8) << exec_adr << " " <<
-            hex << setfill('0') << setw(4) << block_no << " " <<
-            hex << setfill('0') << setw(4) << block_sz << " " <<
-            hex << setfill('0') << setw(2) << hex << (int)flag << setfill(' ') << " " <<
-            setw(8) << _BLOCK_ORDER(this->blockType);
+    
+    if (targetMachine <= BBC_MASTER) {
+        *fout << setw(16) << setfill(' ') << name << " " <<
+            hex << setfill('0') << setw(8) << loadAdr << " " <<
+            hex << setfill('0') << setw(9) << loadAdr + 256 * no + size - 1 << " " <<
+            hex << setfill('0') << setw(8) << execAdr << " " <<
+            hex << setfill('0') << setw(4) << no << " " <<
+            hex << setfill('0') << setw(4) << size << " " <<
+            hex << setfill('0') << setw(2) << hex << (int)crBBMFlags() << setfill(' ') << " " <<
+            setw(8) << _BLOCK_ORDER(blockType);
         if (leadToneCycles != -1 || trailerToneCycles != -1 || blockGap != -1) {
             *fout <<
                 " PRELUDE LEAD " << setw(5) << (preludeToneCycles > 0 ? to_string(preludeToneCycles) : "-") << " cycles: " <<
@@ -468,6 +431,29 @@ bool FileBlock::logHdr(ostream* fout)
                 Utility::roundedPD("GAP ", blockGap, "");
         }
     }
+    else if (targetMachine == ACORN_ATOM) {
+        *fout << setw(16) << setfill(' ') << name << " " <<
+            hex << setfill('0') << setw(4) << loadAdr << " " <<
+            hex << setfill('0') << setw(5) << loadAdr + size - 1 << " " <<
+            hex << setfill('0') << setw(4) << execAdr << " " <<
+            hex << setfill('0') << setw(4) << no << " " <<
+            hex << setfill('0') << setw(4) << size << " " << setfill(' ') << " " <<
+            hex << setfill('0') << setw(2) << hex << (int)crAtomFlags() << setfill(' ') << " " <<
+            setw(8) << _BLOCK_ORDER(blockType);
+        if (leadToneCycles != -1 || microToneCycles != -1 || blockGap != -1) {
+            *fout << Utility::roundedPD(" LEAD TONE ", (double)leadToneCycles / F2_FREQ, ": ") <<
+                Utility::roundedPD("MICRO TONE ", (double)microToneCycles / F2_FREQ, ": ") <<
+                Utility::roundedPD("GAP ", blockGap, "");
+        }
+
+    }
+    else
+        return false;
+
+    if (this->locked)
+        *fout << " L";
+    else
+        *fout << " U";
 
     if (this->tapeStartTime < 0)
         *fout << "\n";
@@ -477,141 +463,73 @@ bool FileBlock::logHdr(ostream* fout)
     return true;
 }
 
-bool FileBlock::logHdr()
+bool FileBlock::logFileBlockHdr()
 {
-    return logHdr(&cout);
+    return logFileBlockHdr(&cout);
 }
 
-void TapeFile::logTAPFileHdr()
+void TapeFile::logFileHdr()
 {
-    logTAPFileHdr(&cout);
+    logFileHdr(&cout);
 }
 
-void TapeFile::logTAPFileHdr(ostream* fout)
+void TapeFile::logFileHdr(ostream* fout)
 {
-    if (fout == NULL || blocks.size() == 0)
+    if (fout == NULL)
         return;
 
-    FileBlock& block = blocks[0];
-    FileBlock& last_block = blocks[blocks.size()-1];
-
-    if (metaData.targetMachine == ACORN_ATOM) {
-        uint32_t exec_adr = block.atomHdr.execAdrHigh * 256 + block.atomHdr.execAdrLow;
-        uint32_t load_adr = block.atomHdr.loadAdrHigh * 256 + block.atomHdr.loadAdrLow;
+    if (header.targetMachine <= BBC_MASTER) {
         uint32_t n_blocks = (uint32_t)blocks.size();
-        uint32_t file_sz = 0;
-        for (uint32_t i = 0; i < n_blocks; i++)
-            file_sz += blocks[i].atomHdr.lenHigh * 256 + blocks[i].atomHdr.lenLow;
-        *fout << setw(13) << block.atomHdr.name << " " <<
-            hex << setfill('0') << setw(4) << load_adr << " " <<
-            hex << setfill('0') << setw(4) << load_adr + file_sz - 1 << " " <<
-            hex << setfill('0') << setw(4) << exec_adr << " " <<
+        *fout << setw(16) << header.name << " " <<
+            hex << setfill('0') << setw(8) << header.loadAdr << " " <<
+            hex << setfill('0') << setw(9) << (header.size == 0 ? header.loadAdr : header.loadAdr + header.size - 1) << " " <<
+            hex << setfill('0') << setw(8) << header.execAdr << " " <<
+            dec << setfill(' ') << setw(5) << n_blocks << " " <<
+            hex << setfill('0') << setw(4) << header.size;
+    }
+    else if (header.targetMachine == ACORN_ATOM) {
+        uint32_t n_blocks = (uint32_t)blocks.size();
+        *fout << setw(16) << header.name << " " <<
+            hex << setfill('0') << setw(4) << header.loadAdr << " " <<
+            hex << setfill('0') << setw(5) << (header.size==0? header.loadAdr :header.loadAdr + header.size - 1) << " " <<
+            hex << setfill('0') << setw(4) << header.execAdr << " " <<
             dec << setfill(' ') << setw(5) << n_blocks;
     }
-    else if (metaData.targetMachine <= BBC_MASTER) {
-        uint32_t exec_adr = Utility::bytes2uint(&block.bbmHdr.execAdr[0], 4, true);
-        uint32_t load_adr = Utility::bytes2uint(&block.bbmHdr.loadAdr[0], 4, true);
-        uint32_t block_no = Utility::bytes2uint(&block.bbmHdr.blockNo[0], 2, true);
-        uint32_t file_sz = 0;
-        uint32_t n_blocks = (uint32_t)blocks.size();
-        for (uint32_t i = 0; i < n_blocks; i++)
-            file_sz += Utility::bytes2uint(&blocks[i].bbmHdr.blockLen[0], 2, true);
-        *fout << setw(10) << block.bbmHdr.name << " " <<
-            hex << setfill('0') << setw(8) << load_adr << " " <<
-            hex << setfill('0') << setw(8) << load_adr + file_sz - 1 << " " <<
-            hex << setfill('0') << setw(8) << exec_adr << " " <<
-            dec << setfill(' ') << setw(5) << n_blocks << " " <<
-            hex << setfill('0') << setw(4) << file_sz;
-    }
+    
     else {
     }
 
-    if (block.tapeStartTime < 0)
+    if (this->header.locked)
+        *fout << " L";
+    else
+        *fout << " U";
+
+    if (tapeStartTime < 0)
         *fout << setfill(' ') << "\n";
     else
-        *fout << setfill(' ') << " " << Utility::encodeTime(block.tapeStartTime) << " => " << Utility::encodeTime(last_block.tapeEndTime) << "\n";
+        *fout << setfill(' ') << " " << Utility::encodeTime(tapeStartTime) << " => " << Utility::encodeTime(tapeEndTime) << "\n";
 
 }
 
 bool FileBlock::encodeTAPHdr(
-    string tapefileName, uint32_t fileLoadAdr, uint32_t loadAdr, uint32_t execAdr, uint32_t blockNo, uint32_t BlockSz
+    string tapefileName, uint32_t fileLoadAdr, uint32_t LA, uint32_t EA, uint32_t blockNo, uint32_t BlockSz
 )
 {
-    if (targetMachine <= BBC_MASTER) {
-        for (int i = 0; i < sizeof(bbmHdr.name); i++) {
-            if (i < tapefileName.length())
-                bbmHdr.name[i] = tapefileName[i];
-            else
-                bbmHdr.name[i] = 0;
-        }
-        Utility::uint2bytes(fileLoadAdr, &bbmHdr.loadAdr[0], 4, true);
-        Utility::uint2bytes(execAdr, &bbmHdr.execAdr[0], 4, true);
-        Utility::uint2bytes(blockNo, &bbmHdr.blockNo[0], 2, true);
-        Utility::uint2bytes(BlockSz, &bbmHdr.blockLen[0], 2, true);
-        bbmHdr.blockFlag = 0x00; // b7 = last block, b6 = empty block, b0 = locked block
-        bbmHdr.locked = 0;
-    }
-    else {
-        for (int i = 0; i < sizeof(atomHdr.name); i++) {
-            if (i < tapefileName.length())
-                atomHdr.name[i] = tapefileName[i];
-            else
-                atomHdr.name[i] = 0;
-        }
-        atomHdr.loadAdrHigh = loadAdr / 256;
-        atomHdr.loadAdrLow = loadAdr % 256;
-        atomHdr.execAdrHigh = execAdr / 256;
-        atomHdr.execAdrLow = execAdr % 256;
-        atomHdr.lenHigh = BlockSz / 256;
-        atomHdr.lenLow = BlockSz % 256;
-
-    }
-    if (blockNo == 0)
-        this->blockType = BlockType::First;
+    name = tapefileName;
+    loadAdr = LA;
+    execAdr = EA;
+    no = blockNo;
+    size = BlockSz;
+    locked = false;
+    
+    if (no == 0)
+        blockType = BlockType::First;
     else
-        this->blockType = BlockType::Other;
-    this->blockNo = blockNo;
+        blockType = BlockType::Other;
+
 
     return true;
 }
-
-bool FileBlock::readTapeFileName(TargetMachine target_machine, BytesIter& data_iter, Bytes& data, Word& CRC)
-{
-    if (target_machine == ACORN_ATOM) {
-        int i = 0;
-
-
-        for (i = 0; i < ATM_HDR_NAM_SZ && *data_iter != 0xd && data_iter < data.end(); data_iter++) {
-            atomHdr.name[i] = *data_iter;
-            updateAtomCRC(CRC, *data_iter);
-            i++;
-        }
-        for (int j = i; j < ATM_HDR_NAM_SZ; atomHdr.name[j++] = '\0');
-
-        if (*data_iter != 0xd)
-            return false;
-
-        updateAtomCRC(CRC, *data_iter++);  // should be 0xd;
-
-    }
-    else {
-        int i = 0;
-
-        for (i = 0; i < BTM_HDR_NAM_SZ && *data_iter != 0x0 && data_iter < data.end(); data_iter++) {
-           
-            bbmHdr.name[i] = *data_iter;
-            updateBBMCRC(CRC, *data_iter);
-            i++;
-        }
-        for (int j = i; j < BTM_HDR_NAM_SZ; bbmHdr.name[j++] = '\0');
-
-        if (*data_iter != 0x0)
-            return false;
-    }
-
-    return true;
-}
-
 
 /*
 * Create a valid DOS/Linux/MacOs filename from the disc or tape program name.
@@ -645,7 +563,7 @@ string TapeFile::crValidHostFileName(string programName)
 
 string TapeFile::crValidDiscFilename(string programName)
 {
-    return crValidDiscFilename(metaData.targetMachine, programName);
+    return crValidDiscFilename(header.targetMachine, programName);
 }
 
 //
@@ -659,7 +577,7 @@ string TapeFile::crValidDiscFilename(TargetMachine targetMachine, string program
     string invalid_chars = ".:\"/#*";
     string s = "";
     for (auto& c : programName) {
-        if (s.length() < 7 && c >= (char) 0x20 && c <= (char) 0x7e && invalid_chars.find(c) == string::npos)
+        if (s.length() < 7 && c > (char) 0x20 && c <= (char) 0x7e && invalid_chars.find(c) == string::npos)
             s += c;
     }
 
@@ -668,7 +586,7 @@ string TapeFile::crValidDiscFilename(TargetMachine targetMachine, string program
 
 string TapeFile::crValidBlockName(string fileName)
 {
-    return crValidBlockName(metaData.targetMachine, fileName);
+    return crValidBlockName(header.targetMachine, fileName);
 }
 
 string TapeFile::crValidBlockName(TargetMachine targetMachine, string fileName)
@@ -722,15 +640,4 @@ string TapeFile::crValidBlockName(string invalidChars, int nameLen, string fn)
     }
 
     return s;
-}
-
-
-
-int TapeFile::size()
-{
-    int sz = 0;
-    for (int i = 0; i < this->blocks.size(); i++)
-        sz += (int) this->blocks[i].data.size();
-
-    return sz;
 }

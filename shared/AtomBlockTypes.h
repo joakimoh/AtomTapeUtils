@@ -48,27 +48,6 @@ typedef struct {
 #define ATOM_TAPE_BLOCK_EXEC_ADR_L 5
 #define ATOM_TAPE_BLOCK_LOAD_ADR_H 6
 #define ATOM_TAPE_BLOCK_LOAD_ADR_L 7
-
-
-
-
-//
-//	 ATM File structure
-//	
-//	 Conforms to the ATM header format specified by Wouter Ras.
-//
-//
-#define ATM_HDR_NAM_SZ 16
-typedef struct ATMHdr_struct {
-	char name[ATM_HDR_NAM_SZ]; // zero-padded with '\0' at the end
-	Byte loadAdrLow; //
-	Byte loadAdrHigh; // Load address (normally 0x2900 for BASIC programs)
-	Byte execAdrLow; //
-	Byte execAdrHigh; // Execution address (normally 0xb2c2 for BASIC programs)
-	Byte lenLow;
-	Byte lenHigh; // Length in bytes of the data section (normally data is as BASIC program)
-} ATMHdr;
-
-
+#define ATOM_TAPE_HDR_SZ sizeof(AtomTapeBlockHdr)
 
 #endif

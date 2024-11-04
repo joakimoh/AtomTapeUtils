@@ -21,7 +21,7 @@ using namespace std::filesystem;
 
 /*
  *
- * Create DATA file from Acorn Atom BASIC (ABC) program
+ * Create DATA file from an Acorn Atom/BBC Micro BASIC source program file
  * *
  */
 int main(int argc, const char* argv[])

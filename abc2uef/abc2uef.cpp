@@ -23,7 +23,7 @@ using namespace std::filesystem;
 
 /*
  * 
- * Create UEF from Acorn Atom BASIC (ABC) program
+ * Create UEF from an Acorn Atom/BBC Micro BASIC source program file.
  * * 
  */
 int main(int argc, const char* argv[])

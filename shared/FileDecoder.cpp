@@ -46,8 +46,8 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
     readStatus = FileReadStatus::OK;
 
     tapFile.init();
-    FileMetaData meta_data(mTarget, "");
-    tapFile.metaData = meta_data;
+    FileHeader file_header(mTarget, "");
+    tapFile.header = file_header;
 
     bool file_selected = false;
 
@@ -110,7 +110,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
         BlockError block_error;
         last_valid_block_end_time = block_end_time;
         bool success = mBlockDecoder.readBlock(blockTiming, first_block, read_block, lead_tone_detected, block_error);
-        block_no = read_block.blockNo;
+        block_no = read_block.no;
 
         if (read_block.tapeStartTime == -1)
             block_start_time = default_block_start_time;
@@ -125,6 +125,8 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
 
         read_block.tapeStartTime = block_start_time;
         read_block.tapeEndTime = block_end_time;
+        if (first_block)
+            tapFile.tapeStartTime = block_start_time;
 
         // If no lead tone was detected it must be the end of the tape
         if (!lead_tone_detected) {
@@ -133,10 +135,10 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
         }
 
         // Extract ATM/BTM header parameters
-        load_adr = read_block.loadAdr();
-        exec_adr = read_block.execAdr();
-        block_sz = read_block.dataSz();
-        bn = read_block.blockName();
+        load_adr = read_block.loadAdr;
+        exec_adr = read_block.execAdr;
+        block_sz = read_block.size;
+        bn = read_block.name;
         if (mTarget == ACORN_ATOM) {
             load_adr_LB = load_adr;
             load_adr_UB = load_adr + block_sz - 1;
@@ -149,9 +151,9 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
         // Check for errors
         int expected_bytes_to_read;
         if (mTarget <= BBC_MASTER)
-            expected_bytes_to_read = (int) read_block.blockName().length() + 1 + read_block.tapeHdrSz() + 2 + read_block.dataSz() + 2;
+            expected_bytes_to_read = (int) read_block.name.length() + 1 + BBM_TAPE_HDR_SZ + 2 + read_block.size + 2;
         else
-            expected_bytes_to_read = (int) read_block.blockName().length() + 1 + read_block.tapeHdrSz() + read_block.dataSz() + 1;
+            expected_bytes_to_read = (int) read_block.name.length() + 1 + ATOM_TAPE_HDR_SZ + read_block.size + 1;
         bool complete_block = (mBlockDecoder.nReadBytes == expected_bytes_to_read);
 
         if (block_error & BlockError::BLOCK_CRC_ERR)
@@ -174,6 +176,9 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
             mBlockDecoder.rollback();
             break;
         }
+
+        tapFile.tapeEndTime = block_end_time;        
+
 
         if (!complete_block || mBlockDecoder.nReadBytes < block_sz) {
             incomplete_block = true;
@@ -226,7 +231,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
 
             file_sz += block_sz;
 
-            last_block = read_block.lastBlock();
+            last_block = (read_block.blockType == Single || read_block.blockType == Last);
 
             tapFile.blocks.push_back(read_block);
             n_blocks++;
@@ -242,18 +247,22 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
                 block_name = bn;
 
                 first_block_no = block_no;
-                if (read_block.firstBlock()) {
+                if ((read_block.blockType == Single || read_block.blockType == First)) {
                     first_block_found = true;
                     incomplete_blocks = false;
                     if (block_no != 0 && mDebugInfo.verbose && file_selected)
                         printf("First block of %s with non-zero block no %d and start address %.4x!\n",
-                            read_block.blockName().c_str(), block_no, load_adr);
+                            read_block.name.c_str(), block_no, load_adr);
                 }
                 first_block = false;
                 load_adr_start = load_adr;
                 exec_adr_start = exec_adr;
-                tapFile.programName = block_name;
                 tape_start_time = block_start_time;
+
+                // Set tape file header based on first detected block
+                tapFile.header.name = block_name;
+                tapFile.header.loadAdr = load_adr;
+                tapFile.header.execAdr = exec_adr;
             }
             else {
                 if (load_adr_LB != next_load_adr && mDebugInfo.verbose && file_selected) {
@@ -290,10 +299,10 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
                     cout << " ";
             }
             if (file_selected && !mCat)
-                read_block.logHdr(&logFile);
+                read_block.logFileBlockHdr(&logFile);
 
             if (mDebugInfo.verbose && file_selected)
-                read_block.logHdr();
+                read_block.logFileBlockHdr();
 
 
             adr_offset += block_sz;
@@ -329,7 +338,7 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
                 tapFile.corrupted = true;
             if (file_selected && !mCat) {
                 stringstream s;
-                s << FileDecoder::readFileStatus(readStatus) << " for file '" << tapFile.programName << "' [" <<
+                s << FileDecoder::readFileStatus(readStatus) << " for file '" << tapFile.header.name << "' [" <<
                     Utility::encodeTime(tapFile.blocks[0].tapeStartTime) << "," <<
                     Utility::encodeTime(tapFile.blocks[n_blocks - 1].tapeEndTime) << "]";
                 cout << s.str() << "\n";
@@ -346,15 +355,22 @@ bool FileDecoder::readFile(ostream& logFile, TapeFile& tapFile, string searchNam
 
         tapFile.baudRate = mTapeTiming.baudRate;
 
+        // Set Tape File Header's size and locked status
+        tapFile.header.size = 0;
+        for (int i = 0; i < tapFile.blocks.size(); i++) {
+            tapFile.header.size += tapFile.blocks[i].size;
+            tapFile.header.locked = tapFile.header.locked || tapFile.blocks[i].locked;
+        }
+
         if (file_selected && !mCat) {
             logFile << "\n";
-            tapFile.logTAPFileHdr(&logFile);
+            tapFile.logFileHdr(&logFile);
             logFile << "\n\n";
         }
 
         if (mDebugInfo.verbose && file_selected) {
             cout << "\n";
-            tapFile.logTAPFileHdr();
+            tapFile.logFileHdr();
             cout << "\n\n";
         }
 

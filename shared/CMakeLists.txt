@@ -14,7 +14,6 @@ add_library(
 	"WavTapeReader.cpp"
 	"DataCodec.cpp"
 	"FileBlock.cpp"
-	"MMCCodec.cpp"	 
 	"PcmFile.cpp"
 	"TAPCodec.cpp"
 	"TapeProperties.cpp"

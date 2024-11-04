@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include "../shared/Logging.h"
+#include "../shared/FileBlock.h"
 
 
 using namespace std;
@@ -17,12 +18,15 @@ public:
 	string srcFileName;
 	Logging logging;
 
+	TargetMachine targetMachine = ACORN_ATOM;
+
 private:
 
 	void printUsage(const char*);
 
 	bool mParseSuccess = false;
 
+	
 	
 
 public:

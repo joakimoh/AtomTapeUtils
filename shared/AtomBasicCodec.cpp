@@ -152,17 +152,21 @@ bool AtomBasicCodec::detokenise(string& srcFile, string& dstFile)
 bool AtomBasicCodec::detokenise(TapeFile& tapeFile, string& dstFile)
 {
     Bytes tokenised_code;
-    uint32_t load_adr;
 
     // Get bytes from Tape File
-    if (!TAPCodec::tap2Bytes(tapeFile, load_adr, tokenised_code)) {
+    BinCodec BIN_codec(mDebugInfo);
+    if (!BIN_codec.encode(tapeFile, tapeFile.header, tokenised_code)) {
         return false;
     }
+    mTargetMachine = tapeFile.header.targetMachine; // set target based on that of the tape file
+
+    if (mDebugInfo.verbose)
+        cout << "Detokenising '" << tapeFile.header.name << "' as " << _TARGET_MACHINE(mTargetMachine) << " BASIC\n";
 
     // Detokenise the bytes
     Bytes source_program;
     bool faulty_program_termination;
-    string program = tapeFile.programName;
+    string program = tapeFile.header.name;
     if (!detokenise(program, tokenised_code, source_program, faulty_program_termination)) {
         cout << "Failed to detokenise program '" << program << "'\n";
         return false;
@@ -249,7 +253,8 @@ bool AtomBasicCodec::detokeniseBBM(string program, Bytes& tokenisedProgram, Byte
                         int n_non_ABC_bytes = tape_file_sz - read_bytes;
                         if (mDebugInfo.verbose && n_non_ABC_bytes > 0) {
                             faultyTermination = true;
-                            cout << "Program file '" << program << "' contains " << n_non_ABC_bytes <<
+                            if (mDebugInfo.verbose)
+                                cout << "Program file '" << program << "' contains " << n_non_ABC_bytes <<
                                 " extra bytes after end of program - skipping this data for BBC Micro BASIC file generation!\n";
                         }
                     }
@@ -391,7 +396,8 @@ bool AtomBasicCodec::detokeniseAtom(string program, Bytes& tokenisedProgram, Byt
                 if (b == 0xff) {
                     end_of_program = true;
                     int n_non_ABC_bytes = tape_file_sz - read_bytes;
-                    cout << "Program file '" << program << "' contains " << n_non_ABC_bytes <<
+                    if (mDebugInfo.verbose)
+                        cout << "Program file '" << program << "' contains " << n_non_ABC_bytes <<
                         " extra bytes after end of program - skipping this data for Acorn Atom BASIC file generation!\n";
                 }
                 else {
@@ -539,8 +545,9 @@ bool AtomBasicCodec::tokenise(string& srcFile, TapeFile& tapeFile)
     }
 
     // Encode the tokenised bytes as a Tape File
-    FileMetaData meta_data(mTargetMachine, program);
-    if (!TAPCodec::bytes2TAP(tokenised_bytes, meta_data, tapeFile)) {
+    FileHeader file_header(mTargetMachine, program);
+    BinCodec BIN_codec(mDebugInfo);
+    if (!BIN_codec.decode(file_header, tokenised_bytes, tapeFile)) {
         cout << "Failed to encode tokenised bytes as a Tape File for program '" << program << "´\n";
         return false;
     }
@@ -962,7 +969,7 @@ bool AtomBasicCodec::token2Int(string token, int &num)
     try {
         num = stoi(token);
     }
-    catch (const invalid_argument& ia) {
+    catch (const invalid_argument) {
         return false;
     }
 
