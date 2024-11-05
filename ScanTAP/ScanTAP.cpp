@@ -20,7 +20,7 @@
 #include "../shared/CSWCodec.h"
 #include "../shared/WavEncoder.h"
 #include "../shared/DiscCodec.h"
-#include "../shared/BINCodec.h"
+#include "../shared/BinCodec.h"
 
 using namespace std;
 using namespace std::filesystem;
