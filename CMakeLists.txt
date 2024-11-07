@@ -364,5 +364,5 @@ ELSEIF(UNIX)
   set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Joakim Ohlsson")
 ENDIF()
 set(CPACK_SOURCE_GENERATOR "TGZ")
-include(CPACK)
+include(CPack)
 
