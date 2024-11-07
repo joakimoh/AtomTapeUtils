@@ -32,3 +32,15 @@ include_directories(
 	"${CMAKE_SOURCE_DIR}/gzstream"
 	${ZLIB_INCLUDE_DIRS}
 )
+
+# Install information - lib & include
+set(installable_libs shared)
+install(TARGETS ${installable_libs} DESTINATION lib)
+install(
+	FILES AtomBasicCodec.h AtomBlockTypes.h BBMBlockTypes.h BinCodec.h BlockDecoder.h
+	CommonTypes.h Compress.h CSWCodec.h CSWCycleDecoder.h CycleDecoder.h DataCodec.h DiscCodec.h
+	FileBlock.h FileDecoder.h LevelDecoder.h Logging.h PcmFile.h TAPCodec.h
+	TapeProperties.h TapeReader.h UEFCodec.h UEFTapeReader.h Utility.h
+	WavCycleDecoder.h WavEncoder.h WaveSampleTypes.h WavTapeReader.h zpipe.h
+	DESTINATION include/shared
+)

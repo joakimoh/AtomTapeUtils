@@ -1,5 +1,5 @@
 # AtomTapeUtils
-This is a set of utilities mainly targeting decoding and encoding of Acorn Atom & BBC Micro BASIC programs. Some utilites (like filtering of tape files) could be useful also for other applications.
+This is a set of utilities mainly targeting decoding and encoding of Acorn Atom & BBC Micro BASIC programs. Some utilities (like filtering of tape files) could be useful also for other applications.
 
 ## Prerequisites
 You need to have cmake and zlib installed on your computer before trying to install AtomTapeUtils.

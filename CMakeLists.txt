@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
-project ("AtomTapeUtils")
+project ("AtomTapeUtils" VERSION 2.2)
 
 # Make sure a dynamic library (for ZLIB) is chosen first if available
 set(CMAKE_FIND_STATIC LAST)
@@ -175,3 +175,194 @@ add_executable(
 	 "FilterTape/Filter.h" "FilterTape/Filter.cpp"
 )
 target_link_libraries(FilterTape PUBLIC shared)
+
+
+
+# Installation of abc2bin
+install(TARGETS ScanTape DESTINATION bin)
+install(
+	FILES "abc2bin/ArgParser.h"
+    DESTINATION include/abc2bin
+)
+
+# Installation of abc2dat
+install(TARGETS abc2dat DESTINATION bin)
+install(
+	FILES "abc2dat/ArgParser.h"
+    DESTINATION include/abc2dat
+)
+
+# Installation of abc2tap
+install(TARGETS abc2tap DESTINATION bin)
+install(
+	FILES "abc2tap/ArgParser.h"
+    DESTINATION include/abc2tap
+)
+
+# Installation of abc2uef
+install(TARGETS abc2uef DESTINATION bin)
+install(
+	FILES "abc2uef/ArgParser.h"
+    DESTINATION include/abc2uef
+)
+
+# Installation of abc2wav
+install(TARGETS abc2wav DESTINATION bin)
+install(
+	FILES "abc2wav/ArgParser.h"
+    DESTINATION include/abc2wav
+)
+
+# Installation of bin2abc
+install(TARGETS bin2abc DESTINATION bin)
+install(
+	FILES "bin2abc/ArgParser.h"
+    DESTINATION include/bin2abc
+)
+
+# Installation of csw2wav
+install(TARGETS csw2wav DESTINATION bin)
+install(
+	FILES "csw2wav/ArgParser.h"
+    DESTINATION include/csw2wav
+)
+
+# Installation of dat2abc
+install(TARGETS dat2abc DESTINATION bin)
+install(
+	FILES "dat2abc/ArgParser.h"
+    DESTINATION include/dat2abc
+)
+
+# Installation of dat2bin
+install(TARGETS dat2bin DESTINATION bin)
+install(
+	FILES "dat2bin/ArgParser.h"
+    DESTINATION include/dat2bin
+)
+
+# Installation of dat2tap
+install(TARGETS dat2tap DESTINATION bin)
+install(
+	FILES "dat2tap/ArgParser.h"
+    DESTINATION include/dat2tap
+)
+
+# Installation of dat2uef
+install(TARGETS dat2uef DESTINATION bin)
+install(
+	FILES "dat2uef/ArgParser.h"
+    DESTINATION include/dat2uef
+)
+
+# Installation of dat2wav
+install(TARGETS dat2wav DESTINATION bin)
+install(
+	FILES "dat2wav/ArgParser.h"
+    DESTINATION include/dat2wav
+)
+
+# Installation of FilterTape
+install(TARGETS FilterTape DESTINATION bin)
+install(
+	FILES "FilterTape/ArgParser.h"
+    DESTINATION include/FilterTape
+)
+
+# Installation of inspectfile
+install(TARGETS inspectfile DESTINATION bin)
+install(
+	FILES "inspectfile/ArgParser.h"
+    DESTINATION include/inspectfile
+)
+
+# Installation of inspectuef
+install(TARGETS inspectuef DESTINATION bin)
+install(
+	FILES "inspectuef/ArgParser.h"
+    DESTINATION include/inspectuef
+)
+
+# Installation of tap2abc
+install(TARGETS tap2abc DESTINATION bin)
+install(
+	FILES "tap2abc/ArgParser.h"
+    DESTINATION include/tap2abc
+)
+
+# Installation of tap2dat
+install(TARGETS tap2dat DESTINATION bin)
+install(
+	FILES "tap2dat/ArgParser.h"
+    DESTINATION include/tap2dat
+)
+
+# Installation of uef2csw
+install(TARGETS uef2csw DESTINATION bin)
+install(
+	FILES "uef2csw/ArgParser.h"
+    DESTINATION include/uef2csw
+)
+
+# Installation of uef2wav
+install(TARGETS uef2wav DESTINATION bin)
+install(
+	FILES "uef2wav/ArgParser.h"
+    DESTINATION include/uef2wav
+)
+
+# Installation of wav2csw
+install(TARGETS wav2csw DESTINATION bin)
+install(
+	FILES "wav2csw/ArgParser.h"
+    DESTINATION include/wav2csw
+)
+
+# Installation of ScanTape
+install(TARGETS ScanTape DESTINATION bin)
+install(
+	FILES "ScanTape/ArgParser.h"
+    DESTINATION include/ScanTape
+)
+
+# Installation of ScanDisc
+install(TARGETS ScanDisc DESTINATION bin)
+install(
+	FILES "ScanDisc/ArgParser.h"
+    DESTINATION include/ScanDisc
+)
+
+# Installation of ScanTAP
+install(TARGETS ScanTAP DESTINATION bin)
+install(
+	FILES "ScanTAP/ArgParser.h"
+    DESTINATION include/ScanTAP
+)
+
+#install(RUNTIME_DEPENDENCIES)
+
+
+# Installer (will be created if cpack --config CPackConfig.cmake + cpack --config CPackSourceConfig.cmake are run from command line)
+set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}")
+include(InstallRequiredSystemLibraries)
+set(CPACK_PACKAGE_DIRECTORY "distribution")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt")
+set(CPACK_PACKAGE_NAME "AtomTapeUtils")
+set(CPACK_PACKAGE_VERSION_MAJOR "${AtomTapeUtils_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${AtomTapeUtils_VERSION_MINOR}")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Utility to decode Acorn Atom/BBC Micro tapes")
+set(CPACK_PACKAGE_DESCRIPTION
+"This is a set of utilities mainly targeting decoding and encoding of Acorn Atom & BBC Micro BASIC programs")
+IF (WIN32)
+  set(CPACK_GENERATOR WIX)
+ELSEIF(UNIX)
+  set(CPACK_GENERATOR "DEB")
+  set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+  #set(CPACK_DEBIAN_PACKAGE_NAME "AtomtapeUtils-dev")
+  #set(CPACK_DEBIAN_PACKAGE_VERSION 1.0.0)
+  #set(CPACK_DEBIAN_PACKAGE_RELEASE 1)
+  set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Joakim Ohlsson")
+ENDIF()
+set(CPACK_SOURCE_GENERATOR "TGZ")
+include(CPACK)
+
