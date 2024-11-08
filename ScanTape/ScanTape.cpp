@@ -56,7 +56,7 @@ int main(int argc, const char* argv[])
 
     TapeReader* tape_reader = NULL;
 
-    // Is it an UEF file?
+    // Is it a UEF file?
     UEFCodec UEF_codec(arg_parser.logging, arg_parser.targetMachine);
     bool UEF_file = false;
     Bytes UEF_data;

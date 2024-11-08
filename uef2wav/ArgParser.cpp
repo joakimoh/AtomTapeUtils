@@ -14,7 +14,7 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char* name)
 {
-	cout << "Generates a 16-bit PCM audio WAV file from an UEF file.\n\n"; 
+	cout << "Generates a 16-bit PCM audio WAV file from a UEF file.\n\n"; 
 	cout << "Usage:\t" << name << " <UEF file> [-o <output file] [-b <b>] [-lt <d>] [-slt <d>]\n";
 	cout <<	"\t[-ml <d>] [-fg <d>] [-sg <d>] [-lg <d>] [-ps <phase_shift>] [-v]\n";
 	cout << "\t[-pot] [-f <sample freq>] [-bbm] [-atm]\n\n";

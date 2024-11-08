@@ -15,9 +15,9 @@ bool ArgParser::failed()
 void ArgParser::printUsage(const char* name)
 {
 	cout << "Generate a 16-bit PCM WAV audio file based on a program file.\n\n";
-	cout << "Usage:\t" << name << " <ABC file> [-o <output file>] [-v] [-bbm] [-b <baud rate>]\n";
+	cout << "Usage:\t" << name << " program source file> [-o <output file>] [-v] [-bbm] [-b <baud rate>]\n";
 	cout << "\t<advanced options>]\n\n";
-	cout << "<ABC file>:\n\tAcorn Atom BASIC program file to decode\n";
+	cout << "<program source file>:\n\tABASIC program file to decode\n";
 	cout << "\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.uef'.\n";

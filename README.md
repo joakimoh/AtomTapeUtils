@@ -54,7 +54,7 @@ Optionally, you could do all this (except for the WAV & CSW files generation) wi
 - dat2abc: Convert hex dump file into text file with an Acorn Atom/BBC Micro program
 - dat2bin: Convert hex dump file into binary file (useful if you want to disassemble machine code)
 - dat2tap: Convert hex dump file into a TAP/MMC file ('Wouter Ras' format - see https://www.stairwaytohell.com/atom/wouterras)
-- dat2uef: Convert hex dump file into  an UEF file
+- dat2uef: Convert hex dump file into  a UEF file
 - dat2wav: Convert hex dump file into a WAV file (16-bit mono PCM WAV with 44.1 kHz sample rate)
 - tap2abc: Convert TAP/MMC file into Acorn Atom/BBC Micro BASIC source code
 - tap2dat: Convert TAP/MMC file into a hex dump file
@@ -63,9 +63,9 @@ Optionally, you could do all this (except for the WAV & CSW files generation) wi
 - uef2dat: Convert UEF file into a hex dump file
 - wav2csw: Convert WAV file into a CSW file - this has no machine context and can be used independently of the target machine
 - inspectfile: hex dump of a file content
-- inspectEUF: Display information of chunks in the EUF file + hex dump of content from all data chunks - this has no machine context and can be used independently of the target machine
+- inspectEUF: Display information of chunks in the UEF file + hex dump of content from all data chunks - this has no machine context and can be used independently of the target machine
 
-\* Although the conversion from EUF to CSW/WAV is in theory machine-independent, the use of simple data chunks can cause a problem as a default data byte encoding is assumed (8N1). If you suspect there are such chunks, a target machine (-atm for Acorn Atom and -bbm for BBC Micro) could be still be specified to tell what format shall be used for such chunks.
+\* Although the conversion from UEF to CSW/WAV is in theory machine-independent, the use of simple data chunks can cause a problem as a default data byte encoding is assumed (8N1). If you suspect there are such chunks, a target machine (-atm for Acorn Atom and -bbm for BBC Micro) could be still be specified to tell what format shall be used for such chunks.
 ### Utility program flags
 There are many possibilities to tailor especially the tape filtering and tape scannning. Write *utility name* and press enter to get information about the command line flags you can provide to do this tailoring. One useful feature (enabled by flag '-m') is e.g. the ability to generate a WAV file that includes both the original audio and the filtered audio for manual inspection when you are experiencing difficulties with some tapes (i.e. they are not successfully decoded with ScanTape later on). This WAV file cannot be used by ScanTape though as ScanTape expects only one channel with audio data. You could also turn on logging of detected faults during decoding of a tape (flag '-t') that will tell you at what points in time the decoding fails (like preamble byte #2 read failure).
 To have more verbose output (each utility as default runs in silent mode with none or very little output), the flag '-v' can be used. For detection/generation of BBC Micro programs, use flag '-bbm'.
@@ -117,7 +117,7 @@ At least one block missing or corrupted for file 'TALK' [0h:0m:0.000000s (0.0000
 
 The starting time must be non-zero and the trace flag '-t' must also be used to turn on this extended logging.
 
-The ScanTape utility can also take a CSW or an UEF file as input should you previously have converted your WAV files into CSW/UEF files.
+The ScanTape utility can also take a CSW or a UEF file as input should you previously have converted your WAV files into CSW/UEF files.
 The utility will automatically detect whether it is a UEF, WAV or CSW file. Default is to detect Acorn Atom program data. For detection of BBC Micro programs, use flag '-bbm'.
 
 For each detected Acorn Atom/BBC Micro program file, the following files will be generated and stored in the directory *my_files_dir*:

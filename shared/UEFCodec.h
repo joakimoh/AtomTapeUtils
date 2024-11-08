@@ -25,7 +25,7 @@ enum ChunkInfoType { BAUDRATE, BASE_FREQ, CARRIER, CARRIER_DUMMY, DATA, GAP, PHA
 	(x==PHASE?"PHASE":(x==IGNORE?"IGNORE":(x==BAUDRATE?"BAUDRATE":(x==BASE_FREQ?"BASEFREQ":"UNKNOWN"))))))))
 
 
-// Data encoding as can be specified for an UEF complex data block
+// Data encoding as can be specified for a UEF complex data block
 // Default values are used for simple data chunks
 enum Parity { NO_PAR, ODD, EVEN };
 #define _PARITY(x) (x==Parity::NO_PAR?"-":(x==Parity::ODD?"ODD":"EVEN"))
@@ -247,7 +247,7 @@ private:
 
 
 	//
-	// Methods used when creating an EUF File
+	// Methods used when creating a UEF File
 	//
 
 	// Methods to write header and different types of chunks
@@ -276,7 +276,7 @@ private:
 
 
 	//
-	// Methods used when reading EUF File
+	// Methods used when reading UEF File
 	//
 
 	static bool decodeFloat(Byte encoded_val[4], double& decoded_val);
@@ -304,12 +304,12 @@ private:
 
 
 	//
-	// Data kept wile both reading and writiing an UEF file
+	// Data kept wile both reading and writiing a UEF file
 	// 
 
-	double mBaseFrequency = 1200; // Default for an UEF file
-	unsigned mBaudRate = 1200; // Default for an UEF file
-	unsigned mPhase = 180; // Default for an UEF file
+	double mBaseFrequency = 1200; // Default for a UEF file
+	unsigned mBaudRate = 1200; // Default for a UEF file
+	unsigned mPhase = 180; // Default for a UEF file
 
 	//
 	// Data kept while writing UEF file
@@ -339,7 +339,7 @@ private:
 	Bytes mUefData;
 	BytesIter mUefDataIter;
 
-	double mTime = 0.0; // Tape 'time' when reading or writing an UEF file
+	double mTime = 0.0; // Tape 'time' when reading or writing a UEF file
 
 	vector <UEFChkPoint> checkpoints;
 

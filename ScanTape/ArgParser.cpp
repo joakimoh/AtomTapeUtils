@@ -27,21 +27,21 @@ void ArgParser::printUsage(const char *name)
 	cout << "-bbm:\n\tScan for BBC Micro (default is Acorn Atom).\n\n";
 	cout << "-n <program>:\n\tOnly search for (and extract) <program>.\n\n";
 	cout << "-b <baud rate>\n\tBaud rate (default iss 300 without option -bbm selected and 1200 with option -bbm selected).\n\n";
-	cout << "-pot:\n\tPreserve original tape timing when generating UEF & CSW files - default is " << (tapeTiming.preserve?"enabled":"disabled") << ".\n\n";
+	cout << "-pot:\n\tPreserve original tape timing when generating UEF/CSW/WAV files - default is " << (tapeTiming.preserve?"preserved":"not preserved") << ".\n\n";
 	cout << "-g <dir>:\n\tDirectory to put generated files in\n\t- default is work directory.\n\n";
 	cout << "-uef <file>:\n\tGenerate one UEF tape file with all successfully decoded programs.\n\n";
 	cout << "-csw <file>:\n\tGenerate one CSW tape file with all successfully decoded programs.\n\n";
 	cout << "-wav <file>:\n\tGenerate one WAV tape file with all successfully decoded programs.\n\n";
 	cout << "-tap <file>:\n\tGenerate one TAP tape file with all successfully decoded programs.\n\n";
 	cout << "-ssd <file>:\n\tGenerate one disc image (SSD) file with all successfully decoded programs.\n";
-	cout << "\tThe required format for the files (.ssd or .dsd) will be selected by the utility itself.\n";
-	cout << "\tbased on the no of files (<= 31 => .ssd; >31 && <=62 => .dsd). The original extension (if any).\n";
+	cout << "\tThe required format for the files (.ssd or .dsd) will be selected by the utility itself\n";
+	cout << "\tbased on the no of files (<= 31 => .ssd; >31 && <=62 => .dsd). The original extension (if any)\n";
 	cout << "\tof the file will be ignored for that reason.\n\n";
 	cout << "-c:\n\tOnly output a catalogue of the files found on the tape.\n\n";
 
 	cout << "\nADVANCED OPTIONS:\n\n";
 	cout << "-lbno:\n\tLimit block no. If enabled, the high byte of each tape block no will be discarded.\n";
-	cout << "\tUseful for tape blocks with the high byte of the block no being incorrect\n\n";
+	cout << "\tUseful for tape blocks with the high byte of the block no being incorrect.\n\n";
 	cout << "-s <start time>:\n\tThe time to start detecting files from\n\t- default is 0.\n\n";
 	cout << "-f <freq tolerance>:\n\tTolerance of the 1200/2400 frequencies [0,1[\n\t- default is 0.25.\n\n";
 	cout << "-l <level tolerance>:\n\tSchmitt-trigger level tolerance [0,1[\n\t- default is 0.\n\n";

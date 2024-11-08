@@ -35,7 +35,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 
 	filesystem::path fin_path = argv[1];
 	if (!filesystem::exists(fin_path)) {
-		cout << "ABC file '" << argv[1] << "' cannot be opened!\n";
+		cout << "File '" << argv[1] << "' cannot be opened!\n";
 		return;
 	}
 	srcFileName = argv[1];

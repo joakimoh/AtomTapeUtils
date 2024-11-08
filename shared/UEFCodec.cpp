@@ -490,7 +490,7 @@ bool UEFCodec::encode(TapeFile& tapeFile, string& filePath)
         return false;
 
     if (mDebugInfo.verbose)
-        *mFout << "\nDone encoding program '" << tapeFileName << "' as an UEF file...\n\n";
+        *mFout << "\nDone encoding program '" << tapeFileName << "' as a UEF file...\n\n";
 
     return true;
 }
@@ -602,7 +602,7 @@ bool UEFCodec::validUefFile(string& uefFileName)
         return false;
     }
 
-    // Read first part of UEF File to check that it is indeed an UEF file
+    // Read first part of UEF File to check that it is indeed a UEF file
     UefHdr hdr;
     fin.read((char*)&hdr, sizeof(hdr));
     if (strcmp(hdr.uefTag, "UEF File!") != 0) {
@@ -632,7 +632,7 @@ bool UEFCodec::readUefFile(string& uefFileName)
         return false;
     }
 
-    // Read first part of UEF File to check that it is indeed an UEF file
+    // Read first part of UEF File to check that it is indeed a UEF file
     UefHdr hdr;
     fin.read((char*)&hdr, sizeof(hdr));
     if (strcmp(hdr.uefTag, "UEF File!") != 0) {

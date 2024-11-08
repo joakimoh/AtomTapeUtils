@@ -22,7 +22,7 @@ void ArgParser::printUsage(const char *name)
 	cout << "(from low to high or high to low). Tape segments that are silent (but slightly noisy) could potentially\n";
 	cout << "therefore be interpreted as transitions with phantom sinusoidal curves (of random frequency) being created.\n";
 	cout << "For some tape decoders this could be a problem but if it is a problem the sensitivity can be lowered using\n";
-	cout << "the option - d.\n";
+	cout << "the option -d.\n";
 	cout << "Toggling between the reshaping and scaling could also be done if the filtering doesn't yield the expected result.\n";
 	cout << "There are many other settings but the -d and -scale options are the ones that\n";
 	cout << "usually could need a bit of variation to get it 'right'.\n\n";

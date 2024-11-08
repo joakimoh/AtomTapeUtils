@@ -17,7 +17,7 @@ void ArgParser::printUsage(const char* name)
 	cout << "Provides a hex dump of a file's binary content.\n\n";
 	cout << "Usage:\t" << name << " <file> [-o <output file]\n";
 	cout << "<file>:\n\tfile to inspect\n\n";
-	cout << "If no output file is specified, the output file only go to stdout.\n\n";
+	cout << "If no output file is specified, the output is directed to stdout.\n\n";
 	cout << "\n";
 }
 

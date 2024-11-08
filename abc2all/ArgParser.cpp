@@ -15,9 +15,9 @@ bool ArgParser::failed()
 void ArgParser::printUsage(const char *name)
 {
 	cout << "Generate UEF, DAT, BIN and TAP files based on a program file.\n\n"; 
-	cout << "Usage:\t" << name << " <ABC file> [-g <output directory>] [-v] [-bbm]\n";
+	cout << "Usage:\t" << name << " <program source file> [-g <output directory>] [-v] [-bbm]\n";
 	cout << " \t -g <dir>\n\n";
-	cout << "<ABC file>:\n\tAcorn Atom BASIC program file to decode\n\n";
+	cout << "<program source file>:\n\tBASIC program file to decode\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
 	cout << "-g <dir>:\n\tDirectory to put generated files in\n\t- default is work directory.\n\n";
 	cout << "-bbm:\n\tTarget machine is BBC Micro (default is Acorn Atom)\n\n";
@@ -38,7 +38,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 
 	filesystem::path fin_path = argv[1];
 	if (!filesystem::exists(fin_path)) {
-		cout << "ABC file '" << argv[1] << "' cannot be opened!\n";
+		cout << "File '" << argv[1] << "' cannot be opened!\n";
 		return;
 	}
 	srcFileName = argv[1];

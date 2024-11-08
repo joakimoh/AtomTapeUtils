@@ -23,7 +23,7 @@ using namespace std::filesystem;
 
 /*
  *
- * Create WAV file from Acorn Atom BASIC (ABC) program
+ * Create WAV file from a BASIC program
  * *
  */
 int main(int argc, const char* argv[])

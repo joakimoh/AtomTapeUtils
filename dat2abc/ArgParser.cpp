@@ -16,7 +16,7 @@ void ArgParser::printUsage(const char* name)
 {
 	cout << "Generate a source code file from a data (DAT) file.\n\n"; 
 	cout << "Usage:\t" << name << " <DATA file> [-o <output file>] [-v] [-bbm]\n";
-	cout << "<DATA file>:\n\tatoMMC file to decode\n\n";
+	cout << "<DATA file>:\n\tDATA file to decode\n\n";
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.abc'.\n\n";
 	cout << "-v:\n\tVerbose output\n\n";

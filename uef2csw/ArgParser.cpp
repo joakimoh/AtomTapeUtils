@@ -14,7 +14,7 @@ bool ArgParser::failed()
 
 void ArgParser::printUsage(const char *name)
 {
-	cout << "Generates a CSW file from an UEF file.\n\n"; 
+	cout << "Generates a CSW file from a UEF file.\n\n"; 
 	cout << "Usage:\t" << name << " <UEF file> [-pot] [-f <sample freq>] [-v] [-bbm] [-o <output file]\n";
 	cout << "<UEF file>:\n\tUEF file to decode\n\n";
 	cout << "-pot:\n\tPreserve original tape timing when generating the CSW file - default is " << mPreserveOriginalTiming << "\n\n";

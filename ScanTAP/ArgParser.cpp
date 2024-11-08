@@ -28,7 +28,7 @@ void ArgParser::printUsage(const char* name)
 	cout << "-csw <file>:\n\tGenerate one CSW tape file with all successfully decoded programs.\n\n";
 	cout << "-wav <file>:\n\tGenerate one WAV tape file with all successfully decoded programs.\n\n";
 	cout << "-ssd <file>:\n\tGenerate one disc image (SSD) file with all successfully decoded programs.\n";
-	cout << "\tThe required format for the files (.ssd or .dsd) will be selected by the utility itself.\n";
+	cout << "\tThe required format for the files (.ssd or .dsd) will be selected by the utility itself\n";
 	cout << "\tbased on the no of files (<= 31 => .ssd; >31 && <=62 => .dsd). The original extension (if any)\n";
 	cout << "\tof the file will be ignored for that reason.\n\n";
 	cout << "-c:\n\tOnly output a catalogue of the files found on the tape.\n\n";

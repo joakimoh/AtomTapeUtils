@@ -41,7 +41,7 @@ int main(int argc, const char* argv[])
         cout << "Output directory = " << arg_parser.dstDir << "\n";
 
 
-    // Decode ABC file
+    // Decode BASIC source file
     TapeFile TAP_file(ACORN_ATOM);
     AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, arg_parser.targetMachine);
     if (!ABC_codec.tokenise(arg_parser.srcFileName, TAP_file)) {

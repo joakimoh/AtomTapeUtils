@@ -46,7 +46,7 @@ int main(int argc, const char* argv[])
     AtomBasicCodec ABC_codec = AtomBasicCodec(arg_parser.logging, ACORN_ATOM);
 
     if (!ABC_codec.detokenise(TAP_file, arg_parser.dstFileName)) {
-        printf("Failed to encode TAP file '%s' as ABC file '%s'\n",
+        printf("Failed to encode TAP file '%s' as BASIC program source file '%s'\n",
             arg_parser.srcFileName.c_str(), arg_parser.dstFileName.c_str()
         );
     }
