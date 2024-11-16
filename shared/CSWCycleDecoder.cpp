@@ -177,12 +177,19 @@ bool CSWCycleDecoder::detectWindow(Frequency f, int nSamples, int minThresholdCy
 }
 
 // Advance n samples and record the encountered no of 1/2 cycles
-int CSWCycleDecoder::countHalfCycles(int nSamples, int& nHalfCycles, int& minHalfCycleDuration, int& maxHalfCycleDuration)
+int CSWCycleDecoder::countHalfCycles(
+	int nSamples, int& nHalfCycles, int& minHalfCycleDuration, int& maxHalfCycleDuration, Frequency &dominatingFreq
+)
 {
 	int initial_sample_index = mPulseInfo.sampleIndex;
 	bool stop = false;
 	maxHalfCycleDuration = -1;
 	minHalfCycleDuration = 99999;
+	dominatingFreq = Frequency::UndefinedFrequency;
+	int f1_cnt = 0;
+	int f2_cnt = 0;
+
+	
 
 	nHalfCycles = 0;
 
@@ -199,6 +206,20 @@ int CSWCycleDecoder::countHalfCycles(int nSamples, int& nHalfCycles, int& minHal
 			maxHalfCycleDuration = mPulseInfo.pulseLength;
 		if (mPulseInfo.pulseLength < minHalfCycleDuration)
 			minHalfCycleDuration = mPulseInfo.pulseLength;
+
+		// Check for dominating frequency
+		if (lastHalfCycleFrequency() == Frequency::F1)
+			f1_cnt++;
+		else if (lastHalfCycleFrequency() == Frequency::F2)
+			f2_cnt++;
+		if (f1_cnt > f2_cnt)
+			dominatingFreq = Frequency::F1;
+		else if (f2_cnt > f1_cnt)
+			dominatingFreq = Frequency::F2;
+		else
+			dominatingFreq = Frequency::UndefinedFrequency;
+
+
 
 		// Check if n samples has elapsed
 		int next_p_len;

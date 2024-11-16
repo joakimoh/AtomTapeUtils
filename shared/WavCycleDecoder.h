@@ -26,7 +26,10 @@ public:
 	);
 
 	// Advance n samples and record the encountered no of 1/2 cycles
-	int countHalfCycles(int nSamples, int& half_cycles, int& minHalfCycleDuration, int& maxHalfCycleDuration);
+	int countHalfCycles(
+		int nSamples, int& nHalfCycles, int& minHalfCycleDuration, int& maxHalfCycleDuration,
+		Frequency& dominatingFreq
+	);
 
 	// Find a window with [minthresholdCycles, maxThresholdCycles] 1/2 cycles and starting with an
 	// 1/2 cycle of frequency type f.

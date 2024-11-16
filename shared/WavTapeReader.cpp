@@ -327,7 +327,7 @@ bool WavTapeReader::getStartBit(bool restartAllowed)
 		// For start bit for which a first F1 1/2 cycle has NOT already been sampled
 		// If the previous cycle was an F1 1/2 cycle, then it was part of a last LOW data bit of the
 		// previous byte. In that case, advance until at least one F2 1/2 cycle is detected (that would
-		// then by a 1/2 cycle belonging to the stop bit of the previous byte).
+		// then be a 1/2 cycle belonging to the stop bit of the previous byte).
 		while (mCycleDecoder.lastHalfCycleFrequency() != Frequency::F2) {
 			if (!mCycleDecoder.advanceHalfCycle())
 				return false; // End of samples
@@ -387,7 +387,8 @@ bool WavTapeReader::getDataBit(Bit& bit)
 
 	// Advance time corresponding to one bit and count the no of transitions (1/2 cycles)
 	int min_half_cycle_duration, max_half_cycle_duration;
-	if (!mCycleDecoder.countHalfCycles(n_bit_samples, n_half_cycles, min_half_cycle_duration, max_half_cycle_duration)) {
+	Frequency dominating_freq;
+	if (!mCycleDecoder.countHalfCycles(n_bit_samples, n_half_cycles, min_half_cycle_duration, max_half_cycle_duration, dominating_freq)) {
 		if (mDebugInfo.tracing)
 			DEBUG_PRINT(getTime(), ERR, "Unexpected end of samples when reading data bit%s\n", "");
 		return false; // unexpected end of samples
@@ -396,7 +397,8 @@ bool WavTapeReader::getDataBit(Bit& bit)
 	// Decide whether the databit was a '0' or a '1' value based on the no of detected 1/2 cycles and the max 1/2 cycle duration
 	if (
 		n_half_cycles <= mBitTiming.dataBitHalfCycleBitThreshold && 
-		mCycleDecoder.strictValidHalfCycleRange(F1, max_half_cycle_duration)
+		mCycleDecoder.strictValidHalfCycleRange(F1, max_half_cycle_duration) &&
+		(dominating_freq == Frequency::F1 || dominating_freq == Frequency::UndefinedFrequency)
 		)
 		bit = LowBit;
 	else {
@@ -404,7 +406,9 @@ bool WavTapeReader::getDataBit(Bit& bit)
 	}
 
 	if (mDebugInfo.verbose)
-		DEBUG_PRINT(getTime(), DBG, "%d 1/2 cycles (of max duration %d) detected for data bit and therefore classified as a '%d'\n", n_half_cycles, max_half_cycle_duration, bit);
+		DEBUG_PRINT(getTime(), DBG,
+			"%d 1/2 cycles (of max duration %d, dominating frequency %s and for a F1/F2 threshold of %d) detected for data bit and therefore classified as a '%d'\n",
+			n_half_cycles, max_half_cycle_duration, _FREQUENCY(dominating_freq), mBitTiming.dataBitHalfCycleBitThreshold, bit);
 
 	return true;
 

@@ -40,21 +40,20 @@ using namespace std::filesystem;
 
 int main(int argc, const char* argv[])
 {
-    //const char* args[] = { "", "C:\\Users\\Joakim\\Documents\\BBC Micro\\Sources\\CONVOY.csw", "-g", "C:\\Users\\Joakim\\Documents\\BBC Micro\\Sources\\generated", "-bbm" };
-    //ArgParser arg_parser = ArgParser(4, args);
     ArgParser arg_parser = ArgParser(argc, argv);
 
     if (arg_parser.failed())
         return -1;
 
-
+    // Initialise pointers properly
     CycleDecoder* cycle_decoder_p = NULL;
     LevelDecoder* level_decoder_p = NULL;
     Samples *samples_p = NULL;
+    ostream* tfout_p = NULL;
+    TapeReader* tape_reader = NULL;
+
     Bytes pulses;
     int sample_freq = 44100; // from CSW/WAV file but usually 44100 Hz;
-
-    TapeReader* tape_reader = NULL;
 
     // Is it a UEF file?
     UEFCodec UEF_codec(arg_parser.logging, arg_parser.targetMachine);
@@ -171,7 +170,6 @@ int main(int argc, const char* argv[])
     TAPCodec TAP_encoder(arg_parser.logging, arg_parser.targetMachine);
 
     bool genTapeFile = false;
-    ostream* tfout_p = NULL;
     if (arg_parser.genUEF || arg_parser.genCSW || arg_parser.genWAV || arg_parser.genTAP) {
         genTapeFile = true;
         // Create the output file

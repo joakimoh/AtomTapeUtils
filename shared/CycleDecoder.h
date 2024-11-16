@@ -94,7 +94,10 @@ public:
 	int getPhaseShift() { return mHalfCycle.phaseShift;  }
 
 	// Advance n samples and record the encountered no of 1/2 cycles
-	virtual int countHalfCycles(int nSamples, int& half_cycles, int &min_half_cycle_duration, int& maxHalfCycleDuration) = 0;
+	virtual int countHalfCycles(
+		int nSamples, int& nHalfCycles, int& minHalfCycleDuration, int& maxHalfCycleDuration,
+		Frequency& dominatingFreq
+	) = 0;
 
 	// Find a window with [minthresholdCycles, maxThresholdCycles] 1/2 cycles and starting with an
 	// 1/2 cycle of frequency type f.

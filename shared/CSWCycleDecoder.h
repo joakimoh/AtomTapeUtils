@@ -50,7 +50,10 @@ public:
 	bool detectWindow(Frequency f, int nSamples, int minThresholdCycles, int maxThresholdCycles, int& halfCycles);
 
 	// Advance n samples and record the encountered no of 1/2 cycles
-	int countHalfCycles(int nSamples, int& nHalfCycles, int& minHalfCycleDuration, int & maxHalfCycleDuration);
+	int countHalfCycles(
+		int nSamples, int& nHalfCycles, int& minHalfCycleDuration, int & maxHalfCycleDuration,
+		Frequency& dominatingFreq
+	);
 
 	// Consume as many 1/2 cycles of frequency f as possible
 	int consumeHalfCycles(Frequency f, int &nHalfCycles);

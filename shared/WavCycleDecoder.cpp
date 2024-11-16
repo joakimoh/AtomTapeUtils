@@ -107,24 +107,45 @@ bool WavCycleDecoder::detectWindow(Frequency f, int nSamples, int minThresholdCy
 
 
 // Advance n samples and record the encountered no of 1/2 cycles
-int WavCycleDecoder::countHalfCycles(int nSamples, int& nHalfCycles, int& minHalfCycleDuration, int& maxHalfCycleDuration)
+int WavCycleDecoder::countHalfCycles(
+	int nSamples, int& nHalfCycles, int& minHalfCycleDuration, int& maxHalfCycleDuration,
+	Frequency& dominatingFreq
+)
 {
 
 	nHalfCycles = 0;
 	maxHalfCycleDuration = -1;
 	minHalfCycleDuration = 99999;
+	dominatingFreq = Frequency::UndefinedFrequency;
+	int f1_cnt = 0;
+	int f2_cnt = 0;
 
 	for (int n = 0; n < nSamples && !mLevelDecoder.endOfSamples(); n++) {
 		bool transition;
 		if (!getNextSample(transition)) // can fail for too long level duration or end of of samples
-			return false;
+			return false;	
+
 		// Check for a new 1/2 cycle
 		if (transition) {
+
+			// Check for min & max
 			if (mHalfCycle.duration > maxHalfCycleDuration)
 				maxHalfCycleDuration = mHalfCycle.duration;
 			if (mHalfCycle.duration < minHalfCycleDuration)
 				minHalfCycleDuration = mHalfCycle.duration;
 			nHalfCycles++;
+
+			// Check for dominating frequency
+			if (lastHalfCycleFrequency() == Frequency::F1)
+				f1_cnt++;
+			else if (lastHalfCycleFrequency() == Frequency::F2)
+				f2_cnt++;
+			if (f1_cnt > f2_cnt)
+				dominatingFreq = Frequency::F1;
+			else if (f2_cnt > f1_cnt)
+				dominatingFreq = Frequency::F2;
+			else
+				dominatingFreq = Frequency::UndefinedFrequency;
 		}
 	}
 
