@@ -119,11 +119,18 @@ int WavCycleDecoder::countHalfCycles(
 	dominatingFreq = Frequency::UndefinedFrequency;
 	int f1_cnt = 0;
 	int f2_cnt = 0;
+	bool first_transition = true;
 
 	for (int n = 0; n < nSamples && !mLevelDecoder.endOfSamples(); n++) {
 		bool transition;
 		if (!getNextSample(transition)) // can fail for too long level duration or end of of samples
 			return false;	
+
+		// Only count 1/2 cycles that are contained within the samples window
+		if (first_transition) {
+			transition = false;
+			first_transition = false;
+		}
 
 		// Check for a new 1/2 cycle
 		if (transition) {
