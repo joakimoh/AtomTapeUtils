@@ -808,35 +808,52 @@ bool CSWCodec::writeGap(double duration)
     if (n_samples == 0)
         return true;
 
-    // Insert one very short high pulse if not already an high pulse
-    if (mPulseLevel == Level::LowLevel)
-        mPulses.push_back(1);
-
-    // Insert the long low pulse
-    if (n_samples <= 255)
-        // Gap can be represented by a single pulse
-        mPulses.push_back(n_samples);
-    else {
-        // Gap needs to be represented by an extended pulse
-        // A zero-length pulse followed by a 4-bytes duration
-        mPulses.push_back(0);
-        mPulses.push_back(n_samples % 256);
-        mPulses.push_back((n_samples >> 8) % 256);
-        mPulses.push_back((n_samples >> 16) % 256);
-        mPulses.push_back((n_samples >> 24) % 256);
+    // Insert one very short high pulse if not already a high pulse
+    if (mPulseLevel == Level::LowLevel) {
+        if (!writePulse(1))
+            return false;
     }
 
-    mPulseLevel = Level::LowLevel;
+    // Insert the long low pulse
+    if (!writePulse(n_samples))
+        return false;
+
+    return true;
+}
+
+bool CSWCodec::writePulse(unsigned len)
+{
+    if (len == 0) {
+        cout << "Attempt to write a zero-length pulse!\n";
+        return false;
+    }
+
+    // Change polarity of the pulse w.r.t previous pulse
+    if (mPulseLevel == Level::LowLevel)
+        mPulseLevel = Level::HighLevel;
+    else
+        mPulseLevel = Level::LowLevel;
+
+    if (len <= 255)
+        // Pulse can be represented by a single byte
+        mPulses.push_back(len);
+    else {
+        // Pulse needs to be represented by 4 bytes
+        mPulses.push_back(0);
+        mPulses.push_back(len % 256);
+        mPulses.push_back((len >> 8) % 256);
+        mPulses.push_back((len >> 16) % 256);
+        mPulses.push_back((len >> 24) % 256);
+    }
+
+    
 
     return true;
 }
 
 bool CSWCodec::writeHalfCycle(unsigned nSamples)
 {
-
-    mPulses.push_back(nSamples);
-
-    return true;
+    return writePulse(nSamples);
 }
 
 bool CSWCodec::writeCycle(bool highFreq, unsigned n)
@@ -858,7 +875,8 @@ bool CSWCodec::writeCycle(bool highFreq, unsigned n)
 
         //  first half cycle
         int n_samples = (int) round(sample_no)  - (int) round(prev_sample_no);
-        mPulses.push_back(n_samples);
+        if (!writePulse(n_samples))
+            return false;
  
         // Advance sample index to next 1/2 cycle
         prev_sample_no = sample_no;
@@ -866,7 +884,8 @@ bool CSWCodec::writeCycle(bool highFreq, unsigned n)
  
         // Write second half cycle
         n_samples = (int)round(sample_no) - (int)round(prev_sample_no);
-        mPulses.push_back(n_samples);
+        if (!writePulse(n_samples))
+            return false;
      
         // Advance sample index to next cycle
         prev_sample_no = sample_no;

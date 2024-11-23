@@ -162,6 +162,8 @@ private:
 	bool writeStopBit(DataEncoding encoding);
 
 	bool writeCycle(bool high, unsigned n);
+
+	bool writePulse(unsigned len);
 	
 
 

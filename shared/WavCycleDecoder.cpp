@@ -119,40 +119,45 @@ int WavCycleDecoder::countHalfCycles(
 	dominatingFreq = Frequency::UndefinedFrequency;
 	int f1_cnt = 0;
 	int f2_cnt = 0;
-	bool first_transition = true;
+	bool first_half_cycle = true;
+	const int min_first_half_cycle_samples = this->mCT.mMinNSamplesF2HalfCycle / 2;
 
 	for (int n = 0; n < nSamples && !mLevelDecoder.endOfSamples(); n++) {
+
 		bool transition;
 		if (!getNextSample(transition)) // can fail for too long level duration or end of of samples
-			return false;	
-
-		// Only count 1/2 cycles that are contained within the samples window
-		if (first_transition) {
-			transition = false;
-			first_transition = false;
-		}
+			return false;
 
 		// Check for a new 1/2 cycle
 		if (transition) {
 
-			// Check for min & max
-			if (mHalfCycle.duration > maxHalfCycleDuration)
-				maxHalfCycleDuration = mHalfCycle.duration;
-			if (mHalfCycle.duration < minHalfCycleDuration)
-				minHalfCycleDuration = mHalfCycle.duration;
+			// Only evaluate 1/2 cycles that stretches at least min_first_half_cycle_samples into the sample window
+			if (!first_half_cycle || (first_half_cycle && n > min_first_half_cycle_samples)) {
+
+				// Check for min & max
+				if (mHalfCycle.duration > maxHalfCycleDuration)
+					maxHalfCycleDuration = mHalfCycle.duration;
+				if (mHalfCycle.duration < minHalfCycleDuration)
+					minHalfCycleDuration = mHalfCycle.duration;
+
+				// Check for dominating frequency
+				if (lastHalfCycleFrequency() == Frequency::F1)
+					f1_cnt++;
+				else if (lastHalfCycleFrequency() == Frequency::F2)
+					f2_cnt++;
+				if (f1_cnt > f2_cnt)
+					dominatingFreq = Frequency::F1;
+				else if (f2_cnt > f1_cnt)
+					dominatingFreq = Frequency::F2;
+				else
+					dominatingFreq = Frequency::UndefinedFrequency;
+			}
+
+			first_half_cycle = false;
+
+			// Count no of transitions
 			nHalfCycles++;
 
-			// Check for dominating frequency
-			if (lastHalfCycleFrequency() == Frequency::F1)
-				f1_cnt++;
-			else if (lastHalfCycleFrequency() == Frequency::F2)
-				f2_cnt++;
-			if (f1_cnt > f2_cnt)
-				dominatingFreq = Frequency::F1;
-			else if (f2_cnt > f1_cnt)
-				dominatingFreq = Frequency::F2;
-			else
-				dominatingFreq = Frequency::UndefinedFrequency;
 		}
 	}
 
@@ -243,7 +248,7 @@ bool WavCycleDecoder::getNextSample(bool& transition)
 	}
 
 	// Update 1/2 cycle info for a transition
-	if (level != level_p) {
+	if (level != level_p && sample_no > 0) {
 		updateHalfCycleFreq(mHalfCycle.nSamples, level_p);
 		mHalfCycle.nSamples = 1; // Also count the sample that just was read above
 		transition = true;
