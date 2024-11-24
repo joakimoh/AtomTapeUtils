@@ -197,9 +197,9 @@ bool WavTapeReader::waitForCarrierWithDummyByte(
 					rollback(); // rollback to before first F1 1/2 cycle
 					end_of_carrier_detected = true;
 					if (mDebugInfo.verbose && carrier_half_cycle_count < min_half_carrier_cycles) {
-						cout << "Unexpected start of block header with byte 0x" << hex << (int)byte << " (before min carrier time has elapsed) at " << Utility::encodeTime(getTime()) << "\n";
+						cout << "Unexpected start of block (header/data) with byte 0x" << hex << (int)byte << " (before min carrier time has elapsed) at " << Utility::encodeTime(getTime()) << "\n";
 					} else if (mDebugInfo.verbose)
-						cout << "Start of block header with byte 0x" << hex << (int) byte << " at " << Utility::encodeTime(getTime()) << "\n";
+						cout << "Start of block (header/data) with byte 0x" << hex << (int) byte << " at " << Utility::encodeTime(getTime()) << "\n";
 					// Make sure any preceeding F1 1/2 cycle is ignored for start bit detection later on
 					// if the preamble detection happened to 'lock' on the second F1 1/2 cycle...
 					mCycleDecoder.setLastHalfCycleFrequency(Frequency::F2);  

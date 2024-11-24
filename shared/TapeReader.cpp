@@ -9,7 +9,7 @@ bool TapeReader::readBytes(Bytes& data, int n, int& read_bytes)
 		Byte b;
 		if (!readByte(b)) {
 			if (mDebugInfo.tracing)
-				cout << "Failed to read byte #"  << read_bytes << " out of " << n << " bytes\n";
+				cout << "Failed to read byte #" << read_bytes << " out of " << n << " bytes at " << Utility::encodeTime(getTime()) << "\n";
 			return false;
 		}
 		data.push_back(b);

@@ -626,7 +626,13 @@ bool Filter::scaledSegment(
     double ed = e2 - e1; // distance between extremes (peak-to-peak)
     for (int s = 0; s < nSamples; s++) {
         double v = (double) inSamples[sampleIndex];
-        Sample y = (Sample) round((v - e1) / ed * amplitude_change + initial_amplitude);
+        double ys = round((v - e1) / ed * amplitude_change + initial_amplitude);
+        // Limit scaled value to be within [-min amplitude, +max amplitude]
+        if (ys > max_amplitude)
+            ys = max_amplitude;
+        else if (ys < -max_amplitude)
+            ys = -max_amplitude;
+        Sample y = (Sample) ys;
         outShapes[sampleIndex++] = y;
     }
 
