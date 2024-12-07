@@ -80,7 +80,7 @@ bool DiscCodec::read(string discPath, Disc& disc)
     // Read disc image into one or two byte vectors (one per disc side)
     // The disc image should really be complete but as sometimes
     // it is not (sectors without data are not written to the disc image)
-    // we need to tolerate this and stop even if the exected no of tracks
+    // we need to tolerate this and stop even if the expected no of tracks
     // have not been read. Will also allow #tracks to be different
     // (like 40 instead of 80).
     Bytes side_image_bytes[2];
@@ -89,9 +89,13 @@ bool DiscCodec::read(string discPath, Disc& disc)
     int track = 0;
     if (n_sides == 2) {
         for (track = 0; !eof && track < no_of_tracks*2; track++) {
-            if (!mFin_p->read((char*) &track_bytes[0], track_size)) {
-                
+            if (!mFin_p->read((char*) &track_bytes[0], track_size)) {              
                 eof = true;
+                streamsize n_read_bytes = mFin_p->gcount();
+                if (track % 2 == 0)
+                    side_image_bytes[0].insert(side_image_bytes[0].end(), track_bytes, track_bytes + n_read_bytes);
+                else
+                    side_image_bytes[1].insert(side_image_bytes[1].end(), track_bytes, track_bytes + n_read_bytes);
             }
             else {
                 if (track % 2 == 0)
@@ -104,6 +108,8 @@ bool DiscCodec::read(string discPath, Disc& disc)
         for (track = 0; !eof && track < no_of_tracks; track++) {
             if (!mFin_p->read((char*)&track_bytes[0], track_size)) {
                 eof = true;
+                streamsize n_read_bytes = mFin_p->gcount();
+                side_image_bytes[0].insert(side_image_bytes[0].end(), track_bytes, track_bytes + n_read_bytes);
             }
             else {
                 side_image_bytes[0].insert(side_image_bytes[0].end(), track_bytes, track_bytes + track_size);
