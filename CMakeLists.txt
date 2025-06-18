@@ -30,6 +30,11 @@ include_directories(
 )
 
 add_executable ( 
+	mmbutil  "mmbutil/mmbutil.cpp"
+	"mmbutil/ArgParser.h"  "mmbutil/ArgParser.cpp")
+target_link_libraries(mmbutil PUBLIC shared )
+
+add_executable ( 
 	abc2bin  "abc2bin/abc2bin.cpp"
 	"abc2bin/ArgParser.h"  "abc2bin/ArgParser.cpp"
 )
@@ -176,7 +181,12 @@ add_executable(
 )
 target_link_libraries(FilterTape PUBLIC shared)
 
-
+# Installation of mmbutil
+install(TARGETS mmbutil DESTINATION bin)
+install(
+	FILES "mmbutil/ArgParser.h"
+    DESTINATION include/mmbutil
+)
 
 # Installation of abc2bin
 install(TARGETS ScanTape DESTINATION bin)
