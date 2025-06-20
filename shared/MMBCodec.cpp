@@ -97,8 +97,10 @@ bool MMBCodec::encode(string &discDir, string &MMBFile)
 	}
 
 	if (mLogging.verbose) {
-		cout << dec << n_SSD_files << " SSD files found. They will be put into " << n_MMB_chunks << 
-			(n_MMB_chunks == 1 ? " MMB chunk.\n":" MMB chunks.\n");
+		if (n_MMB_chunks > 1)
+			cout << dec << n_SSD_files << " SSD files found. They will be put into an extdned MMB file with " << n_MMB_chunks << " chunks.\n";
+		else
+			cout << dec << n_SSD_files << " SSD files found. They will be put into one standard MMB file\n";
 	}
 
 	// Write MMB chunks
@@ -212,7 +214,10 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 		boot_image[i] = header[i] | (header[i + 4] << 8);
 
 	if (mLogging.verbose) {
-		cout << "MMB is an extended MMB with " << (int)MMB_chunks << " MMB chunks...\n";
+		if (MMB_chunks > 1)
+			cout << "MMB is an extended MMB with " << (int)MMB_chunks << " MMB chunks...\n";
+		else
+			cout << "MMB is a standard MMB\n";
 		cout << "Boot time images are: ";
 		for (int i = 0; i < 4; i++)
 			cout << hex << "0x" << setw(4) << setfill('0') << boot_image[i] << " ";
@@ -239,8 +244,12 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 			if (title != "") {
 				titles.push_back(title);
 				access.push_back(_TITLE_ACCESS(title_suffix[3]));
-				if (mLogging.verbose)
-					cout << "MMB #" << dec << chunk << ", disk #" << i << " title '" << title << "' with status " << _TITLE_ACCESS(title_suffix[3]) << "\n";
+				if (mLogging.verbose) {
+					if (MMB_chunks > 1)
+						cout << "MMB #" << dec << chunk << ", disk #" << i << " title '" << title << "' with status " << _TITLE_ACCESS(title_suffix[3]) << "\n";
+					else
+						cout << "Disk #" << i << " title '" << title << "' with status " << _TITLE_ACCESS(title_suffix[3]) << "\n";
+				}
 			}
 		}
 
@@ -279,7 +288,10 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 			}
 
 			else {
-				cout << setw(12) << title << " "  << acc << "\n";
+				if (MMB_chunks > 1)
+					cout << setw(2) << dec << chunk << " " << setw(3) << i << " " << setw(12) << title << " " << acc << "\n";
+				else
+					cout << dec << setw(3) << i << " " << setw(12) << title << " " << acc << "\n";
 			}
 
 		}
