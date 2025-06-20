@@ -35,7 +35,7 @@ int main(int argc, const char* argv[])
     MMBCodec MMB_codec = MMBCodec(arg_parser.logging);
 
     if (arg_parser.decode)
-        MMB_codec.decode(arg_parser.fileName, arg_parser.dirName);
+        MMB_codec.decode(arg_parser.fileName, arg_parser.dirName, arg_parser.cat);
     else
         MMB_codec.encode(arg_parser.dirName, arg_parser.fileName);
 

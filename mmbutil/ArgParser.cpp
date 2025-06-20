@@ -16,13 +16,14 @@ bool ArgParser::failed()
 void ArgParser::printUsage(const char* name)
 {
 	cout << "Encodes and decodes MMB files.\n\n";
-	cout << "Usage:\t" << name << " [-decode] <MMB src file> [-g <dst dir>] [-v]\n";
+	cout << "Usage:\t" << name << " [-decode] <MMB src file> [-c] [-g <dst dir>] [-v]\n";
 	cout << "\t" << name << " -encode <src_dir> -o <MMB output file>\n";
 	cout << "<MMB src file>:\n\MMB file to decode\n\n";
 	cout << "<MMB dst file>:\n\MMB file to encode (i.e., generate)\n\n";
 	cout << "If no directory is specified, it will default to the\n";
 	cout << "current working directory'.\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
+	cout << "-c:\n\t(decoding only) only output a catalogue\n\n";
 	cout << "\n";
 }
 
@@ -59,6 +60,10 @@ ArgParser::ArgParser(int argc, const char* argv[])
 			dirName = argv[ac + 1];
 			files_provided++;
 			ac++;
+		}
+		else if (decode && files_provided == 1 && strcmp(argv[ac], "-c") == 0) {
+			cat = true;
+			files_provided++;
 		}
 		else if (!decode && files_provided == 1 && strcmp(argv[ac], "-o") == 0 && ac + 1 < argc) {
 			fileName = argv[ac + 1];

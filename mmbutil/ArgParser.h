@@ -20,6 +20,8 @@ public:
 
 	bool decode = true;
 
+	bool cat = false;
+
 private:
 
 	void printUsage(const char*);
