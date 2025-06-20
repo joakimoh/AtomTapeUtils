@@ -121,7 +121,7 @@ bool MMBCodec::encode(string &discDir, string &MMBFile)
 			signature[i] = boot_image_adr[i] & 0xf;
 			signature[i + 4] = boot_image_adr[i] >> 8;
 		}
-		signature[8] = 0xa0 | (n_MMB_chunks-m);
+		signature[8] = 0xa0 | (n_MMB_chunks-m-1);
 		for (int i = 0; i < 16; i++)
 			fout.write((char*)&signature[i], 1);
 
