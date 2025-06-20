@@ -39,7 +39,7 @@ namespace fs = std::filesystem;
 //
 bool MMBCodec::encode(string &discDir, string &MMBFile)
 {
-	vector<string> SSD_files;
+	vector<vector<string>> MMB_files;
 
 	// This structure would distinguish a file from a
 	// directory
@@ -56,49 +56,114 @@ bool MMBCodec::encode(string &discDir, string &MMBFile)
 		cout << "can't write to file " << fout_name << "\n";
 		return false;
 	}
-	cout << "Creating MMB file '" << fout_name << "'\n";
 
-	// Write MMB signature (with status byte 0x0f <=> R/W and boot time images 0, 1, 2 & 3)
-	fout.write("\x00\x01\x02\x03\x00\x00\x00\x0f\x00\x00\x00\x00\x00\x00\x00\x00", 16);
+	if (mLogging.verbose)
+		cout << "Creating MMB file '" << fout_name << "'\n";
 
-	// Write disc titles
-	int n_titles = 0;
+	// Count the no of SSD files
+	int n_MMB_chunks = 0;
+	int n_SSD_files = 0;
+	vector<string> SSD_files;
 	for (const auto& entry : fs::directory_iterator(discDir)) {
 
 		fs::path file_path = entry.path();
 		if (fs::is_regular_file(fs::status(file_path.c_str())) && file_path.extension() == ".ssd") {
-			if (n_titles < 511) {
+
+			if (n_SSD_files < 511 * 16) {
+
 				SSD_files.push_back(file_path.string());
+
+				if (n_SSD_files % 511 == 0)
+					n_MMB_chunks++;
+				n_SSD_files++;
+
+				if (n_SSD_files % 511 == 0) {
+					MMB_files.push_back(SSD_files);
+					SSD_files.clear();
+				}
+			}
+		}
+	}
+	if (n_SSD_files > 0 && n_SSD_files % 511 != 0)
+		MMB_files.push_back(SSD_files);
+
+	if (n_MMB_chunks == 0) {
+		cout << "No SSD files found => quitting...\n";
+	}
+	else if (n_MMB_chunks > 15) {
+		cout << "Too many SSD files (" << dec << n_SSD_files << ") found. Only " << 16 * 511 <<
+			" files can fit in the max no of MMB chunks (15) => will not be able to include all SSD files!\n";
+		n_MMB_chunks = 15;
+	}
+
+	if (mLogging.verbose) {
+		cout << dec << n_SSD_files << " SSD files found. They will be put into " << n_MMB_chunks << 
+			(n_MMB_chunks == 1 ? " MMB chunk.\n":" MMB chunks.\n");
+	}
+
+	// Write MMB chunks
+	int n_titles = 0;
+	const char *empty_title = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+	for (int m = 0; m < MMB_files.size(); m++) {
+
+		// Write MMB chunk header
+
+		// Write MMB signature (with status byte 0x0f <=> R/W and boot time images 0, 1, 2 & 3)
+		vector<uint8_t> signature(16, 0x0);
+		uint16_t boot_image_adr[4];
+		boot_image_adr[0] = 0x0;
+		boot_image_adr[1] = 0x1;
+		boot_image_adr[2] = 0x2;
+		boot_image_adr[3] = 0x3;
+		for (int i = 0; i < 4; i++) {
+			signature[i] = boot_image_adr[i] & 0xf;
+			signature[i + 4] = boot_image_adr[i] >> 8;
+		}
+		signature[8] = 0xa0 | n_MMB_chunks;
+		for (int i = 0; i < 16; i++)
+			fout.write((char*)&signature[i], 1);
+
+		// Write disc titles 
+		vector<string>& SSD_files = MMB_files[m];
+
+		for (int t = 0; t < 511; t++) {
+
+			if (t < SSD_files.size()) {
+
+				fs::path file_path = SSD_files[t];
 
 				// Create disc title right-padded with zeroes
 				string disc_title = file_path.stem().string();
+
+				if (mLogging.verbose)
+					cout << "Adding title '" << disc_title << "'\n";
+
 				if (disc_title.size() > 12)
 					disc_title = disc_title.substr(0, 12);
 				else if (disc_title.size() < 12)
 					disc_title.insert(disc_title.size(), 12 - disc_title.size(), '\0');
-
-				cout << "Adding title '" << disc_title << "' (" << disc_title.size() << ")\n";
 				disc_title = disc_title + "\x00\x00\x00\x0f"s;
-				fout.write(disc_title.c_str(), 16);
-			}
-			else {
-				cout << "too many SSD files (max 511 is allowed) => skipping SSD file '" << file_path.filename() << "'\n";
-			}
-		};
-		n_titles++;
-	}
-	// Fill non-used disc title space wth zeros
-	for (int t = 0; t < (511 - SSD_files.size()) * 16; t++)
-		fout.put(0x0);
 
-	// Add SSD file content
-	for (int f = 0; f < SSD_files.size(); f++) {
-		ifstream fin(SSD_files[f], ios::in | ios::binary | ios::ate);
-		fin.seekg(0);
-		char c;
-		while (fin.read(&c, 1))
-			fout.put(c);
-		fin.close();
+				fout.write(disc_title.c_str(), 16);
+
+
+
+			} else
+
+				fout.write(empty_title, 16);
+		}
+
+		// Write disc images
+		for (int t = 0; t < 511; t++) {
+			ifstream fin(SSD_files[t], ios::in | ios::binary | ios::ate);
+			fin.seekg(0);
+			char c;
+			while (fin.read(&c, 1))
+				fout.put(c);
+			fin.close();
+		}
+
+
 	}
 
 	fout.close();
@@ -214,7 +279,7 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 			}
 
 			else {
-				cout << title << " " << acc << "\n";
+				cout << setw(12) << title << " "  << acc << "\n";
 			}
 
 		}
