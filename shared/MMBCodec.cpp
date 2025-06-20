@@ -121,7 +121,7 @@ bool MMBCodec::encode(string &discDir, string &MMBFile)
 			signature[i] = boot_image_adr[i] & 0xf;
 			signature[i + 4] = boot_image_adr[i] >> 8;
 		}
-		signature[8] = 0xa0 | n_MMB_chunks;
+		signature[8] = 0xa0 | (n_MMB_chunks-m);
 		for (int i = 0; i < 16; i++)
 			fout.write((char*)&signature[i], 1);
 
@@ -206,7 +206,7 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 	uint8_t MMB_ext = header[8];
 	uint8_t MMB_chunks = 1;
 	if ((MMB_ext & 0xa0) == 0xa0) {
-		MMB_chunks = MMB_ext & 0xf;
+		MMB_chunks = (MMB_ext & 0xf) + 1;
 	}
 
 	uint16_t boot_image[4];
