@@ -229,7 +229,7 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 
 		if (chunk > 0) {
 
-			// Read header
+			// Read header (not for the first chunk as that one was already read earlier)
 			char header[16];
 			if (!MMB_file.read(&header[0], 16)) {
 				cout << "Header missing for the " << dec << chunk << " chunk!\n";
@@ -258,9 +258,11 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 			if (title == "")
 				title += "NULL_" + to_string(null_title_index++);
 
+			// Store title and access status (locked, unformatted, invalid or ???)
 			int p_sz = titles.size();
 			titles.push_back(title);
 			access.push_back(_TITLE_ACCESS(title_suffix[3]));
+
 			if (mLogging.verbose) {
 				if (MMB_chunks > 1)
 					cout << "MMB #" << dec << chunk << ", disk #" << i << " title '" << title << "' with status " << _TITLE_ACCESS(title_suffix[3]) << "\n";
