@@ -98,7 +98,7 @@ bool MMBCodec::encode(string &discDir, string &MMBFile)
 
 	if (mLogging.verbose) {
 		if (n_MMB_chunks > 1)
-			cout << dec << n_SSD_files << " SSD files found. They will be put into an extdned MMB file with " << n_MMB_chunks << " chunks.\n";
+			cout << dec << n_SSD_files << " SSD files found. They will be put into an extended MMB file with " << n_MMB_chunks << " chunks.\n";
 		else
 			cout << dec << n_SSD_files << " SSD files found. They will be put into one standard MMB file\n";
 	}
@@ -224,7 +224,19 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 		cout << "\n";
 	}
 
+	int null_title_index = 0;
 	for (int chunk = 0; chunk < MMB_chunks; chunk++) {
+
+		if (chunk > 0) {
+
+			// Read header
+			char header[16];
+			if (!MMB_file.read(&header[0], 16)) {
+				cout << "Header missing for the " << dec << chunk << " chunk!\n";
+				MMB_file.close();
+				return false;
+			}
+		}
 
 		// Read disc titles
 		vector<string> titles;
@@ -241,16 +253,21 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 				title = title.substr(0, title.size() - 1);
 			string title_suffix;
 			for (int j = 12; j < 16; title_suffix += title_a[j++]);
-			if (title != "") {
-				titles.push_back(title);
-				access.push_back(_TITLE_ACCESS(title_suffix[3]));
-				if (mLogging.verbose) {
-					if (MMB_chunks > 1)
-						cout << "MMB #" << dec << chunk << ", disk #" << i << " title '" << title << "' with status " << _TITLE_ACCESS(title_suffix[3]) << "\n";
-					else
-						cout << "Disk #" << i << " title '" << title << "' with status " << _TITLE_ACCESS(title_suffix[3]) << "\n";
-				}
+
+			// If the title is empty, then generate a unique title NULL_<no>
+			if (title == "")
+				title += "NULL_" + to_string(null_title_index++);
+
+			int p_sz = titles.size();
+			titles.push_back(title);
+			access.push_back(_TITLE_ACCESS(title_suffix[3]));
+			if (mLogging.verbose) {
+				if (MMB_chunks > 1)
+					cout << "MMB #" << dec << chunk << ", disk #" << i << " title '" << title << "' with status " << _TITLE_ACCESS(title_suffix[3]) << "\n";
+				else
+					cout << "Disk #" << i << " title '" << title << "' with status " << _TITLE_ACCESS(title_suffix[3]) << "\n";
 			}
+
 		}
 
 		// Read SSD disc images (if not only a catalogue shall be output)
@@ -288,12 +305,25 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 			}
 
 			else {
+
+				for (int b = 0; b < 200 * 1024; b++) {
+					char c;
+					if (!MMB_file.read(&c, 1)) {
+						cout << "Premature ending of MMB file '" << MMBFileName << "''s disc titles\n";
+						MMB_file.close();
+						return false;
+					}
+				}
 				if (MMB_chunks > 1)
-					cout << setw(2) << dec << chunk << " " << setw(3) << i << " " << setw(12) << title << " " << acc << "\n";
+					cout << setw(2) << dec << chunk << " " << setw(3) << i << " " << setw(12) << setfill(' ') << title << " " << acc << "\n";
 				else
 					cout << dec << setw(3) << i << " " << setw(12) << title << " " << acc << "\n";
 			}
 
+		}
+
+		if (mLogging.verbose) {
+			cout << "MMB file pos after read disc is: 0x" << hex << MMB_file.tellg() << "\n";
 		}
 
 	}

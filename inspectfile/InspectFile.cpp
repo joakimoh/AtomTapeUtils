@@ -56,10 +56,10 @@ int main(int argc, const char* argv[])
 
     int count = 0;
     int pos = 0;
-    while (data_iter < data.end() && count < 1024) {
+    while (data_iter < data.end()) {
         vector<uint8_t>::iterator line_iter = data_iter;
         char s[32];
-        sprintf(s, "%4.4x ", pos);
+        sprintf(s, "%8.8x ", pos);
         *fout_p << s;
         int i;
         for (i = 0; i < 16 && line_iter < data.end(); i++) {
