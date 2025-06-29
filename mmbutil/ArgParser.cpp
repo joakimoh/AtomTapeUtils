@@ -18,8 +18,8 @@ void ArgParser::printUsage(const char* name)
 	cout << "Encodes and decodes MMB files.\n\n";
 	cout << "Usage:\t" << name << " [-decode] <MMB src file> [-c] [-g <dst dir>] [-v]\n";
 	cout << "\t" << name << " -encode <src_dir> -o <MMB output file>\n";
-	cout << "<MMB src file>:\n\MMB file to decode\n\n";
-	cout << "<MMB dst file>:\n\MMB file to encode (i.e., generate)\n\n";
+	cout << "<MMB src file>:\n\tMMB file to decode\n\n";
+	cout << "<MMB dst file>:\n\tMMB file to encode (i.e., generate)\n\n";
 	cout << "If no directory is specified, it will default to the\n";
 	cout << "current working directory'.\n\n";
 	cout << "-v:\n\tVerbose output\n\n";

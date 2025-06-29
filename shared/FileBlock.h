@@ -192,8 +192,6 @@ public:
 	//
 	bool setBlockTypes();
 
-	static string crValidHostFileName(string fileName);
-
 	string crValidDiscFilename(string programName);
 	static string crValidDiscFilename(TargetMachine targetMachine, string programName);
 

@@ -531,36 +531,6 @@ bool FileBlock::encodeTAPHdr(
     return true;
 }
 
-/*
-* Create a valid DOS/Linux/MacOs filename from the disc or tape program name.
-*
-* Characters that are not allowed in a DOS/Linux/MacOs filename are:
-* /<>:"\|?* and ASCII 0-31
-*
-* '_' is used as an escape sequence (_hh where hh is the ASCII in hex)
-* and will therefore not either be allowed in the filename chosen.
-*
-* Filenames cannot either end in SPACE or DOT.
-*/
-string TapeFile::crValidHostFileName(string programName)
-{
-    string invalid_chars = "\"/<>:|?*";
-    string s = "";
-    for (auto& c : programName) {
-        if (c != '_' && invalid_chars.find(c) == string::npos && c >= ' ')
-            s += c;
-        else if (c == '_')
-            s += "__";
-        else {
-            s += "_";
-            s += Utility::digitToHex((int)c / 16);
-            s += Utility::digitToHex((int)c % 16);
-        }
-    }
-
-    return s;
-}
-
 string TapeFile::crValidDiscFilename(string programName)
 {
     return crValidDiscFilename(header.targetMachine, programName);

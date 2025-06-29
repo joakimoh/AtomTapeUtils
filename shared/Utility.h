@@ -49,6 +49,9 @@ public:
 
     static char digitToHex(int d);
 
+    // Create a valid DOS/Linux/MacOs filename from a disc or tape program name.
+    static string crValidHostFileName(string programName);
+
 
 };
 

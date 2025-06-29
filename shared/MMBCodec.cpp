@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include "Utility.h"
 
 
 namespace fs = std::filesystem;
@@ -60,7 +61,7 @@ bool MMBCodec::encode(string &discDir, string &MMBFile)
 	if (mLogging.verbose)
 		cout << "Creating MMB file '" << fout_name << "'\n";
 
-	// Count the no of SSD files
+	// Count the no of valid SSD files
 	int n_MMB_chunks = 0;
 	int n_SSD_files = 0;
 	vector<string> SSD_files;
@@ -127,6 +128,7 @@ bool MMBCodec::encode(string &discDir, string &MMBFile)
 
 		// Write disc titles 
 		vector<string>& SSD_files = MMB_files[m];
+		vector<string> disc_titles;
 
 		for (int t = 0; t < 511; t++) {
 
@@ -137,18 +139,17 @@ bool MMBCodec::encode(string &discDir, string &MMBFile)
 				// Create disc title right-padded with zeroes
 				string disc_title = file_path.stem().string();
 
-				if (mLogging.verbose)
-					cout << "Adding title '" << disc_title << "'\n";
-
+				// Pull-padded title
 				if (disc_title.size() > 12)
 					disc_title = disc_title.substr(0, 12);
 				else if (disc_title.size() < 12)
 					disc_title.insert(disc_title.size(), 12 - disc_title.size(), '\0');
+				disc_titles.push_back(disc_title);
+
+				// Title suffix
 				disc_title = disc_title + "\x00\x00\x00\x0f"s;
 
 				fout.write(disc_title.c_str(), 16);
-
-
 
 			} else
 
@@ -156,9 +157,20 @@ bool MMBCodec::encode(string &discDir, string &MMBFile)
 		}
 
 		// Write disc images
-		for (int t = 0; t < 511; t++) {
+		for (int t = 0; t < SSD_files.size(); t++) {
+
 			ifstream fin(SSD_files[t], ios::in | ios::binary | ios::ate);
+
+			if (!fin) {
+				cout << "Failed to open SSD file '" << SSD_files[t] << "' - qutting\n";
+				fout.close();
+				return false;
+			}
+
 			fin.seekg(0);
+
+			if (mLogging.verbose)
+				cout << "Adding chunk #" << m << ", disc #" << t << " '" << disc_titles[t] << "' content from file '" << SSD_files[t] << "'\n";
 			char c;
 			while (fin.read(&c, 1))
 				fout.put(c);
@@ -225,6 +237,7 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 	}
 
 	int null_title_index = 0;
+	map<string, string> titles_m;
 	for (int chunk = 0; chunk < MMB_chunks; chunk++) {
 
 		if (chunk > 0) {
@@ -255,11 +268,30 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 			for (int j = 12; j < 16; title_suffix += title_a[j++]);
 
 			// If the title is empty, then generate a unique title NULL_<no>
-			if (title == "")
+			if (title == "") {
 				title += "NULL_" + to_string(null_title_index++);
+				cout << "Warning - a 'null' disc title encountered. A unique disc title '" << title << "' is created to make further processing possible...\n";
+			}
 
 			// Store title and access status (locked, unformatted, invalid or ???)
-			int p_sz = titles.size();
+			int n = 0;
+			string t = title;
+			while (titles_m.find(title) != titles_m.end() && n < 1000) {
+				n++; // ensure first title will have index 1 (as there is already an identical title without an index)
+				string n_s = to_string(n);
+				int num_pos = 12 - n_s.size();
+				if (t.size() < 12)
+					num_pos = t.size() + 1 - n_s.size();
+				title = t.substr(0, num_pos) + n_s;
+			}
+			if (n >= 1000) {
+				cout << "Failed to create a unique disc title from title '" << t << "'!\n";
+				return false;
+			}
+			if (n > 0) {
+				cout << "Warning - a non-unique disc title '" << t << "' encountered. A unique title '" << title << "' will replace it to make further processing possible...\n";
+			}
+			titles_m[title] = title;
 			titles.push_back(title);
 			access.push_back(_TITLE_ACCESS(title_suffix[3]));
 
@@ -267,7 +299,7 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 				if (MMB_chunks > 1)
 					cout << "MMB #" << dec << chunk << ", disk #" << i << " title '" << title << "' with status " << _TITLE_ACCESS(title_suffix[3]) << "\n";
 				else
-					cout << "Disk #" << i << " title '" << title << "' with status " << _TITLE_ACCESS(title_suffix[3]) << "\n";
+					cout << "Disk #" << dec << i << " title '" << title << "' with status " << _TITLE_ACCESS(title_suffix[3]) << "\n";
 			}
 
 		}
@@ -282,7 +314,7 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 
 				// Create SSD file
 				fs::path dir_path = discDir;
-				fs::path file_path = dir_path / (title + ".ssd");
+				fs::path file_path = dir_path / (Utility::crValidHostFileName(title) + ".ssd");
 				string fout_name = file_path.string();
 				ofstream fout(fout_name, ios::out | ios::binary | ios::ate);
 				if (!fout) {
@@ -291,14 +323,15 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 				}
 
 				if (mLogging.verbose) {
-					cout << "Creating SSD file '" << fout_name << " for disc title '" << title << "' (" << title.size() << ")\n";
+					cout << "Creating SSD file #" << dec << i << " '" << fout_name << " for disc title '" << title << "' (" << title.size() << ")\n";
 				}
 
 				// Fill the SSD file with content from the MMB file
 				for (int b = 0; b < 200 * 1024; b++) {
 					char c;
 					if (!MMB_file.read(&c, 1) || !fout.write(&c, 1)) {
-						cout << "Failed to copy bytes from MMB file '" << MMBFileName << "' to SSD file '" << fout_name << "'!\n";
+						cout << "Premature ending of MMB file " << MMBFileName << "'s discs at chunk #" << dec << chunk << " and disc # " << i <<
+							" will quit and the last SDD disc file '" << fout_name << "' will be empty...\n";
 						MMB_file.close();
 						fout.close();
 						return false;
@@ -311,7 +344,7 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 				for (int b = 0; b < 200 * 1024; b++) {
 					char c;
 					if (!MMB_file.read(&c, 1)) {
-						cout << "Premature ending of MMB file '" << MMBFileName << "''s disc titles\n";
+						cout << "Premature ending of MMB file " << MMBFileName << "'s discs at chunk #" << dec << chunk << " and disc # " << i << "...\n";
 						MMB_file.close();
 						return false;
 					}

@@ -98,7 +98,7 @@ int main(int argc, const char* argv[])
 
             if ((arg_parser.searchedProgram == "" || tape_file.header.name == arg_parser.searchedProgram)) {
 
-                string host_file_name = TapeFile::crValidHostFileName(tape_file.header.name);
+                string host_file_name = Utility::crValidHostFileName(tape_file.header.name);
 
                 if (tape_file.header.size > 0 && !genTapeFile && !arg_parser.cat) {
 
