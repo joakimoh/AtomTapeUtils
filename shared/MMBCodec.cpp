@@ -316,7 +316,7 @@ bool MMBCodec::decode(string& MMBFileName, string& discDir, bool catOnly)
 				fs::path dir_path = discDir;
 				fs::path file_path = dir_path / (Utility::crValidHostFileName(title) + ".ssd");
 				string fout_name = file_path.string();
-				ofstream fout(fout_name, ios::out | ios::binary | ios::ate);
+				ofstream fout(fout_name, ios::out | ios::binary);
 				if (!fout) {
 					cout << "can't write to file " << fout_name << "\n";
 					return false;

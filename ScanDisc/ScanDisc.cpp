@@ -115,7 +115,7 @@ int main(int argc, const char* argv[])
             DiscFile& file = disc.side[side].files[file_no];
             BinCodec BIN_Codec(arg_parser.logging);
             TapeFile tape_file(arg_parser.targetMachine);
-            FileHeader file_header(file.name, file.loadAdr, file.execAdr, file.size, arg_parser.targetMachine, file.locked);
+            FileHeader file_header(file.dir + "." + file.name, file.loadAdr, file.execAdr, file.size, arg_parser.targetMachine, file.locked);
             if (!BIN_Codec.decode(file_header, file.data, tape_file)) {
                 cout << "Failed to decode disc file '" << file.name << "'\n";
                 //return false;
