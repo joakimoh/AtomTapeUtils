@@ -85,6 +85,12 @@ int main(int argc, const char* argv[])
         cout << "can't create Binary file " << BIN_file_name << "\n";
     }
 
+    // Create INF file
+    if (!BinCodec::generateInfFile(arg_parser.dstDir, TAP_file)) {
+        cout << "Failed to write the INF file!\n";
+        //return -1;
+    }
+
     return 0;
 }
 

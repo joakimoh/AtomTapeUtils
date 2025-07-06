@@ -209,15 +209,15 @@ bool TAPCodec::decodeSingleFile(ifstream &fin, streamsize file_size, TapeFile &t
             return false;
         for (int i = 0; i < 16 && program_name_bytes[i] != 0x0; program_name = program_name + (char)program_name_bytes[i++]);
 
-        // Execution address
-        if (!Utility::readBytes(fin, exec_adr_bytes, 2))
-            return false;
-        exec_adr = exec_adr_bytes[1] * 256 + exec_adr_bytes[0];
-
         // Load address
         if (!Utility::readBytes(fin, load_adr_bytes, 2))
             return false;
         file_load_adr = load_adr_bytes[1] * 256 + load_adr_bytes[0];
+
+        // Execution address
+        if (!Utility::readBytes(fin, exec_adr_bytes, 2))
+            return false;
+        exec_adr = exec_adr_bytes[1] * 256 + exec_adr_bytes[0];
 
         // File size
         if (!Utility::readBytes(fin, file_sz_bytes, 2))

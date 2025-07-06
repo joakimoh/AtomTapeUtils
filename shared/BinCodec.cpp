@@ -2,6 +2,7 @@
 #include "Utility.h"
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 
 //
 // Create BIN Codec.
@@ -169,4 +170,29 @@ bool BinCodec::decode(FileHeader fileMetaData, Bytes &data, TapeFile& tapeFile)
 
 
 	return true;
+}
+
+bool BinCodec::generateInfFile(string dir, TapeFile& tapeFile)
+{
+    if (tapeFile.blocks.size() == 0)
+        return false;
+
+    // Create INF file
+    string INF_file_name = Utility::crEncodedFileNamefromDir(dir, tapeFile, "inf");
+    ofstream INF_file(INF_file_name, ios::out);
+
+    if (!INF_file)
+        return false;
+
+    uint32_t load_adr = tapeFile.blocks[0].loadAdr;
+    uint32_t exec_adr = tapeFile.blocks[0].execAdr;
+    if ((load_adr & 0x20000) != 0)
+        load_adr |= 0xff0000;
+    if ((exec_adr & 0x20000) != 0)
+        exec_adr |= 0xff0000;
+    INF_file << setw(9) << left << tapeFile.blocks[0].name << right << hex << " " <<
+        setw(6) << setfill('0') << load_adr << " " << setw(6) << setfill('0') << exec_adr;
+    INF_file.close();
+
+    return true;
 }

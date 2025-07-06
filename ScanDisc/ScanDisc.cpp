@@ -175,10 +175,16 @@ int main(int argc, const char* argv[])
             }
 
             // Create BIN file
-            string BIN_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, tape_file, "bin");
+            string BIN_file_name = Utility::crEncodedFileNamefromDir(arg_parser.dstDir, tape_file, "");
             BinCodec BIN_codec(arg_parser.logging);
             if (!BIN_codec.encode(tape_file, BIN_file_name)) {
                 cout << "can't create Binary file " << BIN_file_name << "\n";
+                //return -1;
+            }
+
+            // Create INF file
+            if (!BinCodec::generateInfFile(arg_parser.dstDir, tape_file)) {
+                cout << "Failed to write the INF file!\n";
                 //return -1;
             }
 

@@ -40,7 +40,7 @@ ArgParser::ArgParser(int argc, const char* argv[])
 		return;
 	}
 	srcFileName = argv[1];
-	dstFileName = Utility::crDefaultOutFileName(srcFileName, "bin");
+	dstFileName = Utility::crDefaultOutFileName(srcFileName, "");
 
 	int ac = 2;
 	// First search for option '-bbm' to select target machine and the

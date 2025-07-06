@@ -30,6 +30,8 @@ public:
 	//
 	bool decode(FileHeader fileMetaData, Bytes &data, TapeFile& tapFile);
 
+	static bool generateInfFile(string dir, TapeFile& tapeFile);
+
 
 private:
 

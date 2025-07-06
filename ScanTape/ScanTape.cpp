@@ -226,7 +226,7 @@ int main(int argc, const char* argv[])
     else if (!arg_parser.cat && arg_parser.searchedProgram != "")
         cout << "Found tape file '" << arg_parser.searchedProgram << "'; output file(s) will be generated!\n";
 
-    // Should files be extracted only not generating disc image
+    // Should files be extracted only (i.e., no generation of a disc image)
     if (selected_file_found && !arg_parser.genSSD) {
 
         // Generate the different types of files (DATA, ABC/BBC, TAP, UEF, BIN) for the each file
@@ -268,10 +268,16 @@ int main(int argc, const char* argv[])
                 }
 
                 // Create BIN file
-                string BIN_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "bin");
+                string BIN_file_name = Utility::crEncodedFileNamefromDir(arg_parser.genDir, tape_file, "");
                 BinCodec BIN_codec(arg_parser.logging);
                 if (!BIN_codec.encode(tape_file, BIN_file_name)) {
                     cout << "can't create Binary file " << BIN_file_name << "\n";
+                    //return -1;
+                }
+
+                // Create INF file
+                if (!BinCodec::generateInfFile(arg_parser.genDir, tape_file)) {
+                    cout << "Failed to write the INF file!\n";
                     //return -1;
                 }
 
