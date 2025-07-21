@@ -148,7 +148,8 @@ bool BinCodec::decode(FileHeader fileMetaData, Bytes &data, TapeFile& tapeFile)
             tapeFile.blocks.push_back(block);
             new_block = true;
 
-            load_adr += count;
+            if (fileMetaData.targetMachine == ACORN_ATOM)
+                load_adr += count;
             block_no++;
          }
 
