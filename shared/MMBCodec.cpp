@@ -29,7 +29,7 @@ namespace fs = std::filesystem;
 // 
 // where AAaa BBbb CCcc DDdd are boot time images
 // 
-// The 'extended' format is simply a sequence of MMB chunks with a slighlty different MMB signature
+// The 'extended' format is simply a sequence of MMB chunks with a slightly different MMB signature
 // 
 //		<extended MMB> ::== <basic MMB> ... <basic MMB>
 //		<basic MMB> ::= <extended header> <disc image> ... <disk image>
