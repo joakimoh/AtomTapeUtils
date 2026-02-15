@@ -12,10 +12,12 @@ project ("AtomTapeUtils" VERSION 2.2)
 # Make sure a dynamic library (for ZLIB) is chosen first if available
 set(CMAKE_FIND_STATIC LAST)
 
+#option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
+
 # Locate zlib
 # If this fails (likely only to fail for Windows), then uncomment the line below
-# and set the path to where you installed ZLIB, e.g., "C:\\Program Files\\zlib"
-#set(ZLIB_ROOT "path to where you installed ZLIB")
+# and set the path to where you installed ZLIB, e.g., "C:/Program Files/zlib"
+#set(ZLIB_ROOT "C:/Program Files/zlib")
 find_package(ZLIB REQUIRED)
 
 # Create sub directory for gzstream library

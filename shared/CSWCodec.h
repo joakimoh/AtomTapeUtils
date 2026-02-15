@@ -5,7 +5,6 @@
 
 #include <vector>
 #include <string>
-#include <gzstream.h>
 #include "TAPCodec.h"
 #include "../shared/TapeProperties.h"
 #include "../shared/WaveSampleTypes.h"
