@@ -19,7 +19,7 @@ set(CMAKE_FIND_STATIC LAST)
 # and set the path to where you installed ZLIB, e.g., "C:/Program Files/zlib"
 # Also update the Windows path variable to point to where the DLL is located
 # (e.g., C:/Program Files/zlib/bin).
-set(ZLIB_ROOT "C:/Program Files/zlib")
+#set(ZLIB_ROOT "C:/Program Files/zlib")
 find_package(ZLIB REQUIRED)
 
 # Create sub directory for gzstream library
