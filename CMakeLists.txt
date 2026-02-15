@@ -13,6 +13,9 @@ project ("AtomTapeUtils" VERSION 2.2)
 set(CMAKE_FIND_STATIC LAST)
 
 # Locate zlib
+# If this fails (likely only to fail for Windows), then uncomment the line below
+# and set the path to where you installed ZLIB, e.g., "C:\\Program Files\\zlib"
+#set(ZLIB_ROOT "path to where you installed ZLIB")
 find_package(ZLIB REQUIRED)
 
 # Create sub directory for gzstream library

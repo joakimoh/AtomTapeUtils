@@ -1,8 +1,10 @@
 # AtomTapeUtils
-This is a set of utilities mainly targeting decoding and encoding of Acorn Atom & BBC Micro BASIC programs. Some utilities (like filtering of tape files) could be useful also for other applications.
+This is a set of utilities mainly targeting decoding and encoding of Acorn Atom & BBC Micro BASIC programs stored on tape or disc. Some utilities (like filtering of tape files) could be useful also for other applications.
 
 ## Prerequisites
 You need to have cmake and zlib installed on your computer before trying to install AtomTapeUtils.
+For Windows, especially if you use Visual Studio to build the project, cmake might fail to locate where you have installed zlib. If this is the case, then you can
+try to uncomment row 18 in CMakeLists.txt (in the project root) and update it to point to where you installed zlib.
 
 ## Description of the utilities
 All utilites are run from command line (DOS or Linux). There are many utilities and the easiest way to explain them is to decsribe a few typical usages. 
@@ -63,7 +65,8 @@ Optionally, you could do all this (except for the WAV & CSW files generation) wi
 - uef2dat: Convert UEF file into a hex dump file
 - wav2csw: Convert WAV file into a CSW file - this has no machine context and can be used independently of the target machine
 - inspectfile: hex dump of a file content
-- inspectEUF: Display information of chunks in the UEF file + hex dump of content from all data chunks - this has no machine context and can be used independently of the target machine
+- inspectUEF: Display information of chunks in the UEF file + hex dump of content from all data chunks - this has no machine context and can be used independently of the target machine
+
 
 \* Although the conversion from UEF to CSW/WAV is in theory machine-independent, the use of simple data chunks can cause a problem as a default data byte encoding is assumed (8N1). If you suspect there are such chunks, a target machine (-atm for Acorn Atom and -bbm for BBC Micro) could be still be specified to tell what format shall be used for such chunks.
 ### Utility program flags
@@ -143,4 +146,7 @@ The utility ScanDisc can scan an Acorn DFS disc image file for programs and work
 The ScanTape utility enables you do to do the opposite as mentioned above. The flag -bbm needs to be used if the disc image containts BBC Micro programs. Otherwise it is assumed that it contains Acorn Atom programs.
 Such generated disc images have been tested to work with Atomulator and BeebEm but other emulators might work as well (if the support the SSD/DSD format).
 
+# MMBUtil
+
+The utility MMBUtil is able to decode and encode MMB files (stores multiple BBC Micro SSD/DSD disk images into a single, containerized file). When you decode an MMB file, the resulting SSD/DSD files will be put in one directory. In a similar way, when you want to create a single MMB file you should put all the SSD/DSD files you want to include in a single directory before enoding them.
 
