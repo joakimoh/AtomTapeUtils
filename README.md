@@ -148,5 +148,5 @@ Such generated disc images have been tested to work with Atomulator and BeebEm b
 
 # MMBUtil
 
-The utility MMBUtil is able to decode and encode MMB files (stores multiple BBC Micro SSD/DSD disk images into a single, containerized file). When you decode an MMB file, the resulting SSD/DSD files will be put in one directory. In a similar way, when you want to create a single MMB file you should put all the SSD/DSD files you want to include in a single directory before enoding them.
+The utility MMBUtil is able to decode and encode MMB files (stores multiple BBC Micro SSD/DSD disk images into a single, containerized file). When you decode an MMB file, the resulting SSD/DSD files will be put in one directory. In a similar way, when you want to create a single MMB file you should put all the SSD/DSD files you want to include in a single directory before encoding them.
 
