@@ -17,7 +17,9 @@ set(CMAKE_FIND_STATIC LAST)
 # Locate zlib
 # If this fails (likely only to fail for Windows), then uncomment the line below
 # and set the path to where you installed ZLIB, e.g., "C:/Program Files/zlib"
-#set(ZLIB_ROOT "C:/Program Files/zlib")
+# Also update the Windows path variable to point to where the DLL is located
+# (e.g., C:/Program Files/zlib/bin).
+set(ZLIB_ROOT "C:/Program Files/zlib")
 find_package(ZLIB REQUIRED)
 
 # Create sub directory for gzstream library
@@ -193,11 +195,11 @@ install(
     DESTINATION include/mmbutil
 )
 
-# Installation of abc2bin
+# Installation of ScanTape
 install(TARGETS ScanTape DESTINATION bin)
 install(
-	FILES "abc2bin/ArgParser.h"
-    DESTINATION include/abc2bin
+	FILES "ScanTape/ArgParser.h"
+    DESTINATION include/ScanTape	
 )
 
 # Installation of abc2dat

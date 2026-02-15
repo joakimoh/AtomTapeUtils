@@ -4,7 +4,8 @@ This is a set of utilities mainly targeting decoding and encoding of Acorn Atom 
 ## Prerequisites
 You need to have cmake and zlib installed on your computer before trying to install AtomTapeUtils.
 For Windows, especially if you use Visual Studio to build the project, cmake might fail to locate where you have installed zlib. If this is the case, then you can
-try to uncomment row 18 in CMakeLists.txt (in the project root) and update it to point to where you installed zlib.
+try to uncomment row 18 in CMakeLists.txt (in the project root) and update it to point to where you installed zlib (e.g., C:/Program Files/zlib). Also update the Windows path variable to point to where the DLL is located
+(e.g., C:/Program Files/zlib/bin).
 
 ## Description of the utilities
 All utilites are run from command line (DOS or Linux). There are many utilities and the easiest way to explain them is to decsribe a few typical usages. 
