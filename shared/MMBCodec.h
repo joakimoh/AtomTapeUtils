@@ -16,7 +16,7 @@ class MMBCodec
 
 public:
 
-	MMBCodec::MMBCodec(Logging logging) : mLogging(logging) {};
+	MMBCodec(Logging logging) : mLogging(logging) {};
 
 	// Encode single-density Acorn DFS 200K SSD disc images as an MMB file
 	bool encode(string& discDir, string& MMBFileName);
