@@ -22,7 +22,7 @@ void ArgParser::printUsage(const char* name)
 	cout << "If no output file is specified, the output file name will default to the\n";
 	cout << "input file name (excluding extension) suffixed with '.wav'.\n";
 	cout << "\n";
-	cout << "-p:\n\tGenerate pulses (default is to generate sinus waves\n\n";
+	cout << "-p:\n\tGenerate pulses (default is to generate sinus waves)\n\n";
 	cout << "-v:\n\tVerbose output\n\n";
 	cout << "\n";
 }
