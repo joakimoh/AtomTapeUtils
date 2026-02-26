@@ -630,7 +630,7 @@ bool AtomBasicCodec::tokeniseLine(int lineNo, string &line, string& tCode)
     string space, token;
     TokenEntry entry;
     int pos = 0;
-    bool start_of_statement = true;
+    bool start_of_potential_sys_var_decl = true;
     bool within_string = false;
     bool fun_or_proc = false;
     string code = line;
@@ -641,17 +641,34 @@ bool AtomBasicCodec::tokeniseLine(int lineNo, string &line, string& tCode)
     string last_token;
 
     bool pending_goto = false;
+    bool pending_DEF = false;
+	bool pending_PROC = false;
 
     tCode = "";
+    /*
+    cout << dec << setfill('0') << setw(5) << lineNo << " ";
+    for(int i=0; i< line.length(); i++)
+		cout << hex << setfill('0') << setw(2) << (int)line[i] << " ";
+    cout << "\n\t";
+    for (int i = 0; i < code.length(); i++)
+        cout << (char)line[i] << " ";
+    cout << "\n\t"; 
+    */
     while (code.length() > 0) {
 
         bool skip_further_processing = false;
 
         // Get next token
-        if (!getKeyWord(fun_or_proc, start_of_statement, within_string, code, space, token, entry)) {
+        if (!getKeyWord(fun_or_proc, start_of_potential_sys_var_decl, within_string, code, space, token, entry)) {
             return false;
         }
         bool keyword_detected = entry.fullT != "" && !no_tokenisation;
+        /*
+        if (keyword_detected)
+            cout << "[" << entry.fullT << ":" << hex << setw(2) << setfill('0') << (int)entry.id1 << "]";
+        else
+            cout << token;
+            */
 
         // Check for any pending conditional tokenisation of a keyword (from the last round)
         if (pending_conditional_tokenisation) {
@@ -676,7 +693,7 @@ bool AtomBasicCodec::tokeniseLine(int lineNo, string &line, string& tCode)
         // If the token was a keyword, then determine it's id
         uint8_t keyword_id = 0x0;
         if (keyword_detected) {
-            if ((entry.tokeniseInfo & ADD_40_FOR_START_OF_STATEMENT) && start_of_statement) {
+            if ((entry.tokeniseInfo & ADD_40_FOR_START_OF_STATEMENT) && start_of_potential_sys_var_decl) {
                 keyword_id = entry.id1 + 0x40; // start of a statement <=> potential left side of assigment => add 0x40 to id
                 //cout << "ASSIGMENT at line " << lineNo << " of '" << last_token << "'" <<
                 //    " => add 0x40 to keyword id => 0x" << hex << keyword_id << " (instead of 0x " << entry.id1 << dec << ")\n";
@@ -724,17 +741,39 @@ bool AtomBasicCodec::tokeniseLine(int lineNo, string &line, string& tCode)
                     // cout << "Stop tokenisation - type of keyword '" << entry.fullT << "' at line " << lineNo << "\n";
                 }
             }
+			// Check for start of statement where a declaration of a system variable (<system var> = <expr>) could be expected.
+            // After THEN and ELSE a new statement will always start and it could potentially be a declaration.
+            if (entry.fullT == "THEN" || entry.fullT == "ELSE") // THEN, ELSE <=>  start of statement
+                start_of_potential_sys_var_decl = true;
+            else
+				start_of_potential_sys_var_decl = false;
+
+            if (pending_DEF && entry.fullT == "PROC")
+                pending_PROC = true;
+
+            if (entry.fullT == "DEF")
+                pending_DEF = true;
+            else
+				pending_DEF = false;
+
+
+
         }
         
         // Process a non-keyword token (including non-tokenisable keyword)
         if (!skip_further_processing && !keyword_detected) {
 
             // As there are keywords with different ids for assignment and use in expression,
-            // we need to know if it's an assignment (start of statement) or not.
-            if (token == ":")                  
-                start_of_statement = true;
+            // we need to know if it's an assignment (start of statement) or not based on a
+			// non-keyword token.
+			// ":" <=> start of statement so is also DEF PROC<PROC id>
+            if (token == ":" || pending_PROC)
+                start_of_potential_sys_var_decl = true;
             else
-                start_of_statement = false;
+                start_of_potential_sys_var_decl = false;
+
+            if (pending_PROC)
+				pending_PROC = false;
 
             // Stop tokenisation if we're in the middle of a string
             if (token == "\"")
@@ -757,6 +796,15 @@ bool AtomBasicCodec::tokeniseLine(int lineNo, string &line, string& tCode)
         pending_conditional_tokenisation = false;
        tCode += last_space + (char)last_keyword_id;
     }
+    /*
+    cout << "\n\t";
+    for (int i = 0; i < tCode.length(); i++)
+        cout << hex << setfill('0') << setw(2) << (int)(tCode[i] & 0xff) << " ";
+    cout << "\n\t";
+    for (int i = 0; i < tCode.length(); i++)
+        cout << (tCode[i] < 0x7f && tCode[i] >= 0x20 ? (char)tCode[i] : '.') << " ";
+    cout << "\n\n";
+    */
 
     return true;
 }
@@ -850,7 +898,7 @@ bool AtomBasicCodec::getKeyWord(bool &fun_or_proc, bool startOfStatement, bool w
     // Get start of keyword that consists of pure upper-case letters
     int first_matched_pos = -1;
     TokenEntry first_matched_keyword = empty;
-    while (pos < text.length() && text[pos] >= 'A' && text[pos] <= 'Z') {
+    while (pos < text.length() && (first_matched_pos != -1 || text[pos] >= 'A' && text[pos] <= 'Z')) {
         token = text.substr(0, pos+1);
         if (pos > 0 && mTokenDictStr.find(token) != mTokenDictStr.end()) {
             // Some full keywords could be a sub string of another one:
@@ -861,11 +909,12 @@ bool AtomBasicCodec::getKeyWord(bool &fun_or_proc, bool startOfStatement, bool w
             // the shorter one.
             if (first_matched_pos == -1) {
                 first_matched_pos = pos;
-                first_matched_keyword = mTokenDictStr[token];
+                first_matched_keyword = mTokenDictStr[token];               
             }
             else {
                 text = text.substr(pos+1);
                 entry = mTokenDictStr[token];
+                //cout << "\n*** " << entry.fullT << " *** \n";
                 return true;
             }
         }
